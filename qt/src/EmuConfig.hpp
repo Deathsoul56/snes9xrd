@@ -29,6 +29,7 @@ struct EmuConfig
     std::string last_rom_folder;
     int main_window_width = 0;
     int main_window_height = 0;
+    bool main_window_maximized = false;
     int cheat_dialog_width = 0;
     int cheat_dialog_height = 0;
     int shader_parameters_dialog_width = 0;
@@ -62,6 +63,7 @@ struct EmuConfig
     int aspect_ratio_numerator;
     int aspect_ratio_denominator;
     bool show_overscan;
+    bool transparency;
     enum HighResolutionEffect
     {
         eLeaveAlone = 0,
@@ -70,7 +72,26 @@ struct EmuConfig
     };
     int high_resolution_effect;
 
-    std::string software_filter;
+    enum SoftwareFilterType
+    {
+        eFilterNone = 0,
+        eFilterScanlines,
+        eFilterSimple2x,
+        eFilterSimple3x,
+        eFilterSimple4x,
+        eFilterSuperEagle,
+        eFilterTwoXSaI,
+        eFilterSuper2xSaI,
+        eFilterEPX,
+        eFilterHQ2x,
+        eFilterHQ3x,
+        eFilterHQ4x,
+        eFilterTwoXBRZ,
+        eFilterThreeXBRZ,
+        eFilterFourXBRZ,
+        eFilterNTSC
+    };
+    int software_filter;
 
     enum DisplayMessages
     {
@@ -93,6 +114,8 @@ struct EmuConfig
     double dynamic_rate_limit;
     bool mute_audio;
     bool mute_audio_during_alternate_speed;
+    int volume_regular;
+    int volume_turbo;
 
     // Emulation
 
@@ -106,6 +129,7 @@ struct EmuConfig
     int speed_sync_method;
     double fixed_frame_rate;
     int fast_forward_skip_frames;
+    int fixed_frame_skip;
 
     int rewind_buffer_size;
     int rewind_frame_interval;
@@ -147,11 +171,13 @@ struct EmuConfig
     int cheat_location;
     int patch_location;
     int export_location;
+    int bios_location;
     std::string sram_folder;
     std::string state_folder;
     std::string cheat_folder;
     std::string patch_folder;
     std::string export_folder;
+    std::string bios_folder;
 
     int sram_save_interval;
 

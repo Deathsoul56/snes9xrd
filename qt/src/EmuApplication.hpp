@@ -9,6 +9,7 @@ class EmuBinding;
 class SDLInputManager;
 class Snes9xController;
 class S9xSoundDriver;
+class SoftwareFilter;
 
 struct EmuThread : public QThread
 {
@@ -44,17 +45,37 @@ Q_OBJECT
 
 struct EmuApplication
 {
+    // Pointer to the single global EmuApplication instance. The core's
+    // S9xMessage uses this to surface errors as GUI dialogs.
+    static EmuApplication *get_unwrapped();
+
+    // Single source of truth for ROM file extensions. Anywhere that opens
+    // a file picker for a SNES ROM should use these helpers so that adding
+    // a new extension (e.g. .jma) propagates everywhere automatically.
+    static QStringList supportedRomExtensions();
+    static QString     romFileDialogFilter();
+
     std::unique_ptr<QApplication> qtapp;
     std::unique_ptr<EmuConfig> config;
     std::unique_ptr<SDLInputManager> input_manager;
     std::unique_ptr<EmuMainWindow> window;
     std::unique_ptr<S9xSoundDriver> sound_driver;
     std::unique_ptr<EmuThread> emu_thread;
+    std::unique_ptr<SoftwareFilter> software_filter;
     Snes9xController *core;
 
     EmuApplication();
     ~EmuApplication();
     bool openFile(const std::string &filename);
+    void closeCurrentGame();
+    bool loadMultiCart(const std::string &cart_a, const std::string &cart_b);
+    bool saveGamePosition();
+    bool loadGamePosition();
+    bool startMovieRecord(const std::string &filename);
+    bool openMovie(const std::string &filename);
+    void stopMovie();
+    std::string coreInfo() const;
+    bool dumpSpc();
     void handleBinding(const std::string &name, bool pressed);
     void updateSettings();
     void updateBindings();

@@ -13,4 +13,9 @@ class FoldersPanel :
     void refreshEntry(QComboBox *combo, QLineEdit *lineEdit, QPushButton *browse, int *location, std::string *folder);
     void refreshData();
     EmuApplication *app;
+
+    // Runtime-added BIOS row (the .ui doesn't define one).
+    QComboBox   *bios_combo_  = nullptr;
+    QLineEdit   *bios_line_   = nullptr;
+    QPushButton *bios_button_ = nullptr;
 };

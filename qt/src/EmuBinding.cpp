@@ -3,49 +3,46 @@
 #include <QKeySequence>
 #include "SDL3/SDL.h"
 
-// Hash format:
-//
-// Bit 31-30: Joystick or Keyboard bit
-//
-// Keyboard:
-//   Bit 30: Alt
-//   Bit 29: Ctrl
-//   Bit 28: Super
-//   Bit 27: Shift
-//   Bits 15-0: keycode
-//
-// Joystick:
-//   Bits 29-28: Type:
-//                  00 Button
-//                  01 Axis
-//                  10 Hat
-//   Bit 27: If axis or hat, positive or negative
-//   Bits 26-19: Which button/hat/axis
-//   Bits 15-8: Hat direction
-//   Bits 7-0: Device identifier
 uint32_t EmuBinding::hash() const
 {
-    uint32_t hash = 0;
-
-    hash |= type << 30;
     if (type == Keyboard)
     {
-        hash |= alt << 29;
-        hash |= ctrl << 28;
-        hash |= super << 27;
-        hash |= shift << 26;
-        hash |= keycode & 0xfffffff;
-    }
-    else
-    {
-        hash |= (input_type & 0x3) << 28;
-        hash |= (threshold < 0 ? 1 : 0) << 27;
-        hash |= (button & 0xff) << 19;
-        hash |= (input_type == Hat) ? direction << 8 : 0;
-        hash |= (guid & 0xff);
+        uint32_t h = (uint32_t)Keyboard << 30;
+        h |= (alt    ? 1u : 0) << 29;
+        h |= (ctrl   ? 1u : 0) << 28;
+        h |= (super_mod ? 1u : 0) << 27;
+        h |= (shift  ? 1u : 0) << 26;
+        h |= (uint32_t)(keycode & 0x3ffffff);
+        return h;
     }
 
-    return hash;
+    if (type == Joystick)
+    {
+        constexpr uint32_t FNV_OFFSET = 2166136261u;
+        constexpr uint32_t FNV_PRIME  = 16777619u;
+        uint32_t h = FNV_OFFSET;
+
+        auto mix_u32 = [&](uint32_t v) {
+            h = (h ^ (v & 0xff)) * FNV_PRIME;
+            h = (h ^ ((v >> 8) & 0xff)) * FNV_PRIME;
+            h = (h ^ ((v >> 16) & 0xff)) * FNV_PRIME;
+            h = (h ^ ((v >> 24) & 0xff)) * FNV_PRIME;
+        };
+
+        mix_u32((uint32_t)type);
+        mix_u32((uint32_t)input_type);
+        for (char c : hw_guid)
+            h = (h ^ (uint8_t)c) * FNV_PRIME;
+        mix_u32((uint32_t)button);
+        mix_u32((uint32_t)axis);
+        mix_u32((uint32_t)hat);
+        mix_u32((uint32_t)threshold);
+        mix_u32((uint32_t)direction);
+
+        return h;
+    }
+
+    return 0;
 }
 
 bool EmuBinding::operator==(const EmuBinding &other)
@@ -53,48 +50,55 @@ bool EmuBinding::operator==(const EmuBinding &other)
     return other.hash() == hash();
 }
 
-EmuBinding EmuBinding::joystick_axis(int device, int axis, int threshold)
+EmuBinding EmuBinding::joystick_axis(std::string hw_guid, int axis, int threshold)
 {
-    EmuBinding binding{};
-    binding.type = Joystick;
-    binding.input_type = Axis;
-    binding.guid = device;
-    binding.axis = axis;
-    binding.threshold = threshold;
-    return binding;
+    EmuBinding b{};
+    b.type = Joystick;
+    b.input_type = Axis;
+    b.hw_guid = std::move(hw_guid);
+    b.axis = axis;
+    b.threshold = threshold;
+    return b;
 }
 
-EmuBinding EmuBinding::joystick_hat(int device, int hat, uint8_t direction)
+EmuBinding EmuBinding::joystick_hat(std::string hw_guid, int hat, uint8_t direction)
 {
-    EmuBinding binding{};
-    binding.type = Joystick;
-    binding.input_type = Hat;
-    binding.guid = device;
-    binding.hat = hat;
-    binding.direction = direction;
-    return binding;
+    EmuBinding b{};
+    b.type = Joystick;
+    b.input_type = Hat;
+    b.hw_guid = std::move(hw_guid);
+    b.hat = hat;
+    b.direction = direction;
+    return b;
 }
 
-EmuBinding EmuBinding::joystick_button(int device, int button)
+EmuBinding EmuBinding::joystick_button(std::string hw_guid, int button)
 {
-    EmuBinding binding{};
-    binding.type = Joystick;
-    binding.input_type = Button;
-    binding.guid = device;
-    binding.button = button;
-    return binding;
+    EmuBinding b{};
+    b.type = Joystick;
+    b.input_type = Button;
+    b.hw_guid = std::move(hw_guid);
+    b.button = button;
+    return b;
 }
 
-EmuBinding EmuBinding::keyboard(int keycode, bool shift, bool alt, bool ctrl, bool super)
+EmuBinding EmuBinding::keyboard(int keycode, bool shift, bool alt, bool ctrl, bool super_mod)
 {
-    EmuBinding binding{};
-    binding.type = Keyboard;
-    binding.alt = alt;
-    binding.ctrl = ctrl;
-    binding.shift = shift;
-    binding.super = super;
-    binding.keycode = keycode;
-    return binding;
+    EmuBinding b{};
+    b.type = Keyboard;
+    b.alt = alt;
+    b.ctrl = ctrl;
+    b.super_mod = super_mod;
+    b.shift = shift;
+    b.keycode = keycode;
+    return b;
+}
+
+static std::string ltrim(std::string s)
+{
+    while (!s.empty() && (s.front() == ' ' || s.front() == '\t'))
+        s.erase(s.begin());
+    return s;
 }
 
 EmuBinding EmuBinding::from_config_string(std::string string)
@@ -115,7 +119,7 @@ EmuBinding EmuBinding::from_config_string(std::string string)
             b.keycode = seq[0].key();
             b.alt = seq[0].keyboardModifiers().testAnyFlag(Qt::AltModifier);
             b.ctrl = seq[0].keyboardModifiers().testAnyFlag(Qt::ControlModifier);
-            b.super = seq[0].keyboardModifiers().testAnyFlag(Qt::MetaModifier);
+            b.super_mod = seq[0].keyboardModifiers().testAnyFlag(Qt::MetaModifier);
             b.shift = seq[0].keyboardModifiers().testAnyFlag(Qt::ShiftModifier);
         }
 
@@ -123,36 +127,53 @@ EmuBinding EmuBinding::from_config_string(std::string string)
     }
     else if (string.compare(0, 8, "joystick") == 0)
     {
-        auto substr = string.substr(8);
-        unsigned int axis;
-        unsigned int button;
-        unsigned int percent;
-        unsigned int device;
-        char direction_string[6]{};
-        char posneg;
+        std::string rest = ltrim(string.substr(8));
 
-        if (sscanf(substr.c_str(), "%u axis %u %c %u", &device, &axis, &posneg, &percent) == 4)
+        auto next_word = [&]() -> std::string {
+            auto sp = rest.find(' ');
+            std::string word = (sp == std::string::npos) ? rest : rest.substr(0, sp);
+            if (sp != std::string::npos)
+            {
+                rest = ltrim(rest.substr(sp + 1));
+            }
+            else
+            {
+                rest.clear();
+            }
+            return word;
+        };
+
+        std::string guid_str = next_word();
+        std::string kind = next_word();
+
+        auto safe_stoi = [](const std::string &s, int fallback) -> int {
+            if (s.empty()) return fallback;
+            try { return std::stoi(s); }
+            catch (const std::exception &) { return fallback; }
+        };
+
+        if (kind == "axis")
         {
-            int sign = posneg == '-' ? -1 : 1;
-            return joystick_axis(device, axis, sign * percent);
+            int axis = safe_stoi(next_word(), 0);
+            std::string sign_str = next_word();
+            int sign = (sign_str == "-") ? -1 : 1;
+            return joystick_axis(guid_str, axis, sign);
         }
-        else if (sscanf(substr.c_str(), "%u button %u", &device, &button) == 2)
+        else if (kind == "button")
         {
-            return joystick_button(device, button);
+            int button = safe_stoi(next_word(), 0);
+            return joystick_button(guid_str, button);
         }
-        else if (sscanf(substr.c_str(), "%u hat %u %5s", &device, &axis, direction_string) == 3)
+        else if (kind == "hat")
         {
+            int hat_index = safe_stoi(next_word(), 0);
+            std::string dir_str = next_word();
             uint8_t direction = 0;
-            if (!strcmp(direction_string, "up"))
-                direction = SDL_HAT_UP;
-            else if (!strcmp(direction_string, "down"))
-                direction = SDL_HAT_DOWN;
-            else if (!strcmp(direction_string, "left"))
-                direction = SDL_HAT_LEFT;
-            else if (!strcmp(direction_string, "right"))
-                direction = SDL_HAT_RIGHT;
-
-            return joystick_hat(device, axis, direction);
+            if (dir_str == "up")    direction = SDL_HAT_UP;
+            else if (dir_str == "down")  direction = SDL_HAT_DOWN;
+            else if (dir_str == "left")  direction = SDL_HAT_LEFT;
+            else if (dir_str == "right") direction = SDL_HAT_RIGHT;
+            return joystick_hat(guid_str, hat_index, direction);
         }
     }
 
@@ -178,7 +199,7 @@ std::string EmuBinding::to_string(bool config)
             rep += "Alt+";
         if (shift)
             rep += "Shift+";
-        if (super)
+        if (super_mod)
             rep += "Super+";
 
         QKeySequence seq(keycode);
@@ -186,10 +207,12 @@ std::string EmuBinding::to_string(bool config)
     }
     else if (type == Joystick)
     {
+        // The raw device GUID is only needed in the config-file format (to
+        // disambiguate which physical device a binding belongs to); showing
+        // it in the UI just buries the actually useful "Hat 0 Up" /
+        // "Button 3" part under a giant, unreadable identifier.
         if (config)
-            rep += "Joystick " + std::to_string(guid) + " ";
-        else
-            rep += "J" + std::to_string(guid) + " ";
+            rep += "Joystick " + hw_guid + " ";
 
         if (input_type == Button)
         {
@@ -198,14 +221,15 @@ std::string EmuBinding::to_string(bool config)
         }
         if (input_type == Axis)
         {
+            // The binding's identity only ever depends on which side of the
+            // deadzone was crossed (threshold is always exactly +1 or -1 at
+            // runtime, see EmuApplication::pollJoysticks) - there is no real
+            // percent to preserve, so don't pretend to serialize one; doing
+            // so previously produced a value that didn't survive the
+            // save/load round-trip and broke matching after a restart.
             rep += "Axis ";
             rep += std::to_string(axis) + " ";
-            if (threshold >= 0)
-                rep += "+";
-            else if (!config)
-                rep += "-";
-            if (config)
-                rep += std::to_string(threshold) + "%";
+            rep += (threshold >= 0) ? "+" : "-";
         }
         if (input_type == Hat)
         {

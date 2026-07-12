@@ -3,6 +3,7 @@
 #include <functional>
 #include <vector>
 #include <cstdint>
+#include <mutex>
 #include <string>
 
 #include "EmuConfig.hpp"
@@ -31,9 +32,25 @@ class Snes9xController
     bool acceptsCommand(const char *command);
     bool isAbnormalSpeed();
     void mute(bool muted);
+    void toggleSoundChannel(int channel);
+    void setSoundChannelEnabled(int channel, bool enabled);
     void reset();
     void softReset();
+    bool loadMultiCart(const std::string &cart_a, const std::string &cart_b);
+    bool saveGamePosition();
+    bool loadGamePosition();
+    bool startMovieRecord(const std::string &filename);
+    bool openMovie(const std::string &filename);
+    void stopMovie();
+    std::string romInfo() const;
+    bool dumpSpc();
     void setPaused(bool paused);
+
+    // Briefly halt the emu thread while the GUI mutates core state. These
+    // exist as member functions so call sites look natural; the actual
+    // blocking goes through a shared mutex below.
+    void suspend();
+    void resume();
     void setMessage(const std::string &message);
     void clearSoundBuffer();
     std::vector<std::tuple<bool, std::string, std::string>> getCheatList();
@@ -56,11 +73,17 @@ class Snes9xController
     std::string cheat_folder;
     std::string patch_folder;
     std::string export_folder;
+    std::string bios_folder;
     int16_t mouse_x, mouse_y;
     int high_resolution_effect;
     int rewind_buffer_size;
     int rewind_frame_interval;
     bool rewinding = false;
+
+    // Bitmask of enabled SNES APU voices (bit N = channel N, all 8 bits set
+    // by default). Mirrors what S9xSetSoundControl was last called with, so
+    // the UI can read back the current per-channel mute state.
+    int sound_channel_switch = 255;
 
     std::function<void(uint16_t *, int, int, int, double)> screen_output_function = nullptr;
     std::function<void(int16_t *, int)> sound_output_function = nullptr;

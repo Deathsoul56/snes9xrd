@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(snes9x-qt VERSION 1.63)
+project(snes9xrd VERSION 1.63)
 
 include(GNUInstallDirs)
 
@@ -73,10 +73,21 @@ set(SNES9X_CORE_SOURCES
     ../netplay.cpp
     ../server.cpp
     ../loadzip.cpp
-    ../fscompat.cpp)
+    ../fscompat.cpp
+    ../unzip/unzip.c
+    ../unzip/ioapi.c
+    ../jma/7zlzma.cpp
+    ../jma/crc32.cpp
+    ../jma/iiostrm.cpp
+    ../jma/inbyte.cpp
+    ../jma/jma.cpp
+    ../jma/lzma.cpp
+    ../jma/lzmadec.cpp
+    ../jma/s9x-jma.cpp
+    ../jma/winout.cpp)
 add_library(snes9x-core ${SNES9X_CORE_SOURCES})
-target_include_directories(snes9x-core PRIVATE ../)
-target_compile_definitions(snes9x-core PRIVATE ${DEFINES} ZLIB HAVE_STDINT_H HAVE_LIBPNG ALLOW_CPU_OVERCLOCK)
+target_include_directories(snes9x-core PRIVATE ../ ../unzip)
+target_compile_definitions(snes9x-core PRIVATE ${DEFINES} ZLIB HAVE_STDINT_H HAVE_LIBPNG ALLOW_CPU_OVERCLOCK UNZIP_SUPPORT JMA_SUPPORT)
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
     set(PREBUILT_QT "${PROJECT_SOURCE_DIR}/../external/qt6-mingw-clang-bin")
@@ -200,6 +211,11 @@ list(APPEND QT_GUI_SOURCES
     src/EmuConfig.cpp
     src/EmuBinding.cpp
     src/EmuCanvas.cpp
+    src/EmuGameList.cpp
+    src/LibraryPage.cpp
+    src/GameListWidget.cpp
+    src/SnesControllerWidget.cpp
+    src/MultiCartDialog.cpp
     src/BindingPanel.cpp
     src/ControllerPanel.cpp
     src/DisplayPanel.cpp
@@ -212,6 +228,7 @@ list(APPEND QT_GUI_SOURCES
     src/ShaderParametersDialog.cpp
     src/CheatsDialog.cpp
     src/SoftwareScalers.cpp
+    src/SoftwareFilter.cpp
     src/EmuCanvasQt.cpp
     src/EmuCanvasOpenGL.cpp
     src/EmuCanvasVulkan.cpp
@@ -224,6 +241,12 @@ list(APPEND QT_GUI_SOURCES
     ../filter/2xsai.h
     ../filter/epx.cpp
     ../filter/epx.h
+    ../filter/hq2x.cpp
+    ../filter/hq2x.h
+    ../filter/xbrz.cpp
+    ../filter/xbrz.h
+    ../filter/xbrz_config.h
+    ../filter/xbrz_tools.h
     ../filter/snes_ntsc_config.h
     ../filter/snes_ntsc.h
     ../filter/snes_ntsc_impl.h

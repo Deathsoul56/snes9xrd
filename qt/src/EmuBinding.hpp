@@ -6,10 +6,10 @@ struct EmuBinding
 {
     uint32_t hash() const;
     std::string to_string(bool config = false);
-    static EmuBinding joystick_axis(int device, int axis, int threshold);
-    static EmuBinding joystick_hat(int device, int hat, uint8_t direction);
-    static EmuBinding joystick_button(int device, int button);
-    static EmuBinding keyboard(int keycode, bool shift = false, bool alt = false, bool ctrl = false, bool super = false);
+    static EmuBinding joystick_axis(std::string hw_guid, int axis, int threshold);
+    static EmuBinding joystick_hat(std::string hw_guid, int hat, uint8_t direction);
+    static EmuBinding joystick_button(std::string hw_guid, int button);
+    static EmuBinding keyboard(int keycode, bool shift = false, bool alt = false, bool ctrl = false, bool super_mod = false);
     static EmuBinding from_config_string(std::string str);
     std::string to_config_string();
     bool operator==(const EmuBinding &);
@@ -25,7 +25,7 @@ struct EmuBinding
         Keyboard = 1,
         Joystick = 2
     };
-    Type type;
+    Type type = None;
 
     enum JoystickInputType
     {
@@ -34,28 +34,17 @@ struct EmuBinding
         Hat = 2
     };
 
-    union
-    {
-        struct
-        {
-            bool alt;
-            bool ctrl;
-            bool super;
-            bool shift;
-            int keycode;
-        };
+    bool alt = false;
+    bool ctrl = false;
+    bool super_mod = false;
+    bool shift = false;
+    int keycode = 0;
 
-        struct
-        {
-            JoystickInputType input_type;
-            int guid;
-            union {
-                int button;
-                int hat;
-                int axis;
-            };
-            int threshold;
-            uint8_t direction;
-        };
-    };
+    JoystickInputType input_type = Button;
+    std::string hw_guid;
+    int button = 0;
+    int axis = 0;
+    int hat = 0;
+    int threshold = 0;
+    uint8_t direction = 0;
 };

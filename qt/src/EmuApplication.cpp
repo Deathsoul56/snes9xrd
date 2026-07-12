@@ -2,28 +2,44 @@
 #include "EmuMainWindow.hpp"
 #include "SDLInputManager.hpp"
 #include "Snes9xController.hpp"
+#include "SoftwareFilter.hpp"
 #include "common/audio/s9x_sound_driver_sdl3.hpp"
 #include "common/audio/s9x_sound_driver_cubeb.hpp"
 #ifdef USE_PULSEAUDIO
 #include "common/audio/s9x_sound_driver_pulse.hpp"
 #endif
 
+#include "snes9x.h"
+#include "movie.h"
+#include "snapshot.h"
+
 #include <QTimer>
 #include <QScreen>
 #include <QThread>
 #include <QStyleHints>
+#include <cstring>
 #include <thread>
 
 #undef SOUND_BUFFER_WINDOW
 
+static EmuApplication *g_emu = nullptr;
+
 EmuApplication::EmuApplication()
 {
+    g_emu = this;
     core = Snes9xController::get();
+    software_filter = std::make_unique<SoftwareFilter>();
 }
 
 EmuApplication::~EmuApplication()
 {
+    if (g_emu == this) g_emu = nullptr;
     core->deinit();
+}
+
+EmuApplication *EmuApplication::get_unwrapped()
+{
+    return g_emu;
 }
 
 void EmuApplication::restartAudio()
@@ -108,7 +124,28 @@ static void trackBufferLevel(int percent, QWidget *parent)
 
 void EmuApplication::writeSamples(int16_t *data, int samples)
 {
-    if (config->speed_sync_method == EmuConfig::eSoundSync && !core->isAbnormalSpeed())
+    bool abnormal_speed = core->isAbnormalSpeed();
+
+    // Regular/turbo volume (and the turbo-or-rewind hard mute) mirror the
+    // legacy Volume sliders and "mute during turbo/rewind" option. This is
+    // the single place all mixed audio passes through before reaching the
+    // sound driver, so it applies identically no matter which driver is active.
+    if (abnormal_speed && config->mute_audio_during_alternate_speed)
+    {
+        std::memset(data, 0, samples * sizeof(int16_t));
+    }
+    else
+    {
+        int volume = abnormal_speed ? config->volume_turbo : config->volume_regular;
+        if (volume != 100)
+        {
+            double scale = volume / 100.0;
+            for (int i = 0; i < samples; i++)
+                data[i] = (int16_t)(data[i] * scale);
+        }
+    }
+
+    if (config->speed_sync_method == EmuConfig::eSoundSync && !abnormal_speed)
     {
         int iterations = 0;
         while (sound_driver->space_free() < samples && iterations < 500)
@@ -140,7 +177,18 @@ void EmuApplication::startGame()
     core->screen_output_function = [&](uint16_t *data, int width, int height, int stride_bytes, double frame_rate) {
         if (window->canvas)
         {
-            window->output((uint8_t *)data, width, height, QImage::Format_RGB16, stride_bytes, frame_rate);
+            const uint16_t *out_data = data;
+            int out_width = width, out_height = height, out_pitch = stride_bytes;
+
+            if (software_filter->apply(config->software_filter, data, stride_bytes, width, height,
+                                        out_data, out_width, out_height, out_pitch))
+            {
+                window->output((uint8_t *)out_data, out_width, out_height, QImage::Format_RGB16, out_pitch, frame_rate);
+            }
+            else
+            {
+                window->output((uint8_t *)data, width, height, QImage::Format_RGB16, stride_bytes, frame_rate);
+            }
         }
     };
 
@@ -251,6 +299,74 @@ bool EmuApplication::openFile(const std::string &filename)
     return result;
 }
 
+void EmuApplication::closeCurrentGame()
+{
+    if (!core) return;
+
+    suspendThread();
+
+    if (sound_driver)
+        sound_driver->stop();
+
+    core->active = false;
+    unsuspendThread();
+}
+
+bool EmuApplication::loadMultiCart(const std::string &cart_a, const std::string &cart_b)
+{
+    if (!core) return false;
+
+    window->gameChanging();
+    updateSettings();
+    suspendThread();
+    auto result = core->loadMultiCart(cart_a, cart_b);
+    unsuspendThread();
+
+    return result;
+}
+
+bool EmuApplication::saveGamePosition()
+{
+    if (!core) return false;
+    return core->saveGamePosition();
+}
+
+bool EmuApplication::loadGamePosition()
+{
+    if (!core) return false;
+    return core->loadGamePosition();
+}
+
+bool EmuApplication::startMovieRecord(const std::string &filename)
+{
+    if (!core) return false;
+    return core->startMovieRecord(filename);
+}
+
+bool EmuApplication::openMovie(const std::string &filename)
+{
+    if (!core) return false;
+    return core->openMovie(filename);
+}
+
+void EmuApplication::stopMovie()
+{
+    if (!core) return;
+    core->stopMovie();
+}
+
+std::string EmuApplication::coreInfo() const
+{
+    if (!core) return "No core available.";
+    return core->romInfo();
+}
+
+bool EmuApplication::dumpSpc()
+{
+    if (!core) return false;
+    return core->dumpSpc();
+}
+
 void EmuApplication::mainLoop()
 {
     if (!core->active)
@@ -355,11 +471,11 @@ void EmuApplication::updateBindings()
 
                 auto &sdl_binding = sdl_bindings[{ SDL_GAMEPAD_BINDTYPE_BUTTON, list[i] }];
                 if (SDL_GAMEPAD_BINDTYPE_BUTTON == sdl_binding.input_type)
-                    controller.buttons[i] = EmuBinding::joystick_button(device.index, sdl_binding.input.button);
+                    controller.buttons[i] = EmuBinding::joystick_button(device.hw_guid, sdl_binding.input.button);
                 else if (SDL_GAMEPAD_BINDTYPE_HAT == sdl_binding.input_type)
-                    controller.buttons[i] = EmuBinding::joystick_hat(device.index, sdl_binding.input.hat.hat, sdl_binding.input.hat.hat_mask);
+                    controller.buttons[i] = EmuBinding::joystick_hat(device.hw_guid, sdl_binding.input.hat.hat, sdl_binding.input.hat.hat_mask);
                 else if (SDL_GAMEPAD_BINDTYPE_AXIS == sdl_binding.input_type)
-                    controller.buttons[i] = EmuBinding::joystick_axis(device.index, sdl_binding.input.axis.axis, sdl_binding.input.axis.axis);
+                    controller.buttons[i] = EmuBinding::joystick_axis(device.hw_guid, sdl_binding.input.axis.axis, sdl_binding.input.axis.axis);
 
                 if (controller.buttons[i].type != EmuBinding::None)
                 {
@@ -374,8 +490,8 @@ void EmuApplication::updateBindings()
                 if (sdl_bindings.contains(axis))
                 {
                     auto &b = sdl_bindings[axis];
-                    controller.buttons[negative_slot] = EmuBinding::joystick_axis(device.index, b.input.axis.axis, -1);
-                    controller.buttons[positive_slot] = EmuBinding::joystick_axis(device.index, b.input.axis.axis, 1);
+                    controller.buttons[negative_slot] = EmuBinding::joystick_axis(device.hw_guid, b.input.axis.axis, -1);
+                    controller.buttons[positive_slot] = EmuBinding::joystick_axis(device.hw_guid, b.input.axis.axis, 1);
                     for (int i = negative_slot; i <= positive_slot; i++)
                         bindings.insert({ controller.buttons[i].hash(), { "Snes9x", Core } });
                 }
@@ -525,7 +641,7 @@ void EmuApplication::pollJoysticks()
             for (auto &axis_event : axis_events)
             {
                 auto binding = EmuBinding::joystick_axis(
-                    axis_event.joystick_num,
+                    axis_event.hw_guid,
                     axis_event.axis,
                     axis_event.direction);
 
@@ -536,14 +652,14 @@ void EmuApplication::pollJoysticks()
         case SDL_EVENT_JOYSTICK_BUTTON_DOWN:
         case SDL_EVENT_JOYSTICK_BUTTON_UP:
             reportBinding(EmuBinding::joystick_button(
-                              input_manager->devices[event->jbutton.which].index,
+                              input_manager->devices[event->jbutton.which].hw_guid,
                               event->jbutton.button), event->jbutton.down == 1);
             break;
         case SDL_EVENT_JOYSTICK_HAT_MOTION:
             auto hat_events = input_manager->discretizeHatEvent(event.value());
             for (auto &hat_event : hat_events)
             {
-                reportBinding(EmuBinding::joystick_hat(hat_event.joystick_num,
+                reportBinding(EmuBinding::joystick_hat(hat_event.hw_guid,
                                                        hat_event.hat,
                                                        hat_event.direction),
                               hat_event.pressed);
@@ -725,6 +841,30 @@ QString EmuApplication::iconPrefix()
         return whiteicons;
 
     return blackicons;
+}
+
+QStringList EmuApplication::supportedRomExtensions()
+{
+    // Each extension appears as both the lower-case and Title-Case form so
+    // QDirIterator and QFileDialog::nameFilters see the same set.
+    return {
+        "*.smc", "*.SMC", "*.sfc", "*.SFC",
+        "*.bin", "*.BIN",
+        "*.fig", "*.FIG",
+        "*.msu", "*.MSU",
+        "*.zip", "*.ZIP",
+    };
+}
+
+QString EmuApplication::romFileDialogFilter()
+{
+    // Single filter string used by every "open ROM" dialog in the app.
+    // QFileDialog glob patterns need the leading "*." (e.g. "*.smc"); do not
+    // strip it. supportedRomExtensions() already returns that form, so just
+    // de-dupe and join.
+    QStringList exts = supportedRomExtensions();
+    exts.removeDuplicates();
+    return QString("ROM Files (%1);;All Files (*)").arg(exts.join(' '));
 }
 
 std::string EmuApplication::getContentFolder()

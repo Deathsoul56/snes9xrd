@@ -124,6 +124,19 @@
           </property>
          </widget>
         </item>
+        <item row="0" column="0">
+         <widget class="QCheckBox" name="checkBox_transparency">
+          <property name="toolTip">
+           <string>Enable SNES transparency (color math) effects. Disabling is only useful as a hack.</string>
+          </property>
+          <property name="whatsThis">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Turns off transparency effects used by almost every game. This option is only meant as a hack, or for very low-end hardware.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="text">
+           <string>Transparency effects</string>
+          </property>
+         </widget>
+        </item>
        </layout>
       </item>
       <item>
@@ -157,6 +170,16 @@
           </property>
           <property name="text">
            <string>Browse...</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="pushButton_shader_parameters">
+          <property name="toolTip">
+           <string>Configure the parameters exposed by the current shader preset.</string>
+          </property>
+          <property name="text">
+           <string>Parameters...</string>
           </property>
          </widget>
         </item>
@@ -196,6 +219,19 @@
           </property>
           <property name="text">
            <string>Show overscan area</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QCheckBox" name="checkBox_stretch_image">
+          <property name="toolTip">
+           <string>Stretch the emulated image to fill the display area.</string>
+          </property>
+          <property name="whatsThis">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;When disabled, the image is drawn at its native size instead of being stretched to fill the window or screen.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="text">
+           <string>Stretch image</string>
           </property>
          </widget>
         </item>
@@ -317,7 +353,31 @@ Output directly will cause the screen to change between the two modes and look w
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_4">
       <item>
-       <widget class="QComboBox" name="comboBox"/>
+       <layout class="QGridLayout" name="gridLayout_6">
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_6">
+          <property name="text">
+           <string>Filter:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QComboBox" name="comboBox_software_filter"/>
+        </item>
+        <item row="0" column="2">
+         <spacer name="horizontalSpacer_3">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
       </item>
      </layout>
     </widget>

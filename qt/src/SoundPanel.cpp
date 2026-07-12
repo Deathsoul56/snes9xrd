@@ -1,6 +1,7 @@
 #include "SoundPanel.hpp"
 #include "EmuApplication.hpp"
 #include "EmuConfig.hpp"
+#include "Snes9xController.hpp"
 
 static constexpr int playback_rates[] = { 96000, 48000, 44100 };
 
@@ -74,6 +75,48 @@ SoundPanel::SoundPanel(EmuApplication *app_)
     connect(checkBox_mute_during_alt_speed, &QCheckBox::toggled, [&](bool checked) {
         app->config->mute_audio_during_alternate_speed = checked;
     });
+
+    auto connect_volume_slider = [&](QSlider *slider, QSpinBox *spinbox, int EmuConfig::*field) {
+        connect(slider, &QSlider::valueChanged, [&, spinbox, field](int value) {
+            app->config.get()->*field = value;
+            spinbox->blockSignals(true);
+            spinbox->setValue(value);
+            spinbox->blockSignals(false);
+        });
+        connect(spinbox, &QSpinBox::valueChanged, [&, slider, field](int value) {
+            app->config.get()->*field = value;
+            slider->blockSignals(true);
+            slider->setValue(value);
+            slider->blockSignals(false);
+        });
+    };
+    connect_volume_slider(horizontalSlider_volume_regular, spinBox_volume_regular, &EmuConfig::volume_regular);
+    connect_volume_slider(horizontalSlider_volume_turbo, spinBox_volume_turbo, &EmuConfig::volume_turbo);
+
+    auto connect_channel = [&](QCheckBox *checkbox, int channel) {
+        connect(checkbox, &QCheckBox::toggled, [&, channel](bool checked) {
+            app->core->setSoundChannelEnabled(channel, checked);
+        });
+    };
+    connect_channel(checkBox_channel_0, 0);
+    connect_channel(checkBox_channel_1, 1);
+    connect_channel(checkBox_channel_2, 2);
+    connect_channel(checkBox_channel_3, 3);
+    connect_channel(checkBox_channel_4, 4);
+    connect_channel(checkBox_channel_5, 5);
+    connect_channel(checkBox_channel_6, 6);
+    connect_channel(checkBox_channel_7, 7);
+
+    connect(pushButton_enable_all_channels, &QPushButton::clicked, [&] {
+        app->core->toggleSoundChannel(8);
+        for (auto *cb : { checkBox_channel_0, checkBox_channel_1, checkBox_channel_2, checkBox_channel_3,
+                          checkBox_channel_4, checkBox_channel_5, checkBox_channel_6, checkBox_channel_7 })
+        {
+            cb->blockSignals(true);
+            cb->setChecked(true);
+            cb->blockSignals(false);
+        }
+    });
 }
 
 void SoundPanel::updateInputRate()
@@ -143,5 +186,19 @@ void SoundPanel::showEvent(QShowEvent *event)
 
     checkBox_mute_sound->setChecked(config->mute_audio);
     checkBox_mute_during_alt_speed->setChecked(config->mute_audio_during_alternate_speed);
+
+    horizontalSlider_volume_regular->setValue(config->volume_regular);
+    spinBox_volume_regular->setValue(config->volume_regular);
+    horizontalSlider_volume_turbo->setValue(config->volume_turbo);
+    spinBox_volume_turbo->setValue(config->volume_turbo);
+
+    QCheckBox *channel_checkboxes[] = { checkBox_channel_0, checkBox_channel_1, checkBox_channel_2, checkBox_channel_3,
+                                        checkBox_channel_4, checkBox_channel_5, checkBox_channel_6, checkBox_channel_7 };
+    for (int i = 0; i < 8; i++)
+    {
+        channel_checkboxes[i]->blockSignals(true);
+        channel_checkboxes[i]->setChecked((app->core->sound_channel_switch >> i) & 1);
+        channel_checkboxes[i]->blockSignals(false);
+    }
 }
 

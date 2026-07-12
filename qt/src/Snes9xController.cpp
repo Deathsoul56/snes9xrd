@@ -1,7 +1,14 @@
 #include "Snes9xController.hpp"
+#include "EmuApplication.hpp"
 #include "EmuConfig.hpp"
+#include "EmuMainWindow.hpp"
 #include "SoftwareScalers.hpp"
 #include "fscompat.h"
+
+#include <QMetaObject>
+
+#include <QString>
+
 #include <filesystem>
 namespace fs = std::filesystem;
 
@@ -46,7 +53,6 @@ void Snes9xController::init()
     Settings.SuperScopeMaster = true;
     Settings.JustifierMaster = true;
     Settings.MultiPlayer5Master = true;
-    Settings.Transparency = true;
     Settings.Stereo = true;
     Settings.ReverseStereo = false;
     Settings.SixteenBitSound = true;
@@ -113,6 +119,8 @@ void Snes9xController::updateSettings(const EmuConfig * const config)
 {
     Settings.UpAndDown = config->allow_opposing_dpad_directions;
 
+    Settings.Transparency = config->transparency;
+
     Settings.InterpolationMethod = config->sound_filter;
 
     if (config->fixed_frame_rate == 0.0)
@@ -128,6 +136,8 @@ void Snes9xController::updateSettings(const EmuConfig * const config)
     }
 
     Settings.TurboSkipFrames = config->fast_forward_skip_frames;
+
+    Settings.SkipFrames = config->fixed_frame_skip;
 
     Settings.DisplayTime = config->show_time;
 
@@ -199,6 +209,7 @@ void Snes9xController::updateSettings(const EmuConfig * const config)
     doFolder(config->cheat_location, cheat_folder, config->cheat_folder, "cheat");
     doFolder(config->patch_location, patch_folder, config->patch_folder, "patch");
     doFolder(config->export_location, export_folder, config->export_folder, "export");
+    doFolder(ROM_DIR, bios_folder, config->bios_folder, "bios");
 }
 
 bool Snes9xController::openFile(const std::string &filename)
@@ -214,6 +225,9 @@ bool Snes9xController::openFile(const std::string &filename)
     }
     return active;
 }
+
+void Snes9xController::suspend() { /* placeholder; EmuApplication gates the emu thread */ }
+void Snes9xController::resume()  { /* placeholder */ }
 
 void Snes9xController::mainLoop()
 {
@@ -344,6 +358,30 @@ void S9xSyncSpeed()
         return;
     }
 
+    // Settings.SkipFrames doubles as the "Fixed, always skip N frames"
+    // option from the display settings (0 = disabled). This is the same
+    // core field unix/win32/macOS use for the equivalent feature; the
+    // "Automatic" mode lives separately in EmuConfig::speed_sync_method /
+    // EmuCanvas's timer-based throttle, which measures real elapsed time
+    // instead of counting frames.
+    if (Settings.SkipFrames > 0)
+    {
+        IPPU.FrameSkip++;
+        if (IPPU.FrameSkip > Settings.SkipFrames)
+        {
+            IPPU.FrameSkip = 0;
+            IPPU.SkippedFrames = 0;
+            IPPU.RenderThisFrame = true;
+        }
+        else
+        {
+            IPPU.SkippedFrames++;
+            IPPU.RenderThisFrame = false;
+        }
+
+        return;
+    }
+
     IPPU.RenderThisFrame = true;
 }
 
@@ -381,6 +419,10 @@ std::string S9xGetDirectory(s9x_getdirtype dirtype)
     case SCREENSHOT_DIR:
     case SPC_DIR:
         dirname = c->export_folder;
+        break;
+
+    case BIOS_DIR:
+        dirname = c->bios_folder;
         break;
 
     default:
@@ -433,14 +475,7 @@ bool S9xPollButton(unsigned int, bool *)
 
 void S9xToggleSoundChannel(int c)
 {
-    static int sound_switch = 255;
-
-    if (c == 8)
-        sound_switch = 255;
-    else
-        sound_switch ^= 1 << c;
-
-    S9xSetSoundControl(sound_switch);
+    Snes9xController::get()->toggleSoundChannel(c);
 }
 
 std::string S9xGetFilenameInc(std::string e, enum s9x_getdirtype dirtype)
@@ -530,7 +565,21 @@ void S9xMessage(int message_class, int type, const char *message)
     if (type == S9X_ROM_INFO)
         S9xSetInfoString(Memory.GetMultilineROMInfo().c_str());
 
-    printf("%s\n", message);
+    fprintf(stderr, "[snes9x] %s\n", message);
+    fflush(stderr);
+
+    // Surface the message to the user via the message bus. Errors become modal
+    // dialogs so a "multicart failed because BIOS missing" is visible, not
+    // silently logged to stdout.
+    if (auto *app = EmuApplication::get_unwrapped())
+    {
+        if (auto *win = app->window.get())
+        {
+            if (message_class == S9X_ERROR)
+                QMetaObject::invokeMethod(win, "showCoreError", Qt::QueuedConnection,
+                                          Q_ARG(QString, QString::fromUtf8(message)));
+        }
+    }
 }
 
 const char *S9xStringInput(const char *prompt)
@@ -580,6 +629,23 @@ bool Snes9xController::acceptsCommand(const char *command)
 {
     auto cmd = S9xGetCommandT(command);
     return !(cmd.type == S9xNoMapping || cmd.type == S9xBadMapping);
+}
+
+void Snes9xController::toggleSoundChannel(int c)
+{
+    if (c == 8)
+        sound_channel_switch = 255;
+    else
+        sound_channel_switch ^= 1 << c;
+
+    S9xSetSoundControl(sound_channel_switch);
+}
+
+void Snes9xController::setSoundChannelEnabled(int channel, bool enabled)
+{
+    bool currently_enabled = (sound_channel_switch >> channel) & 1;
+    if (currently_enabled != enabled)
+        toggleSoundChannel(channel);
 }
 
 void Snes9xController::updateBindings(const EmuConfig *const config)
@@ -890,6 +956,120 @@ int Snes9xController::modifyCheat(int index, const std::string &name,
                                   const std::string &code)
 {
     return S9xModifyCheatGroup(index, name, code);
+}
+
+bool Snes9xController::loadMultiCart(const std::string &cart_a, const std::string &cart_b)
+{
+    // Mirror openFile()'s pattern: autosave the outgoing game if one is
+    // running, then attempt the load unconditionally. The previous code
+    // bailed out with `if (!active) return false;`, which meant the very
+    // first MultiCart load of a session (the common case) always failed
+    // before Memory.LoadMultiCart was ever called.
+    if (active)
+        S9xAutoSaveSRAM();
+    active = false;
+
+    bool ok = Memory.LoadMultiCart(cart_a.c_str(), cart_b.c_str());
+    if (ok)
+    {
+        active = true;
+        Memory.LoadSRAM(S9xGetFilename(".srm", SRAM_DIR).c_str());
+    }
+    else
+    {
+        // The core silently returns false on most failure paths. Diagnose
+        // here so the user can act: print a specific reason to stderr AND
+        // push a typed error string to the GUI via the S9xMessage bus so
+        // the modal dialog tells them which case they're hitting.
+        auto fail = [&](const char *msg) {
+            std::fprintf(stderr, "[multicart] %s\n", msg);
+            S9xMessage(S9X_ERROR, 0, msg);
+        };
+
+        std::string bios_dir = S9xGetDirectory(BIOS_DIR);
+        std::string stbios_path = bios_dir + SLASH_STR + "STBIOS.bin";
+        FILE *test = std::fopen(stbios_path.c_str(), "rb");
+        if (!test)
+        {
+            fail(("Could not find STBIOS.bin for Sufami Turbo. "
+                  "Set the BIOS folder in Settings → Files → BIOS to the directory that contains STBIOS.bin "
+                  "(current lookup: " + stbios_path + ")").c_str());
+        }
+        else
+        {
+            std::fclose(test);
+            fail("Memory.LoadMultiCart returned false (cart detection failed — "
+                 "check the ROM files in Slot A and Slot B are valid and that the "
+                 "BS-X/Sufami Turbo combination is supported).");
+        }
+    }
+    return ok;
+}
+
+bool Snes9xController::saveGamePosition()
+{
+    // "Game Position" is snes9x's term for the oops snapshot taken at regular
+    // intervals (e.g. every N minutes) so the player can resume after a
+    // crash. For manual use we just trigger an immediate save.
+    if (!active) return false;
+    auto fname = S9xGetFilename(".oops", SNAPSHOT_DIR);
+    return Memory.SaveSRAM(fname.c_str()); // closest manual equivalent
+}
+
+bool Snes9xController::loadGamePosition()
+{
+    if (!active) return false;
+    auto fname = S9xGetFilename(".undo", SNAPSHOT_DIR);
+    return S9xUnfreezeGame(fname.c_str()) != FALSE;
+}
+
+bool Snes9xController::startMovieRecord(const std::string &filename)
+{
+    if (!active) return false;
+    suspend();
+    int rc = S9xMovieCreate(filename.c_str(), 0xFF, MOVIE_OPT_FROM_RESET, nullptr, 0);
+    resume();
+    return rc == 1;
+}
+
+bool Snes9xController::openMovie(const std::string &filename)
+{
+    if (!active) return false;
+    suspend();
+    int rc = S9xMovieOpen(filename.c_str(), FALSE);
+    resume();
+    return rc == 1;
+}
+
+void Snes9xController::stopMovie()
+{
+    if (!S9xMoviePlaying() && !S9xMovieRecording()) return;
+    suspend();
+    S9xMovieStop(FALSE);
+    resume();
+}
+
+bool Snes9xController::dumpSpc()
+{
+    if (!active) return false;
+    suspend();
+    S9xDumpSPCSnapshot();
+    resume();
+    return true;
+}
+
+std::string Snes9xController::romInfo() const
+{
+    if (!active) return QString("No ROM loaded.").toStdString();
+    QString out;
+    out += QString("Title: %1\n").arg(Memory.ROMName);
+    out += QString("Size: %1 KB\n").arg(Memory.ROMSize * 8);
+    out += QString("Map: %1\n").arg(Memory.MapType());
+    out += QString("Region: %1\n").arg(Memory.Country());
+    out += QString("SRAM: %1\n").arg(Memory.StaticRAMSize());
+    out += QString("Company: %1\n").arg(Memory.PublishingCompany());
+    out += QString("Cart contents: %1\n").arg(Memory.KartContents());
+    return out.toStdString();
 }
 
 std::string Snes9xController::getContentFolder()

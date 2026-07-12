@@ -1,10 +1,12 @@
 #include "EmuApplication.hpp"
 #include "EmuConfig.hpp"
 #include "EmuMainWindow.hpp"
+#include "EmuGameList.hpp"
 #include "SDLInputManager.hpp"
 
 #include <clocale>
 #include <qnamespace.h>
+#include <QFile>
 #include <QStyle>
 #include <QStyleHints>
 
@@ -25,44 +27,30 @@ int main(int argc, char *argv[])
     EmuApplication emu;
     emu.qtapp = std::make_unique<QApplication>(argc, argv);
 
-    QGuiApplication::setDesktopFileName("snes9x-qt");
+    QGuiApplication::setDesktopFileName("snes9xrd");
+
+    if (QApplication::platformName() == "windows")
+        QApplication::setStyle("fusion");
+
+    // Load the DuckStation-style stylesheet (replaces the older per-platform
+    // dark-palette fallback). It's harmless on light schemes — the stylesheet
+    // is mostly dark colors with a few non-conflicting light overrides.
+    {
+        QFile qss_file(":/duckstation.qss");
+        if (qss_file.open(QIODevice::ReadOnly | QIODevice::Text))
+        {
+            qApp->setStyleSheet(QString::fromUtf8(qss_file.readAll()));
+            qss_file.close();
+        }
+    }
 
     if (QApplication::platformName() == "windows")
     {
-        if (QApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark)
+        if (QApplication::styleHints()->colorScheme() != Qt::ColorScheme::Dark)
         {
-            QApplication::setStyle("fusion");
-
-            const QColor darkGray(53, 53, 53);
-            const QColor gray(128, 128, 128);
-            const QColor black(25, 25, 25);
-            const QColor blue(198, 238, 255);
-            const QColor blue2(0, 88, 208);
-
-            QPalette darkPalette;
-            darkPalette.setColor(QPalette::Window, darkGray);
-            darkPalette.setColor(QPalette::WindowText, Qt::white);
-            darkPalette.setColor(QPalette::Base, black);
-            darkPalette.setColor(QPalette::AlternateBase, darkGray);
-            darkPalette.setColor(QPalette::ToolTipBase, blue2);
-            darkPalette.setColor(QPalette::ToolTipText, Qt::white);
-            darkPalette.setColor(QPalette::Text, Qt::white);
-            darkPalette.setColor(QPalette::Button, darkGray);
-            darkPalette.setColor(QPalette::ButtonText, Qt::white);
-            darkPalette.setColor(QPalette::Link, blue);
-            darkPalette.setColor(QPalette::Highlight, blue2);
-            darkPalette.setColor(QPalette::HighlightedText, Qt::white);
-            darkPalette.setColor(QPalette::PlaceholderText, QColor(Qt::white).darker());
-
-            darkPalette.setColor(QPalette::Active, QPalette::Button, darkGray);
-            darkPalette.setColor(QPalette::Disabled, QPalette::ButtonText, gray);
-            darkPalette.setColor(QPalette::Disabled, QPalette::WindowText, gray);
-            darkPalette.setColor(QPalette::Disabled, QPalette::Text, gray);
-            darkPalette.setColor(QPalette::Disabled, QPalette::Light, darkGray);
-            QApplication::setPalette(darkPalette);
-        }
-        else
-        {
+            // Light scheme on Windows: keep the native-ish look by dropping
+            // our dark stylesheet. Otherwise stick with the DuckStation look.
+            qApp->setStyleSheet(QString());
             QApplication::setStyle("windowsvista");
         }
     }
@@ -81,7 +69,10 @@ int main(int argc, char *argv[])
 
     emu.input_manager = std::make_unique<SDLInputManager>();
     emu.window = std::make_unique<EmuMainWindow>(&emu);
-    emu.window->show();
+    if (emu.config->main_window_maximized)
+        emu.window->showMaximized();
+    else
+        emu.window->show();
 
     emu.updateBindings();
     emu.startInputTimer();

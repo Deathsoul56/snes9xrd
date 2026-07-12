@@ -33,6 +33,7 @@ EmulationPanel::EmulationPanel(EmuApplication *app_)
     connect_spin(spinBox_rewind_buffer_size, &app->config->rewind_buffer_size);
     connect_spin(spinBox_rewind_frames, &app->config->rewind_frame_interval);
     connect_spin(spinBox_fast_forward_skip_frames, &app->config->fast_forward_skip_frames);
+    connect_spin(spinBox_fixed_frame_skip, &app->config->fixed_frame_skip);
 
     connect_checkbox(checkBox_allow_invalid_vram_access, &app->config->allow_invalid_vram_access);
     connect_checkbox(checkBox_allow_opposing_dpad_directions, &app->config->allow_opposing_dpad_directions);
@@ -49,6 +50,7 @@ void EmulationPanel::showEvent(QShowEvent *event)
     comboBox_speed_control_method->setCurrentIndex(config->speed_sync_method);
     doubleSpinBox_frame_rate->setValue(config->fixed_frame_rate);
     spinBox_fast_forward_skip_frames->setValue(config->fast_forward_skip_frames);
+    spinBox_fixed_frame_skip->setValue(config->fixed_frame_skip);
 
     spinBox_rewind_buffer_size->setValue(config->rewind_buffer_size);
     spinBox_rewind_frames->setValue(config->rewind_frame_interval);

@@ -3,6 +3,7 @@
 #include "SDLInputManager.hpp"
 #include "EmuApplication.hpp"
 #include "EmuConfig.hpp"
+#include "SnesControllerWidget.hpp"
 #include <QtEvents>
 #include <QTimer>
 
@@ -15,6 +16,46 @@ ControllerPanel::ControllerPanel(EmuApplication *app_)
         fillTable();
         awaiting_binding = false;
     });
+
+    // ─── Controller image + binding table ───
+    controller_image_ = new SnesControllerWidget(this);
+    controller_image_->setObjectName("controllerImage");
+    controller_image_->setMinimumHeight(260);
+
+    if (auto *vbox = qobject_cast<QVBoxLayout *>(tableWidget_controller->parentWidget()->layout()))
+    {
+        int idx = vbox->indexOf(tableWidget_controller);
+        vbox->insertWidget(idx, controller_image_);
+    }
+
+    connect(controller_image_, &SnesControllerWidget::buttonClicked,
+            this, [this](const QString &snes_name) { onImageButtonClicked(snes_name); });
+
+    live_input_timer_.setInterval(50);
+    live_input_timer_.setTimerType(Qt::CoarseTimer);
+    connect(&live_input_timer_, &QTimer::timeout, this, [this, app_] {
+        if (awaiting_binding)
+        {
+            // Currently capturing a new input for cell_row: show exactly the
+            // SNES button being assigned, straight from the same row index
+            // the binding table is using. This can never drift out of sync
+            // with what's actually being configured, unlike deriving it from
+            // live device polling.
+            // Rows 12-17 are the Turbo variants of A/B/X/Y/L/R (rows 4-9) -
+            // map them back to their base button so the image still lights
+            // up the button being (turbo-)assigned.
+            int base_row = (cell_row < 12) ? cell_row : (cell_row - 12 + 4);
+            controller_image_->setPressedNames({ snes_name_for_row(base_row) });
+            return;
+        }
+
+        if (!app_->input_manager) return;
+        QSet<QString> names = app_->input_manager->pressedSnesNames(
+            BindingPanel::binding, EmuConfig::allowed_bindings);
+        controller_image_->setPressedNames(names);
+        controller_image_->setDebugRawState(app_->input_manager->debugRawState());
+    });
+    live_input_timer_.start();
 
     BindingPanel::setTableWidget(tableWidget_controller,
                                  app->config->binding.controller[0].buttons,
@@ -133,11 +174,11 @@ void ControllerPanel::autoPopulateWithJoystick(int joystick_id, int slot)
 
         auto &sdl_binding = bindings[{SDL_GAMEPAD_BINDTYPE_BUTTON, list[i]}];
         if (SDL_GAMEPAD_BINDTYPE_BUTTON == sdl_binding.input_type)
-            buttons[4 * i + slot] = EmuBinding::joystick_button(device.index, sdl_binding.input.button);
+            buttons[4 * i + slot] = EmuBinding::joystick_button(device.hw_guid, sdl_binding.input.button);
         else if (SDL_GAMEPAD_BINDTYPE_HAT == sdl_binding.input_type)
-            buttons[4 * i + slot] = EmuBinding::joystick_hat(device.index, sdl_binding.input.hat.hat, sdl_binding.input.hat.hat_mask);
+            buttons[4 * i + slot] = EmuBinding::joystick_hat(device.hw_guid, sdl_binding.input.hat.hat, sdl_binding.input.hat.hat_mask);
         else if (SDL_GAMEPAD_BINDTYPE_AXIS == sdl_binding.input_type)
-            buttons[4 * i + slot] = EmuBinding::joystick_axis(device.index, sdl_binding.input.axis.axis, sdl_binding.input.axis.axis);
+            buttons[4 * i + slot] = EmuBinding::joystick_axis(device.hw_guid, sdl_binding.input.axis.axis, sdl_binding.input.axis.axis);
     }
 
     fillTable();
@@ -176,6 +217,47 @@ void ControllerPanel::clearAllControllers()
             b = {};
     fillTable();
     app->updateBindings();
+}
+
+QString ControllerPanel::snes_name_for_row(int row)
+{
+    static const char *names[] = {
+        "Up", "Down", "Left", "Right",
+        "A", "B", "X", "Y", "L", "R",
+        "Start", "Select",
+    };
+    if (row >= 0 && row < 12) return QString::fromLatin1(names[row]);
+    return {};
+}
+
+void ControllerPanel::onImageButtonClicked(const QString &snes_name)
+{
+    int row = -1;
+    for (int i = 0; i < 12; i++)
+    {
+        if (snes_name == snes_name_for_row(i))
+        {
+            row = i;
+            break;
+        }
+    }
+    if (row < 0) return;
+
+    // Trigger the binding capture for slot 0 of that SNES button.
+    cell_row = row;
+    cell_column = 0;
+
+    auto *item = tableWidget_controller->item(row, 0);
+    if (!item)
+    {
+        item = new QTableWidgetItem();
+        tableWidget_controller->setItem(row, 0, item);
+    }
+    item->setText("...");
+    awaiting_binding = true;
+    setRedirectInput(true);
+    accept_return = false;
+    tableWidget_controller->setCurrentCell(row, 0);
 }
 
 void ControllerPanel::showEvent(QShowEvent *event)

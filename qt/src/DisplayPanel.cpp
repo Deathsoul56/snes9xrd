@@ -1,6 +1,7 @@
 #include "DisplayPanel.hpp"
 #include "EmuMainWindow.hpp"
 #include "EmuConfig.hpp"
+#include "SoftwareFilter.hpp"
 #include <QFileDialog>
 
 DisplayPanel::DisplayPanel(EmuApplication *app_)
@@ -55,10 +56,25 @@ DisplayPanel::DisplayPanel(EmuApplication *app_)
         app->config->adjust_for_vrr = checked;
     });
 
+    connect(checkBox_transparency, &QCheckBox::clicked, [&](bool checked) {
+        app->config->transparency = checked;
+        app->updateSettings();
+    });
+
+    connect(pushButton_shader_parameters, &QPushButton::clicked, [&] {
+        if (app->window->canvas)
+            app->window->canvas->showParametersDialog();
+    });
+
     //
 
     connect(checkBox_maintain_aspect_ratio, &QCheckBox::clicked, [&](bool checked) {
         app->config->maintain_aspect_ratio = checked;
+    });
+
+    connect(checkBox_stretch_image, &QCheckBox::clicked, [&](bool checked) {
+        app->config->scale_image = checked;
+        app->updateSettings();
     });
 
     connect(checkBox_integer_scaling, &QCheckBox::clicked, [&](bool checked) {
@@ -99,7 +115,12 @@ DisplayPanel::DisplayPanel(EmuApplication *app_)
             app->window->recreateUIAssets();
     });
 
-    groupBox_software_filters->hide();
+    for (auto name : SoftwareFilter::names())
+        comboBox_software_filter->addItem(name);
+
+    connect(comboBox_software_filter, &QComboBox::activated, [&](int index) {
+        app->config->software_filter = index;
+    });
 }
 
 void DisplayPanel::selectShaderDialog()
@@ -158,10 +179,12 @@ void DisplayPanel::showEvent(QShowEvent *event)
     checkBox_reduce_input_lag->setChecked(config->reduce_input_lag);
     checkBox_bilinear_filter->setChecked(config->bilinear_filter);
     checkBox_adjust_for_vrr->setChecked(config->adjust_for_vrr);
+    checkBox_transparency->setChecked(config->transparency);
 
     checkBox_maintain_aspect_ratio->setChecked(config->maintain_aspect_ratio);
     checkBox_integer_scaling->setChecked(config->use_integer_scaling);
     checkBox_overscan->setChecked(config->show_overscan);
+    checkBox_stretch_image->setChecked(config->scale_image);
 
     if (config->aspect_ratio_numerator == 4)
         comboBox_aspect_ratio->setCurrentIndex(0);
@@ -174,6 +197,8 @@ void DisplayPanel::showEvent(QShowEvent *event)
 
     comboBox_messages->setCurrentIndex(config->display_messages);
     spinBox_osd_size->setValue(config->osd_size);
+
+    comboBox_software_filter->setCurrentIndex(config->software_filter);
 
     QWidget::showEvent(event);
 }

@@ -2,6 +2,8 @@
 #include "EmuConfig.hpp"
 #include <QFileDialog>
 #include <QDesktopServices>
+#include <QFormLayout>
+#include <QLabel>
 
 FoldersPanel::FoldersPanel(EmuApplication *app_)
     : app(app_)
@@ -13,6 +15,32 @@ FoldersPanel::FoldersPanel(EmuApplication *app_)
     connectEntry(comboBox_cheat, lineEdit_cheat, pushButton_cheat, &app->config->cheat_location, &app->config->cheat_folder);
     connectEntry(comboBox_patch, lineEdit_patch, pushButton_patch, &app->config->patch_location, &app->config->patch_folder);
     connectEntry(comboBox_export, lineEdit_export, pushButton_export, &app->config->export_location, &app->config->export_folder);
+
+    // Append a BIOS folder row to the existing data-locations group. The
+    // snes9x core hard-codes a filename lookup for Sufami Turbo / BS-X
+    // (STBIOS.bin / BS-X.bin) in this directory, so this is required for
+    // multicart loading.
+    if (auto *group = findChild<QGroupBox *>("groupBox"))
+    {
+        if (auto *grid = group->findChild<QGridLayout *>("gridLayout"))
+        {
+            int row = grid->rowCount();
+            auto *label = new QLabel(tr("BIOS"), group);
+            bios_combo_  = new QComboBox(group);
+            bios_combo_->addItem(tr("ROM Folder"));
+            bios_combo_->addItem(tr("Config Folder"));
+            bios_combo_->addItem(tr("Custom Folder"));
+            bios_line_   = new QLineEdit(group);
+            bios_line_->setReadOnly(true);
+            bios_button_ = new QPushButton(tr("Browse..."), group);
+            grid->addWidget(label, row, 0, 1, 2);
+            grid->addWidget(bios_combo_, row, 2);
+            grid->addWidget(bios_line_, row, 3);
+            grid->addWidget(bios_button_, row, 4);
+            connectEntry(bios_combo_, bios_line_, bios_button_,
+                         &app->config->bios_location, &app->config->bios_folder);
+        }
+    }
 }
 
 void FoldersPanel::connectEntry(QComboBox *combo, QLineEdit *lineEdit, QPushButton *browse, int *location, std::string *folder)
@@ -31,6 +59,9 @@ void FoldersPanel::refreshData()
     refreshEntry(comboBox_cheat, lineEdit_cheat, pushButton_cheat, &app->config->cheat_location, &app->config->cheat_folder);
     refreshEntry(comboBox_patch, lineEdit_patch, pushButton_patch, &app->config->patch_location, &app->config->patch_folder);
     refreshEntry(comboBox_export, lineEdit_export, pushButton_export, &app->config->export_location, &app->config->export_folder);
+    if (bios_combo_)
+        refreshEntry(bios_combo_, bios_line_, bios_button_,
+                     &app->config->bios_location, &app->config->bios_folder);
 }
 
 void FoldersPanel::refreshEntry(QComboBox *combo, QLineEdit *lineEdit, QPushButton *browse, int *location, std::string *folder)

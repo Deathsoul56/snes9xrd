@@ -1,0 +1,227 @@
+/* DuckStation-inspired palette, adapted for Snes9x */
+
+QMainWindow,
+QDialog {
+    background-color: #1e1f25;
+    color: #e8e8e8;
+}
+
+QWidget {
+    color: #d8d8d8;
+    background-color: transparent;
+    font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+/* ───── Library page ───── */
+#libraryPage {
+    background-color: #1e1f25;
+}
+
+#libraryHeader {
+    background-color: #1a1b21;
+    border-bottom: 1px solid #2a2c33;
+}
+
+#libraryTitle {
+    color: #f0f0f0;
+    font-size: 13pt;
+    font-weight: 600;
+    padding: 12px 16px;
+}
+
+#librarySearch {
+    background-color: #16171c;
+    border: 1px solid #2a2c33;
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: #d8d8d8;
+    selection-background-color: #3a3d4a;
+}
+
+#librarySearch:focus {
+    border-color: #4a90ff;
+}
+
+#libraryEmptyTitle {
+    color: #d8d8d8;
+    font-size: 14pt;
+    font-weight: 500;
+}
+
+#libraryEmptyHint {
+    color: #8a8d99;
+    font-size: 10pt;
+}
+
+#libraryDropZone {
+    background-color: #16171c;
+    border: 2px dashed #3a3d4a;
+    border-radius: 12px;
+}
+
+/* ───── Game list ───── */
+QTableView#gameTable {
+    background-color: #1e1f25;
+    alternate-background-color: #1a1b21;
+    gridline-color: #2a2c33;
+    border: none;
+    selection-background-color: #3a4d6e;
+    selection-color: #ffffff;
+    outline: 0;
+}
+
+QTableView#gameTable::item {
+    padding: 6px 8px;
+    border: none;
+}
+
+QTableView#gameTable::item:hover {
+    background-color: #23252c;
+}
+
+QHeaderView#gameHeader {
+    background-color: #16171c;
+    border: none;
+}
+
+QHeaderView#gameHeader::section {
+    background-color: #16171c;
+    color: #8a8d99;
+    padding: 8px 10px;
+    border: none;
+    border-bottom: 1px solid #2a2c33;
+    font-weight: 600;
+    font-size: 9pt;
+}
+
+QTableCornerButton::section {
+    background-color: #16171c;
+    border: none;
+}
+
+/* ───── Status bar ───── */
+QStatusBar {
+    background-color: #16171c;
+    color: #8a8d99;
+    border-top: 1px solid #2a2c33;
+}
+
+QStatusBar::item {
+    border: none;
+}
+
+/* ───── Settings dialog (sidebar) ───── */
+#settingsSidebar {
+    background-color: #16171c;
+    border-right: 1px solid #2a2c33;
+}
+
+QListWidget#settingsPanelList {
+    background-color: #16171c;
+    border: none;
+    outline: 0;
+    padding: 8px 0;
+}
+
+QListWidget#settingsPanelList::item {
+    color: #c8c8c8;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 6px;
+    margin: 2px 8px;
+}
+
+QListWidget#settingsPanelList::item:hover {
+    background-color: #23252c;
+    color: #ffffff;
+}
+
+QListWidget#settingsPanelList::item:selected {
+    background-color: #2a2c33;
+    color: #ffffff;
+}
+
+/* ───── Generic controls ───── */
+QPushButton {
+    background-color: #23252c;
+    border: 1px solid #2a2c33;
+    border-radius: 6px;
+    padding: 6px 14px;
+    color: #d8d8d8;
+}
+
+QPushButton:hover {
+    background-color: #2a2c33;
+    color: #ffffff;
+}
+
+QPushButton:pressed {
+    background-color: #1a1b21;
+}
+
+QPushButton:disabled {
+    color: #555;
+    background-color: #1a1b21;
+    border-color: #23252c;
+}
+
+QToolTip {
+    background-color: #16171c;
+    color: #d8d8d8;
+    border: 1px solid #2a2c33;
+    padding: 4px 8px;
+}
+
+QScrollBar:vertical {
+    background-color: #1a1b21;
+    width: 12px;
+    margin: 0;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #3a3d4a;
+    border-radius: 4px;
+    min-height: 30px;
+    margin: 2px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #4a4d5a;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    background: none;
+    height: 0;
+}
+
+QMenu {
+    background-color: #16171c;
+    border: 1px solid #2a2c33;
+    color: #d8d8d8;
+    padding: 4px;
+}
+
+QMenu::item {
+    padding: 6px 22px;
+    border-radius: 4px;
+}
+
+QMenu::item:selected {
+    background-color: #2a2c33;
+}
+
+QMenuBar {
+    background-color: #16171c;
+    color: #d8d8d8;
+    border-bottom: 1px solid #2a2c33;
+}
+
+QMenuBar::item {
+    padding: 6px 12px;
+    background: transparent;
+}
+
+QMenuBar::item:selected {
+    background-color: #2a2c33;
+}

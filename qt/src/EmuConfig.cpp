@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstdio>
 #include <string>
 #include <filesystem>
@@ -240,9 +241,10 @@ bool EmuConfig::setDefaults(int section)
         aspect_ratio_numerator = 4;
         aspect_ratio_denominator = 3;
         show_overscan = false;
+        transparency = true;
         high_resolution_effect = eLeaveAlone;
 
-        software_filter = {};
+        software_filter = eFilterNone;
 
         display_messages = eOnscreen;
         osd_size = 24;
@@ -262,6 +264,8 @@ bool EmuConfig::setDefaults(int section)
         dynamic_rate_limit = 0.005;
         mute_audio = false;
         mute_audio_during_alternate_speed = false;
+        volume_regular = 100;
+        volume_turbo = 100;
     }
 
     if (section == -1 || section == 3)
@@ -269,6 +273,7 @@ bool EmuConfig::setDefaults(int section)
         speed_sync_method = eTimer;
         fixed_frame_rate = 0.0;
         fast_forward_skip_frames = 9;
+        fixed_frame_skip = 0;
 
         rewind_buffer_size = 0;
         rewind_frame_interval = 5;
@@ -287,7 +292,8 @@ bool EmuConfig::setDefaults(int section)
         automap_gamepads = true;
         // Controllers
         port_configuration = 0;
-        memset(binding.controller, 0, sizeof(binding.controller));
+        for (auto &c : binding.controller)
+            std::fill(std::begin(c.buttons), std::end(c.buttons), EmuBinding{});
 
         const char *button_list[] = { "Up", "Down", "Left", "Right", "d", "c", "s", "x", "z", "a", "Return", "Space" };
         for (int i = 0; i < std::size(button_list); i++)
@@ -299,7 +305,7 @@ bool EmuConfig::setDefaults(int section)
     if (section == -1 || section == 5)
     {
         // Shortcuts
-        memset(binding.shortcuts, 0, sizeof(binding.shortcuts));
+        std::fill(std::begin(binding.shortcuts), std::end(binding.shortcuts), EmuBinding{});
         for (auto i = 0; i < num_shortcuts; i++)
         {
             binding.shortcuts[i * 4] = EmuBinding::from_config_string(getDefaultShortcutKeys()[i]);
@@ -320,6 +326,9 @@ bool EmuConfig::setDefaults(int section)
         cheat_location = eROMDirectory;
         patch_location = eROMDirectory;
         export_location = eROMDirectory;
+        // Default to the config dir so the user has a stable place to drop
+        // their BS-X/Sufami-Turbo BIOS ROMs (e.g. STBIOS.bin).
+        bios_location = eConfigDirectory;
     }
 
     return restart;
@@ -418,6 +427,7 @@ void EmuConfig::config(const std::string &filename, bool write)
     String("LastROMFolder", last_rom_folder);
     Int("MainWindowWidth", main_window_width);
     Int("MainWindowHeight", main_window_height);
+    Bool("MainWindowMaximized", main_window_maximized);
     Int("ShaderParametersDialogWidth", shader_parameters_dialog_width);
     Int("ShaderParametersDialogHeight", shader_parameters_dialog_height);
     Int("CheatDialogWidth", cheat_dialog_width);
@@ -461,9 +471,14 @@ void EmuConfig::config(const std::string &filename, bool write)
     Int("AspectRatioNumerator", aspect_ratio_numerator);
     Int("AspectRatioDenominator", aspect_ratio_denominator);
     Bool("ShowOverscan", show_overscan);
+    Bool("Transparency", transparency);
     Enum("HighResolutionEffect", high_resolution_effect, { "LeaveAlone", "ScaleDown", "ScaleUp" });
 
-    String("SoftwareFilter", software_filter);
+    Enum("SoftwareFilter", software_filter, {
+        "None", "Scanlines", "Simple2x", "Simple3x", "Simple4x",
+        "SuperEagle", "2xSaI", "Super2xSaI", "EPX",
+        "HQ2x", "HQ3x", "HQ4x", "2xBRZ", "3xBRZ", "4xBRZ", "NTSC"
+    });
 
     Enum("DisplayMessages", display_messages, { "Onscreen", "Inscreen", "None" });
     Int("OSDSize", osd_size);
@@ -480,12 +495,15 @@ void EmuConfig::config(const std::string &filename, bool write)
     Double("DynamicRateLimit", dynamic_rate_limit);
     Bool("Mute", mute_audio);
     Bool("MuteAudioDuringAlternateSpeed", mute_audio_during_alternate_speed);
+    Int("VolumeRegular", volume_regular);
+    Int("VolumeTurbo", volume_turbo);
     EndSection();
 
     BeginSection("Emulation");
     Enum("SpeedSyncMethod", speed_sync_method, { "Timer", "TimerFrameskip", "SoundSync", "Unlimited" });
     Double("FixedFrameRate", fixed_frame_rate);
     Int("FastForwardSkipFrames", fast_forward_skip_frames);
+    Int("FixedFrameSkip", fixed_frame_skip);
     Int("RewindBufferSize", rewind_buffer_size);
     Int("RewindFrameInterval", rewind_frame_interval);
     Bool("AllowInvalidVRAMAccess", allow_invalid_vram_access);
@@ -543,6 +561,8 @@ void EmuConfig::config(const std::string &filename, bool write)
     String("CheatFolder", cheat_folder);
     String("PatchFolder", patch_folder);
     String("ExportFolder", export_folder);
+    String("BiosFolder", bios_folder);
+    Enum("BiosLocation", bios_location, { "ROMDirectory", "ConfigDirectory", "Custom" });
 
     Int("SRAMSaveInterval", sram_save_interval);
     EndSection();
