@@ -1,61 +1,31 @@
-# Snes9x
-*Snes9x - Portable Super Nintendo Entertainment System (TM) emulator*
+# snes9xrd
+*Snes9x 1.63 — Portable Super Nintendo Entertainment System (TM) emulator, "sex edition" fork*
 
-This is the official source code repository for the Snes9x project.
+This is `snes9xrd`, a personal fork of [Snes9x](https://github.com/snes9xgit/snes9x) 1.63 maintained by DeAtSoUl56. It tracks upstream `master` closely — there's no separate feature branch — but rebuilds the Qt front-end and fixes bugs found along the way. Everything else (the emulation core, and the GTK/win32/macOS/libretro front-ends) is stock Snes9x.
 
-Please check the [Wiki](https://github.com/snes9xgit/snes9x/wiki) for additional information.
+## What's different from upstream
 
-## Nightly builds
+- **Qt front-end overhaul**: Display, Sound, Emulation and Controllers settings now have real parity with the legacy win32 dialogs (stretch/transparency/shader parameters, frame skipping, software filters, per-channel volume/mute, etc.).
+- **Controller binding widget**: the on-screen SNES controller image now highlights exactly the button that's bound and pressed — no more pre-lit buttons or mismatched highlights — with a background that matches the settings theme.
+- **Binding fixes**: axis/hat bindings are correctly disambiguated from each other and now survive a save/load round-trip; joystick button highlighting matches the same raw button index the bindings are captured from.
+- **Simplified main window**: the sidebar added early in the fork's life was removed in favor of just the top menu bar; the Help → About dialog was restored with the fork's own credits.
 
-Download nightly builds from continuous integration:
+For the full breakdown of the fork's layout, build systems, and conventions, see [AGENTS.md](AGENTS.md).
 
-### snes9x
+## Building
 
-| OS            | status                                           |
-|---------------|--------------------------------------------------|
-| Windows       | [![Status][s9x-win-all]][appveyor]               |
-| Linux (GTK)   | [![Status][snes9x_linux-gtk-amd64]][cirrus-ci]   |
-| Linux (X11)   | [![Status][snes9x_linux-x11-amd64]][cirrus-ci]   |
-| FreeBSD (X11) | [![Status][snes9x_freebsd-x11-amd64]][cirrus-ci] |
-| macOS         | [![Status][snes9x_macOS-amd64]][cirrus-ci]       |
+`git submodule update --init --recursive` is required before building anything (see [AGENTS.md](AGENTS.md#submodules) for the exact list of submodules).
 
-[appveyor]: https://ci.appveyor.com/project/snes9x/snes9x
-[cirrus-ci]: http://cirrus-ci.com/github/snes9xgit/snes9x
+### Qt (recommended for this fork)
+```
+cmake -G Ninja -B build -S qt -DCMAKE_BUILD_TYPE=Release
+ninja -C build
+```
+On Windows, build from an MSYS2 CLANG64 shell. Qt6 and SDL3 are fetched automatically via CMake if not found on the system.
 
-[s9x-win-all]: https://ci.appveyor.com/api/projects/status/github/snes9xgit/snes9x?branch=master&svg=true
-[snes9x_linux-gtk-amd64]: https://api.cirrus-ci.com/github/snes9xgit/snes9x.svg?task=snes9x_linux-gtk-amd64
-[snes9x_linux-x11-amd64]: https://api.cirrus-ci.com/github/snes9xgit/snes9x.svg?task=snes9x_linux-x11-amd64
-[snes9x_freebsd-x11-amd64]: https://api.cirrus-ci.com/github/snes9xgit/snes9x.svg?task=snes9x_freebsd-x11-amd64
-[snes9x_macOS-amd64]: https://api.cirrus-ci.com/github/snes9xgit/snes9x.svg?task=snes9x_macOS-amd64
+### Other front-ends (unix/X11, GTK, win32, macOS, libretro)
+These are unmodified from upstream Snes9x — see [AGENTS.md](AGENTS.md#build-commands) for the build command for each.
 
-### libretro core
+## Upstream project
 
-| OS                  | status                                                  |
-|---------------------|---------------------------------------------------------|
-| Linux/amd64         | [![Status][libretro_linux-amd64]][cirrus-ci]            |
-| Linux/i386          | [![Status][libretro_linux-i386]][cirrus-ci]             |
-| Linux/armhf         | [![Status][libretro_linux-armhf]][cirrus-ci]            |
-| Linux/armv7-neon-hf | [![Status][libretro_linux-armv7-neon-hf]][cirrus-ci]    |
-| Linux/arm64         | [![Status][libretro_linux-arm64]][cirrus-ci]            |
-| Android/arm         | [![Status][libretro_android-arm]][cirrus-ci]            |
-| Android/arm64       | [![Status][libretro_android-arm64]][cirrus-ci]          |
-| Emscripten          | [![Status][libretro_emscripten]][cirrus-ci]             |
-| macOS/amd64         | [![Status][libretro_macOS-amd64]][cirrus-ci]            |
-| Nintendo Wii        | [![Status][libretro_nintendo-wii]][cirrus-ci]           |
-| Nintendo Switch     | [![Status][libretro_nintendo-switch-libnx]][cirrus-ci]  |
-| Nintendo GameCube   | [![Status][libretro_nintendo-ngc]][cirrus-ci]           |
-| PSP                 | [![Status][libretro_playstation-psp]][cirrus-ci]        |
-
-[libretro_linux-amd64]: https://api.cirrus-ci.com/github/snes9xgit/snes9x.svg?task=libretro_linux-amd64
-[libretro_linux-i386]: https://api.cirrus-ci.com/github/snes9xgit/snes9x.svg?task=libretro_linux-i386
-[libretro_linux-armhf]: https://api.cirrus-ci.com/github/snes9xgit/snes9x.svg?task=libretro_linux-armhf
-[libretro_linux-armv7-neon-hf]: https://api.cirrus-ci.com/github/snes9xgit/snes9x.svg?task=libretro_linux-armv7-neon-hf
-[libretro_linux-arm64]: https://api.cirrus-ci.com/github/snes9xgit/snes9x.svg?task=libretro_linux-arm64
-[libretro_android-arm]: https://api.cirrus-ci.com/github/snes9xgit/snes9x.svg?task=libretro_android-arm
-[libretro_android-arm64]: https://api.cirrus-ci.com/github/snes9xgit/snes9x.svg?task=libretro_android-arm64
-[libretro_emscripten]: https://api.cirrus-ci.com/github/snes9xgit/snes9x.svg?task=libretro_emscripten
-[libretro_macOS-amd64]: https://api.cirrus-ci.com/github/snes9xgit/snes9x.svg?task=libretro_macOS-amd64
-[libretro_nintendo-wii]: https://api.cirrus-ci.com/github/snes9xgit/snes9x.svg?task=libretro_nintendo-wii
-[libretro_nintendo-switch-libnx]: https://api.cirrus-ci.com/github/snes9xgit/snes9x.svg?task=libretro_nintendo-switch-libnx
-[libretro_nintendo-ngc]: https://api.cirrus-ci.com/github/snes9xgit/snes9x.svg?task=libretro_nintendo-ngc
-[libretro_playstation-psp]: https://api.cirrus-ci.com/github/snes9xgit/snes9x.svg?task=libretro_playstation-psp
+Please check the [Snes9x Wiki](https://github.com/snes9xgit/snes9x/wiki) for general information about the emulator, and the [upstream repository](https://github.com/snes9xgit/snes9x) for nightly builds and CI status of the base project this fork tracks.
