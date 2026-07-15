@@ -98,25 +98,25 @@ SoundPanel::SoundPanel(EmuApplication *app_)
             app->core->setSoundChannelEnabled(channel, checked);
         });
     };
-    connect_channel(checkBox_channel_0, 0);
-    connect_channel(checkBox_channel_1, 1);
-    connect_channel(checkBox_channel_2, 2);
-    connect_channel(checkBox_channel_3, 3);
-    connect_channel(checkBox_channel_4, 4);
-    connect_channel(checkBox_channel_5, 5);
-    connect_channel(checkBox_channel_6, 6);
-    connect_channel(checkBox_channel_7, 7);
+    auto channel_checkboxes = channelCheckboxes();
+    for (int i = 0; i < 8; i++)
+        connect_channel(channel_checkboxes[i], i);
 
     connect(pushButton_enable_all_channels, &QPushButton::clicked, [&] {
         app->core->toggleSoundChannel(8);
-        for (auto *cb : { checkBox_channel_0, checkBox_channel_1, checkBox_channel_2, checkBox_channel_3,
-                          checkBox_channel_4, checkBox_channel_5, checkBox_channel_6, checkBox_channel_7 })
+        for (auto *cb : channelCheckboxes())
         {
             cb->blockSignals(true);
             cb->setChecked(true);
             cb->blockSignals(false);
         }
     });
+}
+
+std::array<QCheckBox *, 8> SoundPanel::channelCheckboxes() const
+{
+    return { checkBox_channel_0, checkBox_channel_1, checkBox_channel_2, checkBox_channel_3,
+             checkBox_channel_4, checkBox_channel_5, checkBox_channel_6, checkBox_channel_7 };
 }
 
 void SoundPanel::updateInputRate()
@@ -192,8 +192,7 @@ void SoundPanel::showEvent(QShowEvent *event)
     horizontalSlider_volume_turbo->setValue(config->volume_turbo);
     spinBox_volume_turbo->setValue(config->volume_turbo);
 
-    QCheckBox *channel_checkboxes[] = { checkBox_channel_0, checkBox_channel_1, checkBox_channel_2, checkBox_channel_3,
-                                        checkBox_channel_4, checkBox_channel_5, checkBox_channel_6, checkBox_channel_7 };
+    auto channel_checkboxes = channelCheckboxes();
     for (int i = 0; i < 8; i++)
     {
         channel_checkboxes[i]->blockSignals(true);

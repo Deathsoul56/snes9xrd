@@ -137,7 +137,7 @@ void EmuMainWindow::createWidgets()
     if (QIcon::hasThemeIcon("snes9x"))
         setWindowIcon(QIcon::fromTheme("snes9x"));
     else
-        setWindowIcon(QIcon(":/icons/snes9x.svg"));
+        setWindowIcon(QIcon(":/icons/snes9x.png"));
 
 #ifdef Q_OS_WIN
     HWND hwnd = reinterpret_cast<HWND>(winId());
@@ -195,7 +195,7 @@ void EmuMainWindow::createWidgets()
     // core itself, same as the GTK and macOS front-ends.
     auto multicart_item = file_menu->addAction(QIcon(iconset + "open.svg"), tr("Load &MultiCart…"));
     connect(multicart_item, &QAction::triggered, this, [&] {
-        MultiCartDialog dlg(this);
+        MultiCartDialog dlg(app->config.get(), this);
         dlg.setWindowTitle(tr("Open MultiCart"));
         if (dlg.exec() != QDialog::Accepted) return;
 
@@ -361,23 +361,23 @@ void EmuMainWindow::createWidgets()
     auto about_item = help_menu->addAction(tr("&About…"));
     connect(about_item, &QAction::triggered, this, [&] {
         QMessageBox::about(this, tr("About Snes9x"),
-            tr("Snes9x v%1 for Windows.\n"
-               "(c) Copyright 1996 - 2002  Gary Henderson and Jerremy Koot (jkoot@snes9x.com)\n"
-               "(c) Copyright 2002 - 2004  Matthew Kendora\n"
-               "(c) Copyright 2002 - 2005  Peter Bortas\n"
-               "(c) Copyright 2004 - 2005  Joel Yliluoma\n"
-               "(c) Copyright 2001 - 2006  John Weidman\n"
-               "(c) Copyright 2002 - 2010  Brad Jorsch, funkyass, Kris Bleakley, Nach, zones\n"
-               "(c) Copyright 2006 - 2007  nitsuja\n"
-               "(c) Copyright 2009 - 2023  BearOso, OV2\n"
-               "(c) Copyright 2026 - 2026  DeAtSoUl56\n\n"
-               "Windows Port Authors: Matthew Kendora, funkyass, nitsuja, Nach, blip, OV2.\n\n"
-               "Snes9x is a Super Nintendo Entertainment System\n"
-               "emulator that allows you to play most games designed\n"
-               "for the SNES on your PC.\n\n"
-               "This is snes9xrd, a fork of Snes9x — sex edition.\n\n"
-               "Please visit http://www.snes9x.com for\n"
-               "up-to-the-minute information and help on Snes9x.\n\n"
+            tr("Snes9x v%1 for Windows.<br>"
+               "(c) Copyright 1996 - 2002  Gary Henderson and Jerremy Koot (jkoot@snes9x.com)<br>"
+               "(c) Copyright 2002 - 2004  Matthew Kendora<br>"
+               "(c) Copyright 2002 - 2005  Peter Bortas<br>"
+               "(c) Copyright 2004 - 2005  Joel Yliluoma<br>"
+               "(c) Copyright 2001 - 2006  John Weidman<br>"
+               "(c) Copyright 2002 - 2010  Brad Jorsch, funkyass, Kris Bleakley, Nach, zones<br>"
+               "(c) Copyright 2006 - 2007  nitsuja<br>"
+               "(c) Copyright 2009 - 2023  BearOso, OV2<br>"
+               "(c) Copyright 2026 - 2026  DeAtSoUl56<br><br>"
+               "Windows Port Authors: Matthew Kendora, funkyass, nitsuja, Nach, blip, OV2.<br><br>"
+               "Snes9x is a Super Nintendo Entertainment System<br>"
+               "emulator that allows you to play most games designed<br>"
+               "for the SNES on your PC.<br><br>"
+               "This is snes9xrd <s>sex edition</s>, a fork of Snes9x.<br><br>"
+               "Please visit http://www.snes9x.com for<br>"
+               "up-to-the-minute information and help on Snes9x.<br><br>"
                "Nintendo is a trademark.").arg(QString::fromUtf8(VERSION)));
     });
     menuBar()->addMenu(help_menu);
@@ -419,6 +419,11 @@ void EmuMainWindow::showLibraryPage()
     if (library_page_) library_page_->refresh();
     center_stack_->setCurrentWidget(library_page_);
     menuBar()->setVisible(true);
+}
+
+void EmuMainWindow::refreshLibrary()
+{
+    if (library_page_) library_page_->reloadFolders();
 }
 
 void EmuMainWindow::showRunningPage()
@@ -594,7 +599,17 @@ bool EmuMainWindow::event(QEvent *event)
         break;
     case QEvent::WindowDeactivate:
         if (mouse_grabbed) toggleMouseGrab();
-        if (app->config->pause_emulation_when_unfocused && !focus_pause)
+        // Only treat this as "the user switched away from Snes9x" (and thus
+        // auto-pause) if the whole application actually lost focus, e.g. to
+        // another program. Qt also fires WindowDeactivate on this window
+        // whenever one of our *own* top-level windows takes focus instead
+        // (Options, About, Cheats, etc.), in which case applicationState()
+        // stays Qt::ApplicationActive. Without this check, simply opening
+        // the Display settings dialog would auto-pause the game, making
+        // every setting look like it "does nothing" until the dialog is
+        // closed and the main window reactivates.
+        if (app->config->pause_emulation_when_unfocused && !focus_pause &&
+            QGuiApplication::applicationState() != Qt::ApplicationActive)
         {
             focus_pause = true;
             app->pause();

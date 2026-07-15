@@ -1,9 +1,15 @@
 #include "FoldersPanel.hpp"
 #include "EmuConfig.hpp"
+#include "EmuMainWindow.hpp"
 #include <QFileDialog>
 #include <QDesktopServices>
 #include <QFormLayout>
+#include <QGroupBox>
+#include <QHBoxLayout>
 #include <QLabel>
+#include <QListWidget>
+#include <QPushButton>
+#include <QVBoxLayout>
 
 FoldersPanel::FoldersPanel(EmuApplication *app_)
     : app(app_)
@@ -41,6 +47,50 @@ FoldersPanel::FoldersPanel(EmuApplication *app_)
                          &app->config->bios_location, &app->config->bios_folder);
         }
     }
+
+    // ROM library folders: previously the only way to set this was the
+    // "Add Game Folder…" button shown on the empty Library page, and once
+    // set there was no way to add another folder or remove one without
+    // hand-editing the config file. This gives the same add/remove controls
+    // from the Files settings panel.
+    auto *library_group = new QGroupBox(tr("ROM Library Folders"), this);
+    auto *library_layout = new QVBoxLayout(library_group);
+
+    library_list_ = new QListWidget(library_group);
+    library_layout->addWidget(library_list_);
+
+    auto *library_button_row = new QHBoxLayout;
+    auto *add_button = new QPushButton(tr("Add Folder…"), library_group);
+    auto *remove_button = new QPushButton(tr("Remove Selected"), library_group);
+    library_button_row->addWidget(add_button);
+    library_button_row->addWidget(remove_button);
+    library_button_row->addStretch(1);
+    library_layout->addLayout(library_button_row);
+
+    layout()->addWidget(library_group);
+
+    connect(add_button, &QPushButton::clicked, this, [this] {
+        QString dir = QFileDialog::getExistingDirectory(this, tr("Choose a ROM folder"));
+        if (dir.isEmpty()) return;
+
+        for (const auto &existing : app->config->library_folders)
+            if (QString::fromStdString(existing) == dir) return;
+
+        app->config->library_folders.push_back(dir.toStdString());
+        refreshLibraryList();
+        if (app->window) app->window->refreshLibrary();
+    });
+
+    connect(remove_button, &QPushButton::clicked, this, [this] {
+        int row = library_list_->currentRow();
+        if (row < 0 || row >= static_cast<int>(app->config->library_folders.size())) return;
+
+        app->config->library_folders.erase(app->config->library_folders.begin() + row);
+        refreshLibraryList();
+        if (app->window) app->window->refreshLibrary();
+    });
+
+    refreshLibraryList();
 }
 
 void FoldersPanel::connectEntry(QComboBox *combo, QLineEdit *lineEdit, QPushButton *browse, int *location, std::string *folder)
@@ -62,6 +112,14 @@ void FoldersPanel::refreshData()
     if (bios_combo_)
         refreshEntry(bios_combo_, bios_line_, bios_button_,
                      &app->config->bios_location, &app->config->bios_folder);
+    refreshLibraryList();
+}
+
+void FoldersPanel::refreshLibraryList()
+{
+    library_list_->clear();
+    for (const auto &folder : app->config->library_folders)
+        library_list_->addItem(QString::fromStdString(folder));
 }
 
 void FoldersPanel::refreshEntry(QComboBox *combo, QLineEdit *lineEdit, QPushButton *browse, int *location, std::string *folder)

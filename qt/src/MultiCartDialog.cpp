@@ -1,9 +1,11 @@
 #include "MultiCartDialog.hpp"
 
 #include "EmuApplication.hpp"
+#include "EmuConfig.hpp"
 
 #include <QDialogButtonBox>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -11,8 +13,8 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
-MultiCartDialog::MultiCartDialog(QWidget *parent)
-    : QDialog(parent)
+MultiCartDialog::MultiCartDialog(EmuConfig *config, QWidget *parent)
+    : QDialog(parent), config_(config)
 {
     setWindowTitle(tr("Open MultiCart"));
     setMinimumWidth(520);
@@ -32,12 +34,14 @@ MultiCartDialog::MultiCartDialog(QWidget *parent)
 
         auto *browse = new QPushButton(tr("Browse…"), this);
         connect(browse, &QPushButton::clicked, this, [this, edit, label_text]() {
-            QString path = QFileDialog::getOpenFileName(this, label_text, QString(),
+            QString start_dir = config_ ? QString::fromStdString(config_->last_multicart_folder) : QString();
+            QString path = QFileDialog::getOpenFileName(this, label_text, start_dir,
                 EmuApplication::romFileDialogFilter());
             if (path.isEmpty()) return;
             (*edit)->setText(path);
             if (edit == &this->slot_a_edit_) slot_a_ = path;
             else if (edit == &this->slot_b_edit_) slot_b_ = path;
+            if (config_) config_->last_multicart_folder = QFileInfo(path).absolutePath().toStdString();
         });
         row->addWidget(browse);
 
@@ -78,20 +82,24 @@ MultiCartDialog::MultiCartDialog(QWidget *parent)
 
 void MultiCartDialog::browseSlotA()
 {
-    QString path = QFileDialog::getOpenFileName(this, tr("Choose Slot A cartridge"), QString(),
+    QString start_dir = config_ ? QString::fromStdString(config_->last_multicart_folder) : QString();
+    QString path = QFileDialog::getOpenFileName(this, tr("Choose Slot A cartridge"), start_dir,
         EmuApplication::romFileDialogFilter());
     if (path.isEmpty()) return;
     slot_a_edit_->setText(path);
     slot_a_ = path;
+    if (config_) config_->last_multicart_folder = QFileInfo(path).absolutePath().toStdString();
 }
 
 void MultiCartDialog::browseSlotB()
 {
-    QString path = QFileDialog::getOpenFileName(this, tr("Choose Slot B cartridge"), QString(),
+    QString start_dir = config_ ? QString::fromStdString(config_->last_multicart_folder) : QString();
+    QString path = QFileDialog::getOpenFileName(this, tr("Choose Slot B cartridge"), start_dir,
         EmuApplication::romFileDialogFilter());
     if (path.isEmpty()) return;
     slot_b_edit_->setText(path);
     slot_b_ = path;
+    if (config_) config_->last_multicart_folder = QFileInfo(path).absolutePath().toStdString();
 }
 
 void MultiCartDialog::swapAB()

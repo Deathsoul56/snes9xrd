@@ -716,40 +716,6 @@ void Snes9xController::updateBindings(const EmuConfig *const config)
         }
     }
 
-    for (auto &additional : config->additional_controllers)
-    {
-        const char *additional_names[] =
-        {
-            "Up",
-            "Down",
-            "Left",
-            "Right",
-            "A",
-            "B",
-            "X",
-            "Y",
-            "L",
-            "R",
-            "Start",
-            "Select",
-            "Up",
-            "Down",
-            "Left",
-            "Right",
-        };
-
-        for (int i = 0; i < std::size(additional_names); i++)
-        {
-            auto binding = additional.buttons[i];
-            if (binding.hash() == 0)
-                continue;
-            std::string name = std::string("Joypad1 ") +
-                               additional_names[i];
-            auto cmd = S9xGetCommandT(name.c_str());
-            S9xMapButton(binding.hash(), cmd, false);
-        }
-    }
-
     for (int i = 0; i < EmuConfig::num_shortcuts; i++)
     {
         auto command = S9xGetCommandT(EmuConfig::getShortcutNames()[i]);

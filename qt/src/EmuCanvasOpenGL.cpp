@@ -260,6 +260,13 @@ void EmuCanvasOpenGL::draw()
     context->make_current();
     gladLoaderLoadGL();
 
+    // Vsync was previously only applied once in init(), so toggling the
+    // "Vertical Sync" checkbox in Display settings had no visible effect
+    // until the display driver/canvas was recreated. Vulkan already checks
+    // this every frame; do the same here so the change is instant, matching
+    // the other live-updating Display options.
+    context->swap_interval(config->enable_vsync ? 1 : 0);
+
     uploadTexture();
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture);

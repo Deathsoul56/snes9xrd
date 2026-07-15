@@ -19,7 +19,7 @@ void GameListProxyModel::setFilterText(const QString &text)
 bool GameListProxyModel::filterAcceptsRow(int source_row, const QModelIndex &source_parent) const
 {
     if (filter_.isEmpty()) return true;
-    auto idx = sourceModel()->index(source_row, EmuGameList::Column_Title, source_parent);
+    auto idx = sourceModel()->index(source_row, EmuGameList::Column_FileTitle, source_parent);
     QString title = sourceModel()->data(idx, Qt::DisplayRole).toString();
     return title.contains(filter_, Qt::CaseInsensitive);
 }
@@ -45,13 +45,13 @@ GameListWidget::GameListWidget(EmuGameList *model, QWidget *parent)
     horizontalHeader()->setStretchLastSection(true);
     horizontalHeader()->setHighlightSections(false);
 
-    setColumnWidth(EmuGameList::Column_Title, 360);
+    setColumnWidth(EmuGameList::Column_FileTitle, 360);
     setColumnWidth(EmuGameList::Column_Region, 90);
     setColumnWidth(EmuGameList::Column_Size, 100);
     setColumnWidth(EmuGameList::Column_Serial, 100);
     resizeColumnToContents(EmuGameList::Column_Size);
 
-    sortByColumn(EmuGameList::Column_Title, Qt::AscendingOrder);
+    sortByColumn(EmuGameList::Column_FileTitle, Qt::AscendingOrder);
     setFocusPolicy(Qt::StrongFocus);
 
     connect(this, &QTableView::doubleClicked, this, [this](const QModelIndex &idx) {

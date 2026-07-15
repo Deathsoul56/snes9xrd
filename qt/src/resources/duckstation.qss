@@ -225,3 +225,126 @@ QMenuBar::item {
 QMenuBar::item:selected {
     background-color: #2a2c33;
 }
+
+/* ───── Settings panel controls ───── */
+QGroupBox {
+    color: #f0f0f0;
+    border: 1px solid #2a2c33;
+    border-radius: 6px;
+    margin-top: 10px;
+    padding-top: 10px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 8px;
+    padding: 0 4px;
+    color: #f0f0f0;
+}
+
+QCheckBox {
+    color: #d8d8d8;
+    spacing: 8px;
+}
+
+QCheckBox::indicator {
+    width: 15px;
+    height: 15px;
+    border: 1px solid #4a4d5a;
+    border-radius: 3px;
+    background-color: #16171c;
+}
+
+QCheckBox::indicator:hover {
+    border-color: #4a90ff;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #4a90ff;
+    border-color: #4a90ff;
+}
+
+QCheckBox::indicator:disabled {
+    border-color: #2a2c33;
+    background-color: #1a1b21;
+}
+
+QComboBox {
+    background-color: #23252c;
+    border: 1px solid #4a4d5a;
+    border-radius: 6px;
+    padding: 4px 8px;
+    color: #d8d8d8;
+}
+
+QComboBox:hover {
+    border-color: #4a90ff;
+}
+
+QComboBox:disabled {
+    color: #555;
+    background-color: #1a1b21;
+    border-color: #23252c;
+}
+
+QComboBox::drop-down {
+    border: none;
+    width: 20px;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #16171c;
+    border: 1px solid #2a2c33;
+    color: #d8d8d8;
+    selection-background-color: #2a2c33;
+    selection-color: #ffffff;
+    outline: none;
+}
+
+QLineEdit,
+QSpinBox,
+QDoubleSpinBox {
+    background-color: #23252c;
+    border: 1px solid #4a4d5a;
+    border-radius: 6px;
+    padding: 4px 8px;
+    color: #d8d8d8;
+}
+
+QLineEdit:hover,
+QSpinBox:hover,
+QDoubleSpinBox:hover {
+    border-color: #4a90ff;
+}
+
+QLineEdit:disabled,
+QSpinBox:disabled,
+QDoubleSpinBox:disabled {
+    color: #555;
+    background-color: #1a1b21;
+    border-color: #23252c;
+}
+
+QSlider::groove:horizontal {
+    background-color: #1a1b21;
+    height: 4px;
+    border-radius: 2px;
+}
+
+QSlider::handle:horizontal {
+    background-color: #4a90ff;
+    width: 14px;
+    height: 14px;
+    margin: -6px 0;
+    border-radius: 7px;
+}
+
+QSlider::handle:horizontal:hover {
+    background-color: #6aa6ff;
+}
+
+QSlider::sub-page:horizontal {
+    background-color: #3a4d6e;
+    border-radius: 2px;
+}
