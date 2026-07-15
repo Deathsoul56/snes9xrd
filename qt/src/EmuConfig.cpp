@@ -289,7 +289,6 @@ bool EmuConfig::setDefaults(int section)
 
     if (section == -1 || section == 4)
     {
-        automap_gamepads = true;
         // Controllers
         port_configuration = 0;
         for (auto &c : binding.controller)
@@ -425,6 +424,7 @@ void EmuConfig::config(const std::string &filename, bool write)
 
     BeginSection("Operational");
     String("LastROMFolder", last_rom_folder);
+    String("LastMultiCartFolder", last_multicart_folder);
     Int("MainWindowWidth", main_window_width);
     Int("MainWindowHeight", main_window_height);
     Bool("MainWindowMaximized", main_window_maximized);
@@ -440,6 +440,15 @@ void EmuConfig::config(const std::string &filename, bool write)
     for (int i = 0; i < recent_count; i++)
     {
         String("RecentlyUsed" + std::to_string(i), recently_used[i]);
+    }
+
+    int library_folder_count = library_folders.size();
+    Int("LibraryFolderEntries", library_folder_count);
+    if (!write)
+        library_folders.resize(library_folder_count);
+    for (int i = 0; i < library_folder_count; i++)
+    {
+        String("LibraryFolder" + std::to_string(i), library_folders[i]);
     }
     EndSection();
 
@@ -516,7 +525,6 @@ void EmuConfig::config(const std::string &filename, bool write)
     EndSection();
 
     BeginSection("Ports");
-    Bool("AutomapGamepads", automap_gamepads);
     Enum("PortConfiguration", port_configuration, { "OneController", "TwoControllers", "Mouse", "SuperScope", "Multitap" });
     EndSection();
 

@@ -49,6 +49,10 @@ class EmuMainWindow : public QMainWindow
     void toggleMouseGrab();
     std::vector<std::string> getDisplayDeviceList();
 
+    // Called by FoldersPanel after adding/removing a ROM library folder, so
+    // the Library page picks up the change without requiring a restart.
+    void refreshLibrary();
+
     EmuApplication *app = nullptr;
     EmuCanvas *canvas = nullptr;
 

@@ -19,6 +19,12 @@ public:
     explicit LibraryPage(EmuApplication *app, EmuGameList *game_list, QWidget *parent = nullptr);
     void refresh();
 
+    // Re-reads app->config->library_folders and re-scans. Called after the
+    // Files settings panel adds/removes a library folder, since that panel
+    // edits the config directly and has no other way to tell the library
+    // view its folder list changed.
+    void reloadFolders();
+
 signals:
     void gameEntryActivated(const QString &path);
 

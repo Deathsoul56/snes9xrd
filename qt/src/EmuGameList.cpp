@@ -4,25 +4,30 @@
 #include "snes9x.h"
 #include "memmap.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
-
-#include <cstring>
+#include <QElapsedTimer>
 
 namespace {
 constexpr int SNES_HEADER_LO = 0x7FC0;
 constexpr int SNES_HEADER_HI = 0xFFC0;
 
-bool isLikelyCopierHeader(const uint8_t *data)
+// Mirrors CMemory::HeaderRemove()'s arithmetic (memmap.cpp) so the library
+// scanner agrees with the core on whether a ROM has a 512-byte copier
+// header. ROM dumps are always a multiple of 0x2000 (8KB); a copier header
+// is detected by rounding the file size down to the nearest 0x2000 and
+// checking whether exactly 512 bytes are left over. The previous
+// `size % 512 == 0` check was true for essentially every ROM (headered or
+// not, since 0x2000 is itself a multiple of 512), so the byte-heuristic
+// that followed it ended up misfiring on plain headerless ROMs and shifting
+// every header read by 512 bytes, producing garbage titles/region/serial.
+bool hasCopierHeader(int size)
 {
-    // Headerless SMC dumps with a 512-byte copier header have these bytes
-    // at fixed positions; this is the heuristic snes9x uses.
-    if (data[0x1F] != 0x00) return false;
-    return ((data[0x16] == 0x00 || data[0x16] == 0x80 || data[0x16] == 0x40)
-            && data[0x17] == 0x00
-            && (data[0x14] == 0x00 || data[0x14] == 0x80));
+    int calc_size = (size / 0x2000) * 0x2000;
+    return (size - calc_size) == 512;
 }
 
 bool isPrintableAscii(uint8_t c)
@@ -30,20 +35,100 @@ bool isPrintableAscii(uint8_t c)
     return c >= 0x20 && c <= 0x7E;
 }
 
-QString guessRomMap(uint64_t size, const uint8_t *rom, int header_offset)
+bool allAscii(const uint8_t *b, int size)
 {
-    const uint8_t *header = rom + header_offset + SNES_HEADER_LO - 0x7FC0;
-    int printable_lo = 0, printable_hi = 0;
-    for (int i = 0; i < 21; i++)
-    {
-        if (isPrintableAscii(header[0x10 + i])) printable_lo++;
-        if (isPrintableAscii(rom[SNES_HEADER_HI + 0x10 + i])) printable_hi++;
-    }
-    // Prefer whichever looks more like a real ASCII title. The reset vector
-    // at offset 0x20 in the SNES header (low byte) is also a hint.
-    if (printable_hi > printable_lo) return QStringLiteral("HiROM");
-    return QStringLiteral("LoROM");
+    for (int i = 0; i < size; i++)
+        if (!isPrintableAscii(b[i])) return false;
+    return true;
 }
+
+// These mirror CMemory::ScoreHiROM()/ScoreLoROM() (memmap.cpp) exactly, just
+// operating on a raw file buffer instead of the core's mapped ROM array.
+// The previous heuristic ("whichever header has more printable ASCII
+// bytes in the title field") frequently picked the wrong map for ROMs
+// whose title happens to look valid at both header locations (very common,
+// since 21 semi-random bytes have a decent chance of looking "printable"),
+// which is why titles kept coming out garbled. Scoring on the actual
+// cartridge-type/checksum/reset-vector fields is what snes9x itself uses
+// to disambiguate LoROM vs HiROM, so reusing it here fixes the same cases
+// the core gets right when actually loading the ROM.
+int scoreHiRom(const uint8_t *rom, int rom_size, int header_offset)
+{
+    int base = header_offset + 0xFF00;
+    if (rom_size < base + 0x100) return -1000;
+    const uint8_t *buf = rom + base;
+    int score = 0;
+
+    if (buf[0xd7] == 13 && rom_size > 1024 * 1024 * 4)
+        score += 3;
+    if (buf[0xd5] & 0x1)
+        score += 2;
+    if (buf[0xd5] == 0x23)
+        score -= 2;
+    if (buf[0xd4] == 0x20)
+        score += 2;
+    if ((buf[0xdc] + (buf[0xdd] << 8)) + (buf[0xde] + (buf[0xdf] << 8)) == 0xffff)
+    {
+        score += 2;
+        if ((buf[0xde] + (buf[0xdf] << 8)) != 0) score++;
+    }
+    if (buf[0xda] == 0x33)
+        score += 2;
+    if ((buf[0xd5] & 0xf) < 4)
+        score += 2;
+    if (!(buf[0xfd] & 0x80))
+        score -= 6;
+    if ((buf[0xfc] + (buf[0xfd] << 8)) > 0xffb0)
+        score -= 2;
+    if (rom_size > 1024 * 1024 * 3)
+        score += 4;
+    if (buf[0xd7] > 12)
+        score -= 1;
+    if (!allAscii(&buf[0xb0], 6))
+        score -= 1;
+    if (!allAscii(&buf[0xc0], 22))
+        score -= 1;
+
+    return score;
+}
+
+int scoreLoRom(const uint8_t *rom, int rom_size, int header_offset)
+{
+    int base = header_offset + 0x7F00;
+    if (rom_size < base + 0x100) return -1000;
+    const uint8_t *buf = rom + base;
+    int score = 0;
+
+    if (!(buf[0xd5] & 0x1))
+        score += 3;
+    if (buf[0xd5] == 0x23)
+        score += 2;
+    if ((buf[0xdc] + (buf[0xdd] << 8)) + (buf[0xde] + (buf[0xdf] << 8)) == 0xffff)
+    {
+        score += 2;
+        if ((buf[0xde] + (buf[0xdf] << 8)) != 0) score++;
+    }
+    if (buf[0xda] == 0x33)
+        score += 2;
+    if ((buf[0xd5] & 0xf) < 4)
+        score += 2;
+    if (!(buf[0xfd] & 0x80))
+        score -= 6;
+    if ((buf[0xfc] + (buf[0xfd] << 8)) > 0xffb0)
+        score -= 2;
+    if (rom_size <= 1024 * 1024 * 16)
+        score += 2;
+    int shift = buf[0xd7] - 7;
+    if (shift >= 0 && shift < 31 && (1 << shift) > 48)
+        score -= 1;
+    if (!allAscii(&buf[0xb0], 6))
+        score -= 1;
+    if (!allAscii(&buf[0xc0], 22))
+        score -= 1;
+
+    return score;
+}
+
 
 uint32_t crc32_calculate(const uint8_t *data, size_t size)
 {
@@ -97,8 +182,8 @@ QVariant EmuGameList::data(const QModelIndex &index, int role) const
     {
         switch (index.column())
         {
-        case Column_Title:  return e.title;
-        case Column_Region: return e.region;
+        case Column_FileTitle: return QFileInfo(e.path).fileName();
+        case Column_Region:    return e.region;
         case Column_Size:
             if (e.file_size < 1024)        return QString::number(e.file_size) + " B";
             if (e.file_size < 1024 * 1024) return QString::number(e.file_size / 1024.0, 'f', 1) + " KB";
@@ -124,9 +209,9 @@ QVariant EmuGameList::headerData(int section, Qt::Orientation orientation, int r
 
     switch (section)
     {
-    case Column_Title:  return tr("Title");
-    case Column_Region: return tr("Region");
-    case Column_Size:   return tr("Size");
+    case Column_FileTitle: return tr("File Title");
+    case Column_Region:    return tr("Region");
+    case Column_Size:      return tr("Size");
     case Column_Serial: return tr("Serial");
     }
     return {};
@@ -140,8 +225,6 @@ void EmuGameList::clear()
     endResetModel();
 }
 
-void EmuGameList::addFolder(const QString &path) { if (!folders_.contains(path)) folders_.append(path); }
-void EmuGameList::removeFolder(const QString &path) { folders_.removeAll(path); }
 void EmuGameList::setFolders(const QStringList &f) { folders_ = f; }
 
 const GameListEntry *EmuGameList::entryAt(int row) const
@@ -158,13 +241,6 @@ QModelIndex EmuGameList::indexForPath(const QString &path) const
             return index(static_cast<int>(i), 0);
     }
     return {};
-}
-
-void EmuGameList::appendEntry(GameListEntry entry)
-{
-    beginInsertRows(QModelIndex(), static_cast<int>(entries_.size()), static_cast<int>(entries_.size()));
-    entries_.push_back(std::move(entry));
-    endInsertRows();
 }
 
 QString EmuGameList::regionForCode(uint8_t code)
@@ -223,54 +299,33 @@ GameListEntry EmuGameList::parseRom(const QString &path)
 
     if (!rom || rom_size <= 0) return entry;
 
-    int header_offset = 0;
-    if (rom_size % 512 == 0 && isLikelyCopierHeader(rom))
-    {
-        header_offset = 512;
-    }
+    entry.valid = true;
 
-    QString rom_map;
-    if (rom_size - header_offset >= SNES_HEADER_LO + 21)
-    {
-        rom_map = guessRomMap(rom_size, rom, header_offset);
-    }
+    int header_offset = hasCopierHeader(rom_size) ? 512 : 0;
 
-    // Title at SNES header offset 0x10, length 21.
-    char title_buf[22] = {};
-    if (rom_map == QStringLiteral("HiROM"))
-    {
-        std::memcpy(title_buf, rom + header_offset + SNES_HEADER_HI + 0x10 - 0xFFC0, 21);
-    }
-    else if (rom_map == QStringLiteral("LoROM"))
-    {
-        if (rom_size - header_offset >= SNES_HEADER_LO + 0x10 + 21)
-            std::memcpy(title_buf, rom + header_offset + SNES_HEADER_LO - 0x7FC0 + 0x10, 21);
-    }
-    title_buf[21] = 0;
-    int title_len = 21;
-    while (title_len > 0 && title_buf[title_len - 1] == ' ') title_len--;
-    title_buf[title_len] = 0;
-    entry.title = QString::fromLatin1(title_buf, title_len);
-    if (entry.title.isEmpty()) entry.title = info.completeBaseName();
+    // Same tie-break rule as CMemory::InitROM(): LoROM wins ties.
+    int hi_score = scoreHiRom(rom, rom_size, header_offset);
+    int lo_score = scoreLoRom(rom, rom_size, header_offset);
+    QString rom_map = (lo_score >= hi_score) ? QStringLiteral("LoROM") : QStringLiteral("HiROM");
 
     // Region at +0x19 of the SNES header.
     if (rom_map == QStringLiteral("HiROM")
         && rom_size - header_offset >= SNES_HEADER_HI + 0x19)
     {
-        entry.region = regionForCode(rom[header_offset + SNES_HEADER_HI + 0x19 - 0xFFC0]);
+        entry.region = regionForCode(rom[header_offset + SNES_HEADER_HI + 0x19]);
     }
     else if (rom_map == QStringLiteral("LoROM")
              && rom_size - header_offset >= SNES_HEADER_LO + 0x19)
     {
-        entry.region = regionForCode(rom[header_offset + SNES_HEADER_LO - 0x7FC0 + 0x19]);
+        entry.region = regionForCode(rom[header_offset + SNES_HEADER_LO + 0x19]);
     }
 
     // Serial: 4 bytes at +0x02 of the SNES header (often the publisher code).
     if (rom_size - header_offset >= SNES_HEADER_LO + 0x06)
     {
         const uint8_t *serial = (rom_map == QStringLiteral("HiROM"))
-                                ? (rom + header_offset + SNES_HEADER_HI + 0x02 - 0xFFC0)
-                                : (rom + header_offset + SNES_HEADER_LO - 0x7FC0 + 0x02);
+                                ? (rom + header_offset + SNES_HEADER_HI + 0x02)
+                                : (rom + header_offset + SNES_HEADER_LO + 0x02);
         char serial_buf[5] = {};
         for (int i = 0; i < 4; i++) serial_buf[i] = static_cast<char>(serial[i] & 0x7F);
         QString s = QString::fromLatin1(serial_buf, 4).trimmed();
@@ -283,29 +338,46 @@ GameListEntry EmuGameList::parseRom(const QString &path)
 
 void EmuGameList::refresh()
 {
-    clear();
-    int total = 0;
-    for (const auto &folder : folders_)
-    {
-        QDirIterator it(folder, EmuApplication::supportedRomExtensions(),
-                        QDir::Files | QDir::Readable, QDirIterator::Subdirectories);
-        while (it.hasNext()) { ++total; it.next(); }
-    }
-
-    int done = 0;
+    // Walk each folder once and collect the file list, instead of iterating
+    // the whole tree twice (once to count, once to process) — the extra
+    // directory walk was pure wasted I/O, worst on network drives or huge
+    // libraries.
+    QStringList files;
     for (const auto &folder : folders_)
     {
         QDirIterator it(folder, EmuApplication::supportedRomExtensions(),
                         QDir::Files | QDir::Readable, QDirIterator::Subdirectories);
         while (it.hasNext())
+            files.append(it.next());
+    }
+
+    // Parse into a local vector and only touch the model once at the end.
+    // Doing beginInsertRows()/endInsertRows() per file made the attached
+    // sorted/filtered view re-run its sort on every single insertion, which
+    // on top of the per-file disk read + CRC32 made the whole scan appear
+    // to freeze the UI for large libraries.
+    std::vector<GameListEntry> scanned;
+    scanned.reserve(files.size());
+    QElapsedTimer event_pump;
+    event_pump.start();
+    for (int done = 0; done < files.size(); ++done)
+    {
+        emit scanProgress(done + 1, files.size());
+        GameListEntry entry = parseRom(files[done]);
+        if (entry.valid) scanned.push_back(std::move(entry));
+
+        // Keep the UI responsive during the scan without paying the cost
+        // of processing events on every single file.
+        if (event_pump.elapsed() >= 50)
         {
-            it.next();
-            ++done;
-            emit scanProgress(done, total);
-            GameListEntry entry = parseRom(it.filePath());
-            if (!entry.title.isEmpty()) appendEntry(std::move(entry));
+            QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+            event_pump.restart();
         }
     }
+
+    beginResetModel();
+    entries_ = std::move(scanned);
+    endResetModel();
 
     emit scanFinished(static_cast<int>(entries_.size()));
 }

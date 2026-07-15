@@ -215,8 +215,8 @@ bool SDLInputManager::anyButtonPressed() const
 
 QSet<QString> SDLInputManager::pressedSnesNames(const EmuBinding *bindings, int binding_stride) const
 {
-    // SNES button index → friendly name, matching the order in
-    // EmuConfig::controller_t (rows of the binding table).
+    // SNES button index → friendly name, matching the row order in
+    // the binding table (EmuConfig::num_controller_bindings).
     static const QString snes_names[12] = {
         QStringLiteral("Up"),    QStringLiteral("Down"),
         QStringLiteral("Left"),  QStringLiteral("Right"),

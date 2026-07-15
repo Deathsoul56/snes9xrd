@@ -9,12 +9,12 @@
 struct GameListEntry
 {
     QString path;
-    QString title;
     QString region;       // "NTSC", "PAL", "NTSC-J", etc.
     QString serial;       // e.g. "SHVC-ABCE"
     QString file_type;    // ".smc", ".sfc", ".fig", ...
     uint64_t file_size = 0;
     uint32_t crc32 = 0;
+    bool valid = false;   // false if the file couldn't be read/decompressed.
 };
 
 class EmuGameList : public QAbstractTableModel
@@ -24,7 +24,7 @@ class EmuGameList : public QAbstractTableModel
 public:
     enum Column
     {
-        Column_Title = 0,
+        Column_FileTitle = 0,
         Column_Region,
         Column_Size,
         Column_Serial,
@@ -45,8 +45,6 @@ public:
     QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
 
     void refresh();
-    void addFolder(const QString &path);
-    void removeFolder(const QString &path);
     QStringList folders() const { return folders_; }
     void setFolders(const QStringList &folders);
 
@@ -61,7 +59,6 @@ signals:
     void scanFinished(int count);
 
 private:
-    void appendEntry(GameListEntry entry);
     static GameListEntry parseRom(const QString &path);
     static QString regionForCode(uint8_t code);
 

@@ -27,6 +27,7 @@ struct EmuConfig
 
     // Operational
     std::string last_rom_folder;
+    std::string last_multicart_folder;
     int main_window_width = 0;
     int main_window_height = 0;
     bool main_window_maximized = false;
@@ -35,6 +36,7 @@ struct EmuConfig
     int shader_parameters_dialog_width = 0;
     int shader_parameters_dialog_height = 0;
     std::vector<std::string> recently_used;
+    std::vector<std::string> library_folders;
 
     // General
     bool fullscreen_on_open;
@@ -195,8 +197,6 @@ struct EmuConfig
     static const int num_controller_bindings = 18;
     static const int num_shortcuts = 55;
 
-    bool automap_gamepads;
-
     struct
     {
         struct
@@ -206,13 +206,6 @@ struct EmuConfig
 
         EmuBinding shortcuts[num_shortcuts * allowed_bindings];
     } binding;
-
-    struct controller_t
-    {
-        EmuBinding buttons[num_controller_bindings];
-    };
-    std::vector<controller_t> additional_controllers;
-
 
     static const char **getDefaultShortcutKeys();
     static const char **getShortcutNames();

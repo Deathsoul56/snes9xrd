@@ -12,6 +12,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QStackedWidget>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -92,6 +93,22 @@ LibraryPage::LibraryPage(EmuApplication *app, EmuGameList *game_list, QWidget *p
     connect(game_list_, &EmuGameList::modelReset,
             this, [this] { onGameListChanged(); });
 
+    // Restore the folders scanned last session; without this the library
+    // reverts to empty (and the user has to re-add their ROM folder) every
+    // time the emulator starts. The scan itself is deferred to the first
+    // event-loop iteration: this constructor runs before EmuMainWindow is
+    // shown and before qtapp->exec() starts, so scanning here synchronously
+    // would block the whole application from appearing at all until the
+    // scan finished, looking like a multi-second freeze on startup.
+    if (!app_->config->library_folders.empty())
+    {
+        QStringList folders;
+        for (const auto &folder : app_->config->library_folders)
+            folders.append(QString::fromStdString(folder));
+        game_list_->setFolders(folders);
+        QTimer::singleShot(0, this, [this] { refresh(); });
+    }
+
     setShowingEmpty(game_list_->entryCount() == 0);
 }
 
@@ -124,15 +141,17 @@ void LibraryPage::onEmptyAddFolders()
     QString dir = QFileDialog::getExistingDirectory(this, tr("Choose a ROM folder"));
     if (dir.isEmpty()) return;
 
-    QStringList folders = game_list_->folders();
-    folders.append(dir);
-    game_list_->setFolders(folders);
-
-    if (!app_->config->last_rom_folder.empty())
-    {
-        // Don't clobber the saved last_rom_folder; it's the dialog default.
-    }
+    app_->config->library_folders.push_back(dir.toStdString());
     app_->config->last_rom_folder = dir.toStdString();
 
+    reloadFolders();
+}
+
+void LibraryPage::reloadFolders()
+{
+    QStringList folders;
+    for (const auto &folder : app_->config->library_folders)
+        folders.append(QString::fromStdString(folder));
+    game_list_->setFolders(folders);
     refresh();
 }
