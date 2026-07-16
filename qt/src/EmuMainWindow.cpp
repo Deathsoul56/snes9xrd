@@ -34,6 +34,11 @@
 
 #undef KeyPress
 
+// Single source of truth for the fork's own version, shown in the window
+// title and the About dialog. Separate from the upstream Snes9x core's
+// VERSION (snes9x.h), which tracks the emulator core, not this frontend fork.
+static const char *const kSnes9xrdVersion = "0.1";
+
 static EmuSettingsWindow *g_emu_settings_window = nullptr;
 
 EmuMainWindow::EmuMainWindow(EmuApplication *app)
@@ -133,7 +138,7 @@ void EmuMainWindow::setRunningActionsEnabled(bool enable)
 
 void EmuMainWindow::createWidgets()
 {
-    setWindowTitle("snes9xrd");
+    setWindowTitle(QStringLiteral("snes9xrd v%1").arg(kSnes9xrdVersion));
     if (QIcon::hasThemeIcon("snes9x"))
         setWindowIcon(QIcon::fromTheme("snes9x"));
     else
@@ -375,10 +380,10 @@ void EmuMainWindow::createWidgets()
                "Snes9x is a Super Nintendo Entertainment System<br>"
                "emulator that allows you to play most games designed<br>"
                "for the SNES on your PC.<br><br>"
-               "This is snes9xrd <s>sex edition</s>, a fork of Snes9x.<br><br>"
+               "This is snes9xrd v%2 <s>sex edition</s>, a fork of Snes9x.<br><br>"
                "Please visit http://www.snes9x.com for<br>"
                "up-to-the-minute information and help on Snes9x.<br><br>"
-               "Nintendo is a trademark.").arg(QString::fromUtf8(VERSION)));
+               "Nintendo is a trademark.").arg(QString::fromUtf8(VERSION), kSnes9xrdVersion));
     });
     menuBar()->addMenu(help_menu);
 

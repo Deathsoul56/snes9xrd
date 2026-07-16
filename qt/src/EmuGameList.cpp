@@ -1,10 +1,12 @@
 #include "EmuGameList.hpp"
 
 #include "EmuApplication.hpp"
+#include "EmuConfig.hpp"
 #include "snes9x.h"
 #include "memmap.h"
 
 #include <QCoreApplication>
+#include <QDataStream>
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
@@ -14,6 +16,17 @@
 namespace {
 constexpr int SNES_HEADER_LO = 0x7FC0;
 constexpr int SNES_HEADER_HI = 0xFFC0;
+
+// Identifies the on-disk scan cache format/version so a future field change
+// doesn't get misread as a previous layout.
+constexpr quint32 kCacheMagic = 0x53394758; // "S9GX"
+constexpr quint32 kCacheVersion = 1;
+
+QString cacheFilePath()
+{
+    QString dir = QString::fromStdString(EmuConfig::findConfigDir());
+    return QDir(dir).absoluteFilePath(QStringLiteral("gamelist_cache.dat"));
+}
 
 // Mirrors CMemory::HeaderRemove()'s arithmetic (memmap.cpp) so the library
 // scanner agrees with the core on whether a ROM has a 512-byte copier
@@ -266,6 +279,7 @@ GameListEntry EmuGameList::parseRom(const QString &path)
 
     QFileInfo info(path);
     entry.file_size = info.size();
+    entry.mtime_ms = info.lastModified().toMSecsSinceEpoch();
     entry.file_type = info.suffix().toLower();
     if (entry.file_type.startsWith('.')) entry.file_type = entry.file_type.mid(1).toUpper();
 
@@ -336,6 +350,48 @@ GameListEntry EmuGameList::parseRom(const QString &path)
     return entry;
 }
 
+QHash<QString, GameListEntry> EmuGameList::loadCache()
+{
+    QHash<QString, GameListEntry> cache;
+    QFile file(cacheFilePath());
+    if (!file.open(QIODevice::ReadOnly))
+        return cache;
+
+    QDataStream in(&file);
+    quint32 magic = 0, version = 0;
+    in >> magic >> version;
+    if (magic != kCacheMagic || version != kCacheVersion)
+        return cache;
+
+    quint32 count = 0;
+    in >> count;
+    for (quint32 i = 0; i < count && in.status() == QDataStream::Ok; i++)
+    {
+        GameListEntry e;
+        quint64 size = 0;
+        in >> e.path >> e.region >> e.serial >> e.file_type
+           >> size >> e.mtime_ms >> e.crc32 >> e.valid;
+        e.file_size = size;
+        cache.insert(e.path, e);
+    }
+    return cache;
+}
+
+void EmuGameList::saveCache(const std::vector<GameListEntry> &entries)
+{
+    QFile file(cacheFilePath());
+    if (!file.open(QIODevice::WriteOnly))
+        return;
+
+    QDataStream out(&file);
+    out << kCacheMagic << kCacheVersion << static_cast<quint32>(entries.size());
+    for (const auto &e : entries)
+    {
+        out << e.path << e.region << e.serial << e.file_type
+            << static_cast<quint64>(e.file_size) << e.mtime_ms << e.crc32 << e.valid;
+    }
+}
+
 void EmuGameList::refresh()
 {
     // Walk each folder once and collect the file list, instead of iterating
@@ -351,6 +407,15 @@ void EmuGameList::refresh()
             files.append(it.next());
     }
 
+    // Files whose size and last-modified time match a cached entry are
+    // reused as-is instead of being re-read and re-CRC32'd. Reading every
+    // ROM's full bytes to hash it on *every single launch* was the actual
+    // cause of multi-second startup delays with a populated library — a
+    // stat() call is orders of magnitude cheaper than reading and hashing
+    // megabytes per file, and the CRC/region/serial can't change unless the
+    // file itself does.
+    const QHash<QString, GameListEntry> cache = loadCache();
+
     // Parse into a local vector and only touch the model once at the end.
     // Doing beginInsertRows()/endInsertRows() per file made the attached
     // sorted/filtered view re-run its sort on every single insertion, which
@@ -363,7 +428,19 @@ void EmuGameList::refresh()
     for (int done = 0; done < files.size(); ++done)
     {
         emit scanProgress(done + 1, files.size());
-        GameListEntry entry = parseRom(files[done]);
+
+        const QString &path = files[done];
+        QFileInfo info(path);
+        const uint64_t size = static_cast<uint64_t>(info.size());
+        const qint64 mtime_ms = info.lastModified().toMSecsSinceEpoch();
+
+        auto cached = cache.constFind(path);
+        GameListEntry entry;
+        if (cached != cache.constEnd() && cached->file_size == size && cached->mtime_ms == mtime_ms)
+            entry = *cached;
+        else
+            entry = parseRom(path);
+
         if (entry.valid) scanned.push_back(std::move(entry));
 
         // Keep the UI responsive during the scan without paying the cost
@@ -378,6 +455,8 @@ void EmuGameList::refresh()
     beginResetModel();
     entries_ = std::move(scanned);
     endResetModel();
+
+    saveCache(entries_);
 
     emit scanFinished(static_cast<int>(entries_.size()));
 }

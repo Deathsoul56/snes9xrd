@@ -2,6 +2,7 @@
 
 #include <QAbstractTableModel>
 #include <QDateTime>
+#include <QHash>
 #include <QString>
 #include <QStringList>
 #include <vector>
@@ -13,6 +14,7 @@ struct GameListEntry
     QString serial;       // e.g. "SHVC-ABCE"
     QString file_type;    // ".smc", ".sfc", ".fig", ...
     uint64_t file_size = 0;
+    qint64 mtime_ms = 0;  // last-modified time, used to invalidate the scan cache.
     uint32_t crc32 = 0;
     bool valid = false;   // false if the file couldn't be read/decompressed.
 };
@@ -61,6 +63,8 @@ signals:
 private:
     static GameListEntry parseRom(const QString &path);
     static QString regionForCode(uint8_t code);
+    static QHash<QString, GameListEntry> loadCache();
+    static void saveCache(const std::vector<GameListEntry> &entries);
 
     std::vector<GameListEntry> entries_;
     QStringList folders_;
