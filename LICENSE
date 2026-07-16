@@ -30,6 +30,8 @@
                              Daniel De Matteis
                              (Under no circumstances will commercial rights be given)
 
+  (c) Copyright 2026 - 2026  DeAtSoUl56
+
 
   BS-X C emulator code
   (c) Copyright 2005 - 2006  Dreamer Nom,
@@ -167,6 +169,11 @@
 
   Snes9x homepage: http://www.snes9x.com/
   Snes9x source code: https://github.com/snes9xgit/snes9x/
+
+  This repository is snes9xrd, a personal fork of Snes9x 1.63 maintained by
+  DeAtSoUl56. It tracks upstream snes9xgit/snes9x closely; changes specific
+  to this fork are covered by the same terms as the rest of this license.
+  Fork source code: https://github.com/Deathsoul56/snes9xrd/
 
   Permission to use, copy, modify and/or distribute Snes9x in both binary
   and source form, for non-commercial purposes, is hereby granted without

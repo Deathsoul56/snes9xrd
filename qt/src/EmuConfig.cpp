@@ -10,6 +10,7 @@ namespace fs = std::filesystem;
 #include <QSettings>
 #include <QGuiApplication>
 #include <QDir>
+#include <QFileInfo>
 
 static const char *shortcut_names[] =
 {
@@ -144,9 +145,14 @@ std::string EmuConfig::findConfigDir()
     char *dir;
     fs::path path;
 
+    // Portable by default: keep snes9x-qt.conf (and the game list scan
+    // cache, which reuses this same directory) next to the executable, so a
+    // fresh copy of the app doesn't scatter files into the user's profile.
+    // Only fall back to the per-user config dir below if the exe's own
+    // folder isn't writable (e.g. installed into Program Files without
+    // admin rights).
     auto app_dir_path = QGuiApplication::applicationDirPath();
-    auto config_file = QDir(app_dir_path).absoluteFilePath("snes9x-qt.conf");
-    if (QFile::exists(config_file))
+    if (QFileInfo(app_dir_path).isWritable())
         return app_dir_path.toStdString();
 
 #ifndef _WIN32
