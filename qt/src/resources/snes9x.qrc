@@ -62,7 +62,7 @@
     <file>blackicons/fullscreen.svg</file>
   </qresource>
   <qresource prefix="/controllers">
-    <file alias="snes_controller.png">../../../snes_controller.png</file>
+    <file alias="snes_controller.png">controllers/snes_controller.png</file>
   </qresource>
   <qresource prefix="/">
     <file>duckstation.qss</file>

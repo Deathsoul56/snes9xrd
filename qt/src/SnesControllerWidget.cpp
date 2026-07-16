@@ -15,10 +15,6 @@ SnesControllerWidget::SnesControllerWidget(QWidget *parent)
     setAttribute(Qt::WA_StyledBackground, false);
 
     image_ = QPixmap(QStringLiteral(":/controllers/snes_controller.png"));
-    // If the resource isn't there (resource not yet added to qrc), fall back to
-    // loading from the project root.
-    if (image_.isNull())
-        image_ = QPixmap(QStringLiteral("snes_controller.png"));
 
     rebuildHotspots();
 }
@@ -78,7 +74,7 @@ void SnesControllerWidget::paintEvent(QPaintEvent *event)
 {
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing, true);
-    p.fillRect(rect(), QColor("#1e1f25")); // match QDialog/settings background (duckstation.qss)
+    p.fillRect(rect(), palette().color(QPalette::Window)); // always match the active theme
 
     if (image_.isNull())
     {
