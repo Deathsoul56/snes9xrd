@@ -7,6 +7,7 @@
 #include <clocale>
 #include <qnamespace.h>
 #include <QFile>
+#include <QPalette>
 #include <QStyle>
 #include <QStyleHints>
 
@@ -32,9 +33,20 @@ int main(int argc, char *argv[])
     if (QApplication::platformName() == "windows")
         QApplication::setStyle("fusion");
 
+    bool use_dark_theme = true;
+    if (QApplication::platformName() == "windows" &&
+        QApplication::styleHints()->colorScheme() != Qt::ColorScheme::Dark)
+    {
+        // Light scheme on Windows: keep the native-ish look instead of
+        // forcing our dark stylesheet/palette.
+        use_dark_theme = false;
+        QApplication::setStyle("windowsvista");
+    }
+
     // Load the DuckStation-style stylesheet (replaces the older per-platform
     // dark-palette fallback). It's harmless on light schemes — the stylesheet
     // is mostly dark colors with a few non-conflicting light overrides.
+    if (use_dark_theme)
     {
         QFile qss_file(":/duckstation.qss");
         if (qss_file.open(QIODevice::ReadOnly | QIODevice::Text))
@@ -42,17 +54,21 @@ int main(int argc, char *argv[])
             qApp->setStyleSheet(QString::fromUtf8(qss_file.readAll()));
             qss_file.close();
         }
-    }
 
-    if (QApplication::platformName() == "windows")
-    {
-        if (QApplication::styleHints()->colorScheme() != Qt::ColorScheme::Dark)
-        {
-            // Light scheme on Windows: keep the native-ish look by dropping
-            // our dark stylesheet. Otherwise stick with the DuckStation look.
-            qApp->setStyleSheet(QString());
-            QApplication::setStyle("windowsvista");
-        }
+        // Custom-painted widgets (e.g. SnesControllerWidget) can't read colors
+        // out of a stylesheet, so mirror the same palette here via QPalette.
+        // Keep these values in sync with qt/src/resources/duckstation.qss.
+        QPalette dark_palette = qApp->palette();
+        dark_palette.setColor(QPalette::Window, QColor("#1e1f25"));
+        dark_palette.setColor(QPalette::WindowText, QColor("#e8e8e8"));
+        dark_palette.setColor(QPalette::Base, QColor("#16171c"));
+        dark_palette.setColor(QPalette::AlternateBase, QColor("#1a1b21"));
+        dark_palette.setColor(QPalette::Text, QColor("#d8d8d8"));
+        dark_palette.setColor(QPalette::Button, QColor("#23252c"));
+        dark_palette.setColor(QPalette::ButtonText, QColor("#e8e8e8"));
+        dark_palette.setColor(QPalette::Highlight, QColor("#3a4d6e"));
+        dark_palette.setColor(QPalette::HighlightedText, Qt::white);
+        qApp->setPalette(dark_palette);
     }
 
 #ifndef _WIN32

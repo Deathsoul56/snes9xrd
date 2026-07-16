@@ -122,6 +122,14 @@ Adding a `if (foo) return;` at one callsite to dodge a missing case elsewhere is
 ### 4. Comments only when asked
 Existing in-tree code comments are part of the codebase — leave them. Don't add new ones. Exception: a `ponytail:` marker on a deliberate shortcut (see Skill rules below) is allowed.
 
+### 5. Analyze before you resolve
+This is the preferred workflow, and it is non-negotiable: when the user reports a problem, **do not jump straight to a patch**. Follow this order:
+1. **Analyze**: read the actual code path involved before proposing anything. Understand *why* it behaves that way, not just *where* the symptom shows up.
+2. **Ask when it matters**: if the fix depends on information only the user has (which checkbox is checked, which platform, which build, intended behavior), ask a short clarifying question instead of guessing. Don't ask when the answer is already discoverable in the repo — go find it.
+3. **Resolve by understanding**: once the root cause is clear, fix it there — improving the code where warranted (see Rule 3, don't paper over the root cause) — rather than just doing the minimum to make the symptom disappear.
+
+The goal is to actually understand the code, not just to close out the request. Treating a bug report as a checklist item to clear (patch the symptom, move on) is exactly the failure mode this rule exists to avoid.
+
 ## Quirks that bite
 
 - `port.h` defines a custom type system (`int8/16/32/64`, `uint8/16/32/64`, `bool8`) and the byte-order/endianness (`LSB_FIRST` vs `MSB_FIRST`) and `READ_WORD`/`WRITE_DWORD` macros. The unix `configure` actively probes `RIGHTSHIFT_*_IS_SAR` and adds defines — do not hard-code them.
