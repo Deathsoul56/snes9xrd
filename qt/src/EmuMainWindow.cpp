@@ -13,6 +13,7 @@
 #include <QTimer>
 #include <QtEvents>
 #include <QGuiApplication>
+#include <algorithm>
 
 #ifdef Q_OS_WIN
 #include <dwmapi.h>
@@ -439,6 +440,8 @@ void EmuMainWindow::showRunningPage()
 
 void EmuMainWindow::closeCurrentGame()
 {
+    if (mouse_grabbed) toggleMouseGrab();
+
     app->suspendThread();
     app->pause();
     app->closeCurrentGame();
@@ -535,6 +538,7 @@ bool EmuMainWindow::openFile(const std::string &filename)
         QApplication::sync();
         app->startGame();
         showRunningPage();
+        autoGrabMouseIfNeeded();
 
         if (!isFullScreen() && app->config->fullscreen_on_open)
             toggleFullscreen();
@@ -641,36 +645,89 @@ bool EmuMainWindow::event(QEvent *event)
             app->config->main_window_maximized = isMaximized();
         break;
     }
-    case QEvent::MouseButtonPress:
-    case QEvent::MouseButtonRelease:
-    {
-        if (!mouse_grabbed) break;
-        auto mouse_event = (QMouseEvent *)event;
-        app->reportMouseButton(mouse_event->button(), event->type() == QEvent::MouseButtonPress);
-        break;
-    }
-    case QEvent::MouseMove:
-        if (mouse_grabbed)
-        {
-            auto center = mapToGlobal(rect().center());
-            auto pos = QCursor::pos();
-            auto delta = pos - center;
-            if (delta.x() == 0 && delta.y() == 0) break;
-            app->reportPointer(delta.x(), delta.y());
-            QCursor::setPos(center);
-        }
-        if (!cursor_visible)
-        {
-            if (canvas && !mouse_grabbed) canvas->setCursor(QCursor(Qt::ArrowCursor));
-            cursor_visible = true;
-            mouse_timer.start();
-        }
-        break;
     default:
         break;
     }
 
     return QMainWindow::event(event);
+}
+
+// Mouse input for the canvas is handled from eventFilter() (see below), not
+// from here: QMouseEvent/QEvent::MouseMove sent to the canvas child widget
+// are never forwarded to this top-level widget's event(), so hooking them
+// here would silently never fire. eventFilter() is installed application-wide
+// and already reliably intercepts canvas events (see the Resize/Paint
+// handling for `watched == canvas`), so it's the correct place for this too.
+void EmuMainWindow::handleCanvasMouseButton(QMouseEvent *mouse_event, bool pressed)
+{
+    // The SNES Mouse only reports button state while the pointer is
+    // captured (mouse_grabbed). The Superscope is a lightgun: it has no
+    // capture step, so its Fire/Cursor buttons must work as soon as the
+    // player clicks over the canvas.
+    bool is_superscope = app->config->port_configuration == EmuConfig::eSuperScopePlusController;
+    if (!mouse_grabbed && !is_superscope) return;
+
+    // Snes9xController::reportMouseButton() expects a sequential 1/2/3
+    // index (matching EmuBinding::MOUSE_BUTTON1/2/3), not Qt's bitmask
+    // Qt::MouseButton values (Left=1, Right=2, Middle=4). Left/Right happen
+    // to line up by coincidence, but Middle (4) does not -- translate it
+    // explicitly instead of passing the raw button value through.
+    int button;
+    switch (mouse_event->button())
+    {
+    case Qt::LeftButton:   button = 1; break;
+    case Qt::RightButton:  button = 2; break;
+    case Qt::MiddleButton: button = 3; break;
+    default: return;
+    }
+    app->reportMouseButton(button, pressed);
+}
+
+void EmuMainWindow::handleCanvasMouseMove()
+{
+    if (app->config->port_configuration == EmuConfig::eSuperScopePlusController)
+    {
+        // Superscope aiming is absolute, not a relative delta: the
+        // crosshair must track wherever the cursor actually is over the
+        // rendered image, like a real lightgun. No mouse grab/capture is
+        // needed or wanted here. The OS cursor itself is blanked (only
+        // while it's over the canvas) since the in-game crosshair already
+        // shows the aim point.
+        if (canvas)
+            canvas->setCursor(QCursor(Qt::BlankCursor));
+
+        if (canvas && canvas->ready())
+        {
+            auto local = canvas->mapFromGlobal(QCursor::pos());
+            auto image_rect = canvas->applyAspect(canvas->rect());
+            if (image_rect.width() > 0 && image_rect.height() > 0)
+            {
+                double fx = (local.x() - image_rect.x()) / (double)image_rect.width();
+                double fy = (local.y() - image_rect.y()) / (double)image_rect.height();
+                fx = std::clamp(fx, 0.0, 1.0);
+                fy = std::clamp(fy, 0.0, 1.0);
+                int height = app->config->show_overscan ? 239 : 224;
+                app->reportAbsolutePointer((int)(fx * 255), (int)(fy * (height - 1)));
+            }
+        }
+        return;
+    }
+    else if (mouse_grabbed)
+    {
+        auto center = mapToGlobal(rect().center());
+        auto pos = QCursor::pos();
+        auto delta = pos - center;
+        if (delta.x() == 0 && delta.y() == 0) return;
+        app->reportPointer(delta.x(), delta.y());
+        QCursor::setPos(center);
+    }
+
+    if (!cursor_visible)
+    {
+        if (canvas && !mouse_grabbed) canvas->setCursor(QCursor(Qt::ArrowCursor));
+        cursor_visible = true;
+        mouse_timer.start();
+    }
 }
 
 void EmuMainWindow::toggleFullscreen()
@@ -715,6 +772,16 @@ bool EmuMainWindow::eventFilter(QObject *watched, QEvent *event)
             app->emu_thread->runOnThread([&] { canvas->paintEvent((QPaintEvent *)event); }, true);
             event->accept();
             return true;
+        }
+        else if (event->type() == QEvent::MouseMove)
+        {
+            handleCanvasMouseMove();
+            return false;
+        }
+        else if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonRelease)
+        {
+            handleCanvasMouseButton((QMouseEvent *)event, event->type() == QEvent::MouseButtonPress);
+            return false;
         }
     }
 
@@ -812,4 +879,10 @@ void EmuMainWindow::toggleMouseGrab()
     {
         canvas->setCursor(QCursor(Qt::ArrowCursor));
     }
+}
+
+void EmuMainWindow::autoGrabMouseIfNeeded()
+{
+    if (canvas && !mouse_grabbed && app->config->port_configuration == EmuConfig::eMousePlusController)
+        toggleMouseGrab();
 }

@@ -1,0 +1,25 @@
+snes9xrd changelog
+===================
+This file tracks changes specific to the snes9xrd fork, on top of upstream
+Snes9x (see changes.txt for the upstream changelog).
+
+snes9xrd v0.1
+Qt:
+- Game library: added a persistent on-disk scan cache (gamelist_cache.dat)
+  keyed by file size and modification time, so unchanged ROMs skip the
+  expensive full read + CRC32 on every launch.
+- Config and cache files (snes9x-qt.conf, gamelist_cache.dat) are now saved
+  next to the executable by default when that folder is writable, making
+  the install portable.
+- Controllers panel: the SNES controller diagram's background now matches
+  the surrounding panel color, so it looks integrated with the rest of the
+  theme instead of showing a fixed white box.
+- Removed the experimental gamepad auto-assign checkbox; bindings are now
+  always configured explicitly per controller.
+- Moved the controller diagram image into the Qt resource bundle
+  (qt/src/resources/controllers/) instead of loading it from the repo root.
+- Added the fork's own name and version (snes9xrd v0.1) to the window title
+  and the Help > About dialog, alongside the underlying Snes9x core version.
+
+Legal:
+- Added fork attribution and repository link to LICENSE.
