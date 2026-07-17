@@ -12,6 +12,7 @@ class EmuGameList;
 class LibraryPage;
 class QStackedWidget;
 class QLabel;
+class QMouseEvent;
 
 class EmuMainWindow : public QMainWindow
 {
@@ -47,6 +48,13 @@ class EmuMainWindow : public QMainWindow
     void shaderChanged();
     void gameChanging();
     void toggleMouseGrab();
+    // Engages the mouse grab automatically when Mouse+Controller is the
+    // active port configuration (it's a relative-motion device, so it needs
+    // *a* capture step -- but the player shouldn't have to know the Ctrl+G
+    // shortcut just to get started). No-ops if already grabbed, no game is
+    // running, or a different port configuration is selected. Safe to call
+    // repeatedly, e.g. whenever bindings/settings are refreshed.
+    void autoGrabMouseIfNeeded();
     std::vector<std::string> getDisplayDeviceList();
 
     // Called by FoldersPanel after adding/removing a ROM library folder, so
@@ -60,6 +68,8 @@ class EmuMainWindow : public QMainWindow
     void createWidgets();
     void showLibraryPage();
     void showRunningPage();
+    void handleCanvasMouseMove();
+    void handleCanvasMouseButton(QMouseEvent *mouse_event, bool pressed);
 
     QPointer<CheatsDialog> cheats_dialog;
 

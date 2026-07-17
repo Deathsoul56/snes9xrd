@@ -684,8 +684,11 @@ void Snes9xController::updateBindings(const EmuConfig *const config)
         S9xSetController(1, CTL_JOYPAD, 0, 0, 0, 0);
         break;
     case EmuConfig::eSuperScopePlusController:
-        S9xSetController(0, CTL_SUPERSCOPE, 0, 0, 0, 0);
-        S9xSetController(1, CTL_JOYPAD, 0, 0, 0, 0);
+        // The real Super Scope hardware only works when plugged into port 2
+        // (index 1) -- games poll that port specifically, so this can't be
+        // swapped like Mouse can. See unix.cpp/wsnes9x.cpp's equivalent presets.
+        S9xSetController(0, CTL_JOYPAD, 0, 0, 0, 0);
+        S9xSetController(1, CTL_SUPERSCOPE, 0, 0, 0, 0);
         break;
     case EmuConfig::eControllerPlusMultitap:
         S9xSetController(0, CTL_JOYPAD, 0, 0, 0, 0);
@@ -760,6 +763,18 @@ void Snes9xController::reportPointer(int x, int y)
 {
     mouse_x += x;
     mouse_y += y;
+    S9xReportPointer(EmuBinding::MOUSE_POINTER, mouse_x, mouse_y);
+}
+
+// Unlike the SNES Mouse (reportPointer above), lightgun-style devices such as
+// the Superscope read an absolute aim position rather than an accumulated
+// relative delta (see controls.cpp: superscope.x/y are assigned directly from
+// the reported coordinates, not diffed against a previous value). x and y are
+// expected to already be in SNES screen space (0..255, 0..PPU.ScreenHeight-1).
+void Snes9xController::reportAbsolutePointer(int x, int y)
+{
+    mouse_x = x;
+    mouse_y = y;
     S9xReportPointer(EmuBinding::MOUSE_POINTER, mouse_x, mouse_y);
 }
 

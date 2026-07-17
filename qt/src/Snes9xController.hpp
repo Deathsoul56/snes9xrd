@@ -28,6 +28,7 @@ class Snes9xController
     void reportBinding(EmuBinding b, bool active);
     void reportMouseButton(int button, bool pressed);
     void reportPointer(int x, int y);
+    void reportAbsolutePointer(int x, int y);
     void updateSoundBufferLevel(int, int);
     bool acceptsCommand(const char *command);
     bool isAbnormalSpeed();

@@ -439,6 +439,12 @@ void EmuApplication::updateBindings()
     suspendThread();
     core->updateBindings(config.get());
     unsuspendThread();
+
+    // Covers switching *into* Mouse+Controller mode from the settings UI
+    // while a game is already running (game-start is handled separately by
+    // EmuMainWindow::openFile()).
+    if (window)
+        window->autoGrabMouseIfNeeded();
 }
 
 void EmuApplication::handleBinding(const std::string &name, bool pressed)
@@ -492,8 +498,11 @@ void EmuApplication::handleBinding(const std::string &name, bool pressed)
             }
             else if (name == "GrabMouse")
             {
-                if (config->port_configuration == EmuConfig::eMousePlusController ||
-                    config->port_configuration == EmuConfig::eSuperScopePlusController)
+                // Only the SNES Mouse needs an explicit capture step (it reads
+                // relative motion). The Superscope tracks the cursor's
+                // absolute position over the canvas unconditionally, so it
+                // has nothing to grab.
+                if (config->port_configuration == EmuConfig::eMousePlusController)
                     window->toggleMouseGrab();
             }
         }
@@ -605,6 +614,13 @@ void EmuApplication::reportPointer(int x, int y)
 {
     emu_thread->runOnThread([&, x, y] {
         core->reportPointer(x, y);
+    });
+}
+
+void EmuApplication::reportAbsolutePointer(int x, int y)
+{
+    emu_thread->runOnThread([&, x, y] {
+        core->reportAbsolutePointer(x, y);
     });
 }
 
