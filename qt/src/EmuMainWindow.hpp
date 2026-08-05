@@ -70,6 +70,13 @@ class EmuMainWindow : public QMainWindow
     void showRunningPage();
     void handleCanvasMouseMove();
     void handleCanvasMouseButton(QMouseEvent *mouse_event, bool pressed);
+    // Shared "a game just started successfully" UI wiring (canvas creation,
+    // starting the emu thread, switching to the running page, mouse grab,
+    // fullscreen-on-open, mouse-idle timer). Used by both regular ROM loads
+    // and MultiCart loads so neither path can drift out of sync with the
+    // other -- MultiCart used to skip all of this and just silently load
+    // the core without ever showing it.
+    bool startRunningGame();
 
     QPointer<CheatsDialog> cheats_dialog;
 

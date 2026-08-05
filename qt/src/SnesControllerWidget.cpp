@@ -14,9 +14,12 @@ SnesControllerWidget::SnesControllerWidget(QWidget *parent)
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     setAttribute(Qt::WA_StyledBackground, false);
 
-    image_ = QPixmap(QStringLiteral(":/controllers/snes_controller.png"));
+    gamepad_image_ = QPixmap(QStringLiteral(":/controllers/snes_controller.png"));
+    mouse_image_ = QPixmap(QStringLiteral(":/controllers/snes_mouse.png"));
+    image_ = gamepad_image_;
 
     rebuildHotspots();
+    gamepad_hotspots_ = hotspots_;
 }
 
 void SnesControllerWidget::rebuildHotspots()
@@ -79,7 +82,7 @@ void SnesControllerWidget::paintEvent(QPaintEvent *event)
     if (image_.isNull())
     {
         p.setPen(QColor("#8a8d99"));
-        p.drawText(rect(), Qt::AlignCenter, "snes_controller.png not loaded");
+        p.drawText(rect(), Qt::AlignCenter, mouse_mode_ ? "snes_mouse.png not loaded" : "snes_controller.png not loaded");
         return;
     }
 
@@ -199,5 +202,16 @@ void SnesControllerWidget::clearPressed()
 {
     if (pressed_.isEmpty()) return;
     pressed_.clear();
+    update();
+}
+
+void SnesControllerWidget::setMouseMode(bool is_mouse)
+{
+    if (mouse_mode_ == is_mouse) return;
+    mouse_mode_ = is_mouse;
+    image_ = is_mouse ? mouse_image_ : gamepad_image_;
+    hotspots_ = is_mouse ? QList<Hotspot>{} : gamepad_hotspots_;
+    pressed_.clear();
+    debug_raw_.clear();
     update();
 }

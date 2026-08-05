@@ -28,6 +28,8 @@ struct EmuConfig
     // Operational
     std::string last_rom_folder;
     std::string last_multicart_folder;
+    std::string last_multicart_slot_a;
+    std::string last_multicart_slot_b;
     int main_window_width = 0;
     int main_window_height = 0;
     bool main_window_maximized = false;

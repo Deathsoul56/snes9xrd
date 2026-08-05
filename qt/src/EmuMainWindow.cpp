@@ -209,7 +209,10 @@ void EmuMainWindow::createWidgets()
                                 dlg.slotB().toStdString()))
         {
             QMessageBox::warning(this, tr("MultiCart"), tr("Failed to load the multicart."));
+            return;
         }
+
+        startRunningGame();
     });
 
     // Save / Load Game Position (snes9x's "oops" snapshot used as a safety net).
@@ -524,29 +527,34 @@ bool EmuMainWindow::openFile(const std::string &filename)
         ru.insert(ru.begin(), filename);
         populateRecentlyUsed();
 
-        setRunningActionsEnabled(true);
-
-        if (!canvas)
-        {
-            if (!createCanvas())
-            {
-                closeCurrentGame();
-                return false;
-            }
-        }
-
-        QApplication::sync();
-        app->startGame();
-        showRunningPage();
-        autoGrabMouseIfNeeded();
-
-        if (!isFullScreen() && app->config->fullscreen_on_open)
-            toggleFullscreen();
-
-        mouse_timer.start();
-        return true;
+        return startRunningGame();
     }
     return false;
+}
+
+bool EmuMainWindow::startRunningGame()
+{
+    setRunningActionsEnabled(true);
+
+    if (!canvas)
+    {
+        if (!createCanvas())
+        {
+            closeCurrentGame();
+            return false;
+        }
+    }
+
+    QApplication::sync();
+    app->startGame();
+    showRunningPage();
+    autoGrabMouseIfNeeded();
+
+    if (!isFullScreen() && app->config->fullscreen_on_open)
+        toggleFullscreen();
+
+    mouse_timer.start();
+    return true;
 }
 
 void EmuMainWindow::populateRecentlyUsed()

@@ -4,6 +4,7 @@
 #include <QString>
 
 class QLineEdit;
+class QLabel;
 class QPushButton;
 class EmuConfig;
 
@@ -23,8 +24,14 @@ private slots:
     void swapAB();
 
 private:
+    // Reflects the STBIOS.bin lookup path resolved from the configured BIOS
+    // folder (Settings -> Files -> BIOS), same as win32's read-only BIOS row.
+    void refreshBiosStatus();
+
     QLineEdit *slot_a_edit_ = nullptr;
     QLineEdit *slot_b_edit_ = nullptr;
+    QLineEdit *bios_edit_ = nullptr;
+    QLabel *bios_status_label_ = nullptr;
 
     QString slot_a_;
     QString slot_b_;
