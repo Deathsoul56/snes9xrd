@@ -18,7 +18,6 @@ class ControllerPanel :
     void clearCurrentController();
     void autoPopulateWithKeyboard(int slot);
     void autoPopulateWithJoystick(int joystick_id, int slot);
-    void swapControllers(int first, int second);
     void recreateAutoAssignMenu();
     void onImageButtonClicked(const QString &snes_name);
     static QString snes_name_for_row(int row);

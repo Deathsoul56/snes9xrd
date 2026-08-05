@@ -1,6 +1,8 @@
 #include "BindingPanel.hpp"
 #include "EmuApplication.hpp"
 #include <QStyleHints>
+#include <QPushButton>
+#include <QHBoxLayout>
 
 BindingPanel::BindingPanel(EmuApplication *app)
     : app(app)
@@ -25,6 +27,30 @@ void BindingPanel::setTableWidget(QTableWidget *bindingTableWidget, EmuBinding *
     connect(bindingTableWidget, &QTableWidget::cellPressed, [&](int row, int column) {
         cellActivated(row, column);
     });
+
+    // One extra column at the end of each row holds a button that clears
+    // just that row's bindings (all `width` slots), instead of requiring
+    // "Clear Current/All Controllers" for the whole table.
+    bindingTableWidget->setColumnCount(width + 1);
+    bindingTableWidget->setHorizontalHeaderItem(width, new QTableWidgetItem(QObject::tr("Clear")));
+    for (int row = 0; row < height; row++)
+    {
+        auto *clear_button = new QPushButton(QStringLiteral("\u2212")); // −
+        clear_button->setObjectName("clearBindingButton");
+        clear_button->setToolTip(QObject::tr("Clear this binding"));
+        clear_button->setFixedSize(22, 22);
+        clear_button->setCursor(Qt::PointingHandCursor);
+        connect(clear_button, &QPushButton::clicked, [this, row](bool) {
+            clearRow(row);
+        });
+
+        auto *cell_widget = new QWidget;
+        auto *cell_layout = new QHBoxLayout(cell_widget);
+        cell_layout->setContentsMargins(0, 0, 0, 0);
+        cell_layout->setAlignment(Qt::AlignCenter);
+        cell_layout->addWidget(clear_button);
+        bindingTableWidget->setCellWidget(row, width, cell_widget);
+    }
 
     fillTable();
     cell_column = -1;
@@ -100,6 +126,10 @@ void BindingPanel::fillTable()
 
 void BindingPanel::cellActivated(int row, int column)
 {
+    // The trailing "clear this row" button column isn't a bindable cell.
+    if (column >= table_width)
+        return;
+
     if (awaiting_binding)
     {
         updateCellFromBinding(cell_row, cell_column);
@@ -146,4 +176,20 @@ void BindingPanel::finalizeCurrentBinding(const EmuBinding &b)
 void BindingPanel::onJoypadsChanged(const std::function<void()> &func)
 {
     joypads_changed = func;
+}
+
+void BindingPanel::clearRow(int row)
+{
+    if (awaiting_binding && cell_row == row)
+    {
+        awaiting_binding = false;
+        setRedirectInput(false);
+    }
+
+    for (int column = 0; column < table_width; column++)
+    {
+        binding[row * table_width + column] = {};
+        updateCellFromBinding(row, column);
+    }
+    app->updateBindings();
 }
