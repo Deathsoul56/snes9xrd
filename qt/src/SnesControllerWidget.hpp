@@ -20,6 +20,9 @@ public:
     void setPressedNames(const QSet<QString> &snes_names);
     void setDebugRawState(const QString &raw);
     void clearPressed();
+    // Swaps the gamepad diagram for the SNES Mouse image (Mouse + Controller
+    // port mode has no bindable buttons here, so hotspots are cleared too).
+    void setMouseMode(bool is_mouse);
 
     QSize sizeHint() const override { return {560, 250}; }
 
@@ -44,7 +47,11 @@ private:
     QRectF imageRect() const;
 
     QPixmap image_;
+    QPixmap gamepad_image_;
+    QPixmap mouse_image_;
     QList<Hotspot> hotspots_;
+    QList<Hotspot> gamepad_hotspots_;
+    bool mouse_mode_ = false;
     QSet<QString> pressed_;
     QString debug_raw_;
 };

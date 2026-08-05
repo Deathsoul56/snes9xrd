@@ -87,6 +87,7 @@ ControllerPanel::ControllerPanel(EmuApplication *app_)
 
     connect(portComboBox, &QComboBox::currentIndexChanged, [&](int index) {
         this->app->config->port_configuration = index;
+        controller_image_->setMouseMode(index == EmuConfig::eMousePlusController);
         app->updateBindings();
     });
 }
@@ -231,4 +232,5 @@ void ControllerPanel::showEvent(QShowEvent *event)
     BindingPanel::showEvent(event);
     recreateAutoAssignMenu();
     portComboBox->setCurrentIndex(app->config->port_configuration);
+    controller_image_->setMouseMode(app->config->port_configuration == EmuConfig::eMousePlusController);
 }

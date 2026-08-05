@@ -431,6 +431,8 @@ void EmuConfig::config(const std::string &filename, bool write)
     BeginSection("Operational");
     String("LastROMFolder", last_rom_folder);
     String("LastMultiCartFolder", last_multicart_folder);
+    String("LastMultiCartSlotA", last_multicart_slot_a);
+    String("LastMultiCartSlotB", last_multicart_slot_b);
     Int("MainWindowWidth", main_window_width);
     Int("MainWindowHeight", main_window_height);
     Bool("MainWindowMaximized", main_window_maximized);
