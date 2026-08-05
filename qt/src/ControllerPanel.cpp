@@ -72,19 +72,6 @@ ControllerPanel::ControllerPanel(EmuApplication *app_)
         clearAllControllers();
     });
 
-    auto swap_menu = edit_menu.addMenu(QObject::tr("Swap With"));
-    for (auto i = 0; i < 5; i++)
-    {
-        action = swap_menu->addAction(QObject::tr("Controller %1").arg(i + 1));
-        connect(action, &QAction::triggered, [&, i](bool) {
-            auto current_index = controllerComboBox->currentIndex();
-            if (current_index == i)
-                return;
-            swapControllers(i, current_index);
-            fillTable();
-        });
-    }
-
     editToolButton->setMenu(&edit_menu);
     editToolButton->setPopupMode(QToolButton::InstantPopup);
 
@@ -177,22 +164,6 @@ void ControllerPanel::autoPopulateWithJoystick(int joystick_id, int slot)
     }
 
     fillTable();
-    app->updateBindings();
-}
-
-void ControllerPanel::swapControllers(int first, int second)
-{
-    auto &a = app->config->binding.controller[first].buttons;
-    auto &b = app->config->binding.controller[second].buttons;
-
-    int count = std::size(a);
-    for (int i = 0; i < count; i++)
-    {
-        EmuBinding swap = b[i];
-        b[i] = a[i];
-        a[i] = swap;
-    }
-
     app->updateBindings();
 }
 

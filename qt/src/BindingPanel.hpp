@@ -22,6 +22,7 @@ class BindingPanel : public QWidget
     void finalizeCurrentBinding(const EmuBinding &b);
     void setRedirectInput(bool redirect);
     void onJoypadsChanged(const std::function<void()> &func);
+    void clearRow(int row);
 
     bool awaiting_binding;
     bool accept_return;
