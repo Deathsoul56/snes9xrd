@@ -17,12 +17,14 @@ class SnesControllerWidget : public QWidget
 public:
     explicit SnesControllerWidget(QWidget *parent = nullptr);
 
+    enum class Mode { Gamepad, Mouse, Superscope };
+
     void setPressedNames(const QSet<QString> &snes_names);
     void setDebugRawState(const QString &raw);
     void clearPressed();
-    // Swaps the gamepad diagram for the SNES Mouse image (Mouse + Controller
-    // port mode has no bindable buttons here, so hotspots are cleared too).
-    void setMouseMode(bool is_mouse);
+    // Swaps the gamepad diagram for the SNES Mouse/Super Scope image (neither
+    // has bindable buttons here, so hotspots are cleared too).
+    void setMode(Mode mode);
 
     QSize sizeHint() const override { return {560, 250}; }
 
@@ -49,9 +51,10 @@ private:
     QPixmap image_;
     QPixmap gamepad_image_;
     QPixmap mouse_image_;
+    QPixmap superscope_image_;
     QList<Hotspot> hotspots_;
     QList<Hotspot> gamepad_hotspots_;
-    bool mouse_mode_ = false;
+    Mode mode_ = Mode::Gamepad;
     QSet<QString> pressed_;
     QString debug_raw_;
 };

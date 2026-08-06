@@ -421,6 +421,67 @@
     </widget>
    </item>
    <item>
+    <widget class="QTableWidget" name="tableWidget_superscope">
+     <property name="whatsThis">
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Keyboard, gamepad or mouse-click bindings for the Super Scope's buttons.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+     <property name="editTriggers">
+      <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+     </property>
+     <property name="selectionMode">
+      <enum>QAbstractItemView::SelectionMode::SingleSelection</enum>
+     </property>
+     <attribute name="verticalHeaderCascadingSectionResizes">
+      <bool>true</bool>
+     </attribute>
+     <row>
+      <property name="text">
+       <string>Fire</string>
+      </property>
+     </row>
+     <row>
+      <property name="text">
+       <string>Pause</string>
+      </property>
+     </row>
+     <row>
+      <property name="text">
+       <string>Auto Fire</string>
+      </property>
+     </row>
+     <row>
+      <property name="text">
+       <string>Cursor</string>
+      </property>
+     </row>
+     <row>
+      <property name="text">
+       <string>Aim Offscreen</string>
+      </property>
+     </row>
+     <column>
+      <property name="text">
+       <string>Binding #1</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Binding #2</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Binding #3</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Binding #4</string>
+      </property>
+     </column>
+    </widget>
+   </item>
+   <item>
     <layout class="QHBoxLayout" name="mouseOptionsLayout">
      <item>
       <widget class="QLabel" name="mouseDeviceLabel">

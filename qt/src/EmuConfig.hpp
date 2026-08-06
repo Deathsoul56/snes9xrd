@@ -199,6 +199,17 @@ struct EmuConfig
     static const int num_controller_bindings = 18;
     static const int num_shortcuts = 55;
     static const int num_mouse_buttons = 2; // Click L, Click R
+    static const int num_superscope_buttons = 5; // Fire, Pause, Auto Fire, Cursor, Aim Offscreen
+
+    // Row order of binding.superscope_buttons.
+    enum SuperscopeButton
+    {
+        eSuperscopeFire = 0,
+        eSuperscopePause,
+        eSuperscopeAutoFire,
+        eSuperscopeCursor,
+        eSuperscopeAimOffscreen
+    };
 
     struct
     {
@@ -211,6 +222,10 @@ struct EmuConfig
         // click, independent of the real physical mouse buttons. Only used
         // when port_configuration == eMousePlusController.
         EmuBinding mouse_buttons[num_mouse_buttons * allowed_bindings];
+
+        // Super Scope button bindings. Only used when
+        // port_configuration == eSuperScopePlusController.
+        EmuBinding superscope_buttons[num_superscope_buttons * allowed_bindings];
 
         EmuBinding shortcuts[num_shortcuts * allowed_bindings];
     } binding;

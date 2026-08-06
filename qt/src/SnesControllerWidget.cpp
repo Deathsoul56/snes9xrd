@@ -16,6 +16,7 @@ SnesControllerWidget::SnesControllerWidget(QWidget *parent)
 
     gamepad_image_ = QPixmap(QStringLiteral(":/controllers/snes_controller.png"));
     mouse_image_ = QPixmap(QStringLiteral(":/controllers/snes_mouse.png"));
+    superscope_image_ = QPixmap(QStringLiteral(":/controllers/snes_superscope.png"));
     image_ = gamepad_image_;
 
     rebuildHotspots();
@@ -63,7 +64,7 @@ QRectF SnesControllerWidget::imageRect() const
     // mouse diagram has no shoulder labels, so it gets the full height
     // instead of looking artificially small next to the gamepad diagram.
     const qreal aspect = qreal(image_.width()) / qreal(image_.height());
-    qreal top_margin = mouse_mode_ ? 0.0 : 30.0;
+    qreal top_margin = mode_ == Mode::Gamepad ? 30.0 : 0.0;
     qreal w = width();
     qreal h = w / aspect;
     if (h > height() - top_margin)
@@ -85,7 +86,10 @@ void SnesControllerWidget::paintEvent(QPaintEvent *event)
     if (image_.isNull())
     {
         p.setPen(QColor("#8a8d99"));
-        p.drawText(rect(), Qt::AlignCenter, mouse_mode_ ? "snes_mouse.png not loaded" : "snes_controller.png not loaded");
+        const char *missing = mode_ == Mode::Mouse ? "snes_mouse.png not loaded" :
+                              mode_ == Mode::Superscope ? "snes_superscope.png not loaded" :
+                              "snes_controller.png not loaded";
+        p.drawText(rect(), Qt::AlignCenter, missing);
         return;
     }
 
@@ -208,12 +212,14 @@ void SnesControllerWidget::clearPressed()
     update();
 }
 
-void SnesControllerWidget::setMouseMode(bool is_mouse)
+void SnesControllerWidget::setMode(Mode mode)
 {
-    if (mouse_mode_ == is_mouse) return;
-    mouse_mode_ = is_mouse;
-    image_ = is_mouse ? mouse_image_ : gamepad_image_;
-    hotspots_ = is_mouse ? QList<Hotspot>{} : gamepad_hotspots_;
+    if (mode_ == mode) return;
+    mode_ = mode;
+    image_ = mode == Mode::Mouse ? mouse_image_ :
+             mode == Mode::Superscope ? superscope_image_ :
+             gamepad_image_;
+    hotspots_ = mode == Mode::Gamepad ? gamepad_hotspots_ : QList<Hotspot>{};
     pressed_.clear();
     debug_raw_.clear();
     update();

@@ -300,6 +300,7 @@ bool EmuConfig::setDefaults(int section)
         for (auto &c : binding.controller)
             std::fill(std::begin(c.buttons), std::end(c.buttons), EmuBinding{});
         std::fill(std::begin(binding.mouse_buttons), std::end(binding.mouse_buttons), EmuBinding{});
+        std::fill(std::begin(binding.superscope_buttons), std::end(binding.superscope_buttons), EmuBinding{});
 
         const char *button_list[] = { "Up", "Down", "Left", "Right", "d", "c", "s", "x", "z", "a", "Return", "Space" };
         for (int i = 0; i < std::size(button_list); i++)
@@ -310,6 +311,11 @@ bool EmuConfig::setDefaults(int section)
         // Click L/R default to the physical mouse's own Left/Right clicks.
         binding.mouse_buttons[0 * allowed_bindings] = EmuBinding::mouse_click(1);
         binding.mouse_buttons[1 * allowed_bindings] = EmuBinding::mouse_click(2);
+
+        // Fire defaults to the physical mouse's own Left click; Pause, Auto
+        // Fire, Cursor and Aim Offscreen are left unbound until the user
+        // assigns them.
+        binding.superscope_buttons[0 * allowed_bindings] = EmuBinding::mouse_click(1);
     }
 
     if (section == -1 || section == 5)
@@ -567,6 +573,16 @@ void EmuConfig::config(const std::string &filename, bool write)
             const char *names[] = { "ClickL", "ClickR" };
             std::string keyname = names[y] + std::to_string(x);
             Binding(keyname, binding.mouse_buttons[y * allowed_bindings + x]);
+        }
+    EndSection();
+
+    BeginSection("SuperscopeButtons");
+    for (int y = 0; y < num_superscope_buttons; y++)
+        for (int x = 0; x < allowed_bindings; x++)
+        {
+            const char *names[] = { "Fire", "Pause", "AutoFire", "Cursor", "AimOffscreen" };
+            std::string keyname = names[y] + std::to_string(x);
+            Binding(keyname, binding.superscope_buttons[y * allowed_bindings + x]);
         }
     EndSection();
 

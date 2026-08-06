@@ -32,6 +32,10 @@
     <file>whiteicons/mouseclickl.svg</file>
     <file>whiteicons/mouseclickr.svg</file>
     <file>whiteicons/mouse.svg</file>
+    <file>whiteicons/scopefire.svg</file>
+    <file>whiteicons/scopeautofire.svg</file>
+    <file>whiteicons/scopecursor.svg</file>
+    <file>whiteicons/scopeoffscreen.svg</file>
     <file>snes9x.svg</file>
     <file>snes9x.png</file>
     <file>blackicons/settings.svg</file>
@@ -66,10 +70,15 @@
     <file>blackicons/mouseclickl.svg</file>
     <file>blackicons/mouseclickr.svg</file>
     <file>blackicons/mouse.svg</file>
+    <file>blackicons/scopefire.svg</file>
+    <file>blackicons/scopeautofire.svg</file>
+    <file>blackicons/scopecursor.svg</file>
+    <file>blackicons/scopeoffscreen.svg</file>
   </qresource>
   <qresource prefix="/controllers">
     <file alias="snes_controller.png">controllers/snes_controller.png</file>
     <file alias="snes_mouse.png">controllers/snes_mouse.png</file>
+    <file alias="snes_superscope.png">controllers/snes_superscope.png</file>
   </qresource>
   <qresource prefix="/">
     <file>duckstation.qss</file>

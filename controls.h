@@ -71,6 +71,7 @@ typedef struct
 				uint8	turbo:1;
 				uint8	pause:1;
 				uint8	aim_offscreen:1;	// Pretend we're pointing the gun offscreen (ignore the pointer)
+				uint8	autofire:1;			// If set, be a genuine periodic auto-fire (see S9xControlEOF), unlike 'turbo' above which is a continuous-hold toggle
 			}	scope;
 
 			struct
