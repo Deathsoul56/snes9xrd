@@ -3,6 +3,29 @@ snes9xrd changelog
 This file tracks changes specific to the snes9xrd fork, on top of upstream
 Snes9x (see changes.txt for the upstream changelog).
 
+snes9xrd v0.2
+Qt:
+- Controllers panel: added a Super Scope binding view (Fire, Pause, Auto
+  Fire, Cursor, Aim Offscreen), fully user-configurable like the SNES
+  controller and mouse views; only Fire defaults to Left Click.
+- Auto Fire is a genuine frame-synced turbo for Super Scope's Fire button,
+  implemented in the shared core (S9xControlEOF) the same way as Joypad
+  Turbo A/B, and follows the same turbo speed setting.
+- Controllers panel: added a configurable Mouse binding view (Click L/R);
+  physical mouse clicks can now be captured/assigned like keyboard or
+  joystick inputs instead of being hardwired.
+- Fixed the controller diagram shifting position/size when switching
+  between the Controller, Mouse, and Super Scope binding views.
+- The binding "Set" combo now automatically jumps to the correct port slot
+  when switching into Mouse or Super Scope port modes.
+- Controllers panel: added a per-row clear ("-") button, instead of only a
+  global clear-all action.
+- MultiCart dialog: added a BIOS status row, Slot A/B paths are now
+  remembered across sessions, and fixed OK not actually starting the game.
+- Fixed a BIOS folder resolution bug that could return an empty path.
+- General code quality pass (casts, signed/unsigned comparisons, dead code
+  removal, shared connect-lambda helpers).
+
 snes9xrd v0.1
 Qt:
 - Game library: added a persistent on-disk scan cache (gamelist_cache.dat)
