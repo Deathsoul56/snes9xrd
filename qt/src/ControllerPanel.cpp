@@ -18,7 +18,16 @@ ControllerPanel::ControllerPanel(EmuApplication *app_)
     // ─── Controller image + binding table ───
     controller_image_ = new SnesControllerWidget(this);
     controller_image_->setObjectName("controllerImage");
-    controller_image_->setMinimumHeight(260);
+
+    // Fixed (not Expanding) vertically: the mouse view has two extra rows
+    // below the table (mouseOptionsLayout, mouseShortcutHintLabel) that the
+    // controller view doesn't, so if the image were left free to compete for
+    // leftover vertical space with the table, that extra row height would
+    // eat into the split differently per view and visibly shift the image
+    // and the top of the table between modes. Fixing the image's height
+    // makes it (and everything below it) start at the same Y in both views.
+    controller_image_->setFixedHeight(260);
+    controller_image_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     if (auto *vbox = qobject_cast<QVBoxLayout *>(tableWidget_controller->parentWidget()->layout()))
     {
@@ -32,11 +41,12 @@ ControllerPanel::ControllerPanel(EmuApplication *app_)
     live_input_timer_.setInterval(50);
     live_input_timer_.setTimerType(Qt::CoarseTimer);
     connect(&live_input_timer_, &QTimer::timeout, this, [this, app_] {
-        // The mouse click table has no hotspots on the image (see
-        // SnesControllerWidget::setMouseMode), and its 2-row binding array
-        // isn't laid out like the 12-button controller one, so there's
-        // nothing useful to highlight while it's the active view.
-        if (BindingPanel::binding == app_->config->binding.mouse_buttons)
+        // The mouse click / Super Scope tables have no hotspots on the image
+        // (see SnesControllerWidget::setMode), and their binding arrays
+        // aren't laid out like the 12-button controller one, so there's
+        // nothing useful to highlight while either is the active view.
+        if (BindingPanel::binding == app_->config->binding.mouse_buttons ||
+            BindingPanel::binding == app_->config->binding.superscope_buttons)
             return;
 
         if (awaiting_binding)
@@ -71,6 +81,12 @@ ControllerPanel::ControllerPanel(EmuApplication *app_)
     mouseDeviceComboBox->setVisible(false);
     mouseShortcutHintLabel->setVisible(false);
 
+    BindingPanel::setTableWidget(tableWidget_superscope,
+                                 app->config->binding.superscope_buttons,
+                                 EmuConfig::allowed_bindings,
+                                 EmuConfig::num_superscope_buttons);
+    tableWidget_superscope->setVisible(false);
+
     BindingPanel::setTableWidget(tableWidget_controller,
                                  app->config->binding.controller[0].buttons,
                                  EmuConfig::allowed_bindings,
@@ -99,6 +115,12 @@ ControllerPanel::ControllerPanel(EmuApplication *app_)
     tableWidget_mouse->verticalHeaderItem(0)->setIcon(QIcon(iconset + "mouseclickl.svg"));
     tableWidget_mouse->verticalHeaderItem(1)->setIcon(QIcon(iconset + "mouseclickr.svg"));
 
+    tableWidget_superscope->verticalHeaderItem(EmuConfig::eSuperscopeFire)->setIcon(QIcon(iconset + "scopefire.svg"));
+    tableWidget_superscope->verticalHeaderItem(EmuConfig::eSuperscopePause)->setIcon(QIcon(iconset + "pause.svg"));
+    tableWidget_superscope->verticalHeaderItem(EmuConfig::eSuperscopeAutoFire)->setIcon(QIcon(iconset + "scopeautofire.svg"));
+    tableWidget_superscope->verticalHeaderItem(EmuConfig::eSuperscopeCursor)->setIcon(QIcon(iconset + "scopecursor.svg"));
+    tableWidget_superscope->verticalHeaderItem(EmuConfig::eSuperscopeAimOffscreen)->setIcon(QIcon(iconset + "scopeoffscreen.svg"));
+
     recreateAutoAssignMenu();
     onJoypadsChanged([&]{ recreateAutoAssignMenu(); });
 
@@ -106,6 +128,17 @@ ControllerPanel::ControllerPanel(EmuApplication *app_)
         this->app->config->port_configuration = index;
         controllerComboBox->setItemText(0, index == EmuConfig::eMousePlusController ?
                                              QObject::tr("Mouse") : QObject::tr("SNES Controller 1"));
+        controllerComboBox->setItemText(1, index == EmuConfig::eSuperScopePlusController ?
+                                             QObject::tr("Super Scope") : QObject::tr("SNES Controller 2"));
+
+        // Jump straight to the repurposed slot so switching port mode
+        // immediately shows its binding view, instead of leaving "Set" on
+        // whatever it was last pointed at.
+        if (index == EmuConfig::eMousePlusController)
+            controllerComboBox->setCurrentIndex(0);
+        else if (index == EmuConfig::eSuperScopePlusController)
+            controllerComboBox->setCurrentIndex(1);
+
         updateBindingView(controllerComboBox->currentIndex());
         app->updateBindings();
     });
@@ -205,6 +238,12 @@ void ControllerPanel::clearCurrentController()
         binding[1 * table_width] = EmuBinding::mouse_click(2);
     }
 
+    // Same idea for the Super Scope: only Fire has a sensible "does
+    // nothing" fallback (the physical Left click), everything else stays
+    // fully unbound until the user assigns it.
+    if (binding == app->config->binding.superscope_buttons)
+        binding[0 * table_width] = EmuBinding::mouse_click(1);
+
     fillTable();
     app->updateBindings();
 }
@@ -219,18 +258,23 @@ void ControllerPanel::clearAllControllers()
 }
 
 // In Mouse + Controller mode, combo index 0 ("Mouse") is repurposed to show
-// the SNES Mouse's click bindings instead of "SNES Controller 1". The real
-// joypad bindings stored in controller[0] (which physically drives Port 2 in
-// that mode -- see Snes9xController::updateBindings()) are left completely
-// untouched; they're just not reachable from the combo while this mode is
-// active, and reappear exactly as they were in every other port mode.
+// the SNES Mouse's click bindings instead of "SNES Controller 1", since Port
+// 1 is the mouse in that mode. In SuperScope + Controller mode, Port 2 is the
+// Super Scope, so combo index 1 ("SNES Controller 2") is repurposed instead.
+// Either way, the real joypad bindings that combo slot normally shows are
+// left completely untouched; they're just not reachable from the combo
+// while that mode is active, and reappear exactly as they were in every
+// other port mode.
 void ControllerPanel::updateBindingView(int combo_index)
 {
     bool show_mouse = app->config->port_configuration == EmuConfig::eMousePlusController &&
                       combo_index == 0;
+    bool show_superscope = app->config->port_configuration == EmuConfig::eSuperScopePlusController &&
+                            combo_index == 1;
 
-    tableWidget_controller->setVisible(!show_mouse);
+    tableWidget_controller->setVisible(!show_mouse && !show_superscope);
     tableWidget_mouse->setVisible(show_mouse);
+    tableWidget_superscope->setVisible(show_superscope);
     mouseDeviceLabel->setVisible(show_mouse);
     mouseDeviceComboBox->setVisible(show_mouse);
     mouseShortcutHintLabel->setVisible(show_mouse);
@@ -243,6 +287,13 @@ void ControllerPanel::updateBindingView(int combo_index)
         table_height = EmuConfig::num_mouse_buttons;
         updateMouseShortcutHint();
     }
+    else if (show_superscope)
+    {
+        binding_table_widget = tableWidget_superscope;
+        binding = app->config->binding.superscope_buttons;
+        table_width = EmuConfig::allowed_bindings;
+        table_height = EmuConfig::num_superscope_buttons;
+    }
     else
     {
         binding_table_widget = tableWidget_controller;
@@ -253,11 +304,13 @@ void ControllerPanel::updateBindingView(int combo_index)
 
     fillTable();
     awaiting_binding = false;
-    controller_image_->setMouseMode(show_mouse);
+    controller_image_->setMode(show_mouse ? SnesControllerWidget::Mode::Mouse :
+                                show_superscope ? SnesControllerWidget::Mode::Superscope :
+                                SnesControllerWidget::Mode::Gamepad);
 
     // Auto-Assign fills in a full 12-button SNES layout; it doesn't apply to
-    // the 2-button mouse click table.
-    autoAssignToolButton->setEnabled(!show_mouse);
+    // the mouse click or Super Scope tables.
+    autoAssignToolButton->setEnabled(!show_mouse && !show_superscope);
 }
 
 void ControllerPanel::updateMouseShortcutHint()
@@ -315,5 +368,15 @@ void ControllerPanel::showEvent(QShowEvent *event)
     portComboBox->setCurrentIndex(app->config->port_configuration);
     controllerComboBox->setItemText(0, app->config->port_configuration == EmuConfig::eMousePlusController ?
                                         QObject::tr("Mouse") : QObject::tr("SNES Controller 1"));
+    controllerComboBox->setItemText(1, app->config->port_configuration == EmuConfig::eSuperScopePlusController ?
+                                        QObject::tr("Super Scope") : QObject::tr("SNES Controller 2"));
+
+    // Same jump-to-the-repurposed-slot as the port combo handler, in case
+    // the dialog was last closed on a different "Set" entry.
+    if (app->config->port_configuration == EmuConfig::eMousePlusController)
+        controllerComboBox->setCurrentIndex(0);
+    else if (app->config->port_configuration == EmuConfig::eSuperScopePlusController)
+        controllerComboBox->setCurrentIndex(1);
+
     updateBindingView(controllerComboBox->currentIndex());
 }

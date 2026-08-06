@@ -51,6 +51,7 @@ using namespace	std;
 #define SUPERSCOPE_TURBO		0x20
 #define SUPERSCOPE_PAUSE		0x10
 #define SUPERSCOPE_OFFSCREEN	0x02
+#define SUPERSCOPE_AUTOFIRE		0x01
 
 #define JUSTIFIER_TRIGGER		0x80
 #define JUSTIFIER_START			0x20
@@ -120,6 +121,8 @@ static struct
 	uint8				phys_buttons;
 	uint8				next_buttons;
 	uint8				read_buttons;
+	uint8				turbo_ct;
+	bool8				autofire_phase;
 	uint32				ID;
 	struct crosshair	crosshair;
 }	superscope;
@@ -912,7 +915,7 @@ char * S9xGetCommandName (s9xcommand_t command)
 			break;
 
 		case S9xButtonSuperscope:
-			if (!command.button.scope.fire && !command.button.scope.cursor && !command.button.scope.turbo && !command.button.scope.pause && !command.button.scope.aim_offscreen)
+			if (!command.button.scope.fire && !command.button.scope.cursor && !command.button.scope.turbo && !command.button.scope.autofire && !command.button.scope.pause && !command.button.scope.aim_offscreen)
 				return (strdup("None"));
 
 			s = "Superscope";
@@ -920,10 +923,11 @@ char * S9xGetCommandName (s9xcommand_t command)
 			if (command.button.scope.aim_offscreen)	s += " AimOffscreen";
 
 			c = ' ';
-			if (command.button.scope.fire  )	{ s += c; s += "Fire";        c = '+'; }
-			if (command.button.scope.cursor)	{ s += c; s += "Cursor";      c = '+'; }
-			if (command.button.scope.turbo )	{ s += c; s += "ToggleTurbo"; c = '+'; }
-			if (command.button.scope.pause )	{ s += c; s += "Pause";       c = '+'; }
+			if (command.button.scope.fire    )	{ s += c; s += "Fire";        c = '+'; }
+			if (command.button.scope.cursor  )	{ s += c; s += "Cursor";      c = '+'; }
+			if (command.button.scope.turbo   )	{ s += c; s += "ToggleTurbo"; c = '+'; }
+			if (command.button.scope.autofire)	{ s += c; s += "AutoFire";    c = '+'; }
+			if (command.button.scope.pause   )	{ s += c; s += "Pause";       c = '+'; }
 
 			break;
 
@@ -1268,6 +1272,7 @@ s9xcommand_t S9xGetCommandT (const char *name)
 		if ((cmd.button.scope.fire              = strncmp(s, "Fire",          4) ? 0 : 1))	{ s += i =  4; if (*s == '+') s++; }
 		if ((cmd.button.scope.cursor            = strncmp(s, "Cursor",        6) ? 0 : 1))	{ s += i =  6; if (*s == '+') s++; }
 		if ((cmd.button.scope.turbo             = strncmp(s, "ToggleTurbo",  11) ? 0 : 1))	{ s += i = 11; if (*s == '+') s++; }
+		if ((cmd.button.scope.autofire           = strncmp(s, "AutoFire",      8) ? 0 : 1))	{ s += i =  8; if (*s == '+') s++; }
 		if ((cmd.button.scope.pause             = strncmp(s, "Pause",         5) ? 0 : 1))	{ s += i =  5; }
 
 		if (i == 0 || *s != 0 || *(s - 1) == '+')
@@ -2055,6 +2060,28 @@ void S9xApplyCommand (s9xcommand_t cmd, int16 data1, int16 data2)
 			return;
 
 		case S9xButtonSuperscope:
+			if (cmd.button.scope.autofire)
+			{
+				// Genuine periodic auto-fire, unlike 'turbo' above (which is
+				// a continuous-hold toggle): the actual Fire pulsing happens
+				// once per turbo_time frames in S9xControlEOF().
+				if (data1)
+					superscope.phys_buttons |= SUPERSCOPE_AUTOFIRE;
+				else
+				{
+					superscope.phys_buttons &= ~SUPERSCOPE_AUTOFIRE;
+					superscope.turbo_ct = 0;
+
+					if (superscope.autofire_phase)
+					{
+						superscope.autofire_phase = FALSE;
+						S9xApplyCommand(S9xGetCommandT("Superscope Fire"), FALSE, 0);
+					}
+				}
+
+				return;
+			}
+
 			i = 0;
 			if (cmd.button.scope.fire         )	i |= SUPERSCOPE_FIRE;
 			if (cmd.button.scope.cursor       )	i |= SUPERSCOPE_CURSOR;
@@ -3192,6 +3219,16 @@ void S9xControlEOF (void)
 				break;
 
 			case SUPERSCOPE:
+				if (superscope.phys_buttons & SUPERSCOPE_AUTOFIRE)
+				{
+					if (++superscope.turbo_ct >= turbo_time)
+					{
+						superscope.turbo_ct = 0;
+						superscope.autofire_phase = !superscope.autofire_phase;
+						S9xApplyCommand(S9xGetCommandT("Superscope Fire"), superscope.autofire_phase, 0);
+					}
+				}
+
 				if (n == 1 && !(superscope.phys_buttons & SUPERSCOPE_OFFSCREEN))
 				{
 					if (superscope.next_buttons & (SUPERSCOPE_FIRE | SUPERSCOPE_CURSOR))

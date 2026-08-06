@@ -738,6 +738,30 @@ void Snes9xController::updateBindings(const EmuConfig *const config)
         }
     }
 
+    // Super Scope button bindings -- entirely config-driven like Click L/R
+    // above (only Fire defaults to a physical click; everything else is
+    // unbound until the user assigns it). Auto Fire is a real core command
+    // ("Superscope AutoFire"): the periodic Fire pulsing happens in
+    // S9xControlEOF(), frame-synced exactly like joypad Turbo A.
+    {
+        const char *superscope_button_names[] = {
+            "Superscope Fire", "Superscope Pause", "Superscope AutoFire",
+            "Superscope Cursor", "Superscope AimOffscreen"
+        };
+        for (int i = 0; i < EmuConfig::num_superscope_buttons; i++)
+        {
+            for (int b = 0; b < EmuConfig::allowed_bindings; b++)
+            {
+                auto binding = config->binding.superscope_buttons[i * EmuConfig::allowed_bindings + b];
+                if (binding.hash() == 0)
+                    continue;
+
+                auto cmd = S9xGetCommandT(superscope_button_names[i]);
+                S9xMapButton(binding.hash(), cmd, false);
+            }
+        }
+    }
+
     for (int i = 0; i < EmuConfig::num_shortcuts; i++)
     {
         auto command = S9xGetCommandT(EmuConfig::getShortcutNames()[i]);
@@ -760,14 +784,15 @@ void Snes9xController::updateBindings(const EmuConfig *const config)
     // Mouse1 L/R deliberately isn't mapped here: whether the physical mouse's
     // own clicks drive the SNES Mouse is entirely up to the Click L/R
     // bindings above (defaulted to the physical clicks, but user-removable).
-    // Superscope/Justifier have no such binding UI, so they stay hardwired.
-    cmd = S9xGetCommandT("{Superscope Fire,Justifier1 Trigger}");
+    // Same goes for the Super Scope's buttons above -- Justifier has no
+    // binding UI of its own, so it stays hardwired to the physical clicks.
+    cmd = S9xGetCommandT("Justifier1 Trigger");
     S9xMapButton(EmuBinding::MOUSE_BUTTON1, cmd, false);
 
-    cmd = S9xGetCommandT("{Justifier1 AimOffscreen Trigger,Superscope AimOffscreen}");
+    cmd = S9xGetCommandT("Justifier1 AimOffscreen Trigger");
     S9xMapButton(EmuBinding::MOUSE_BUTTON3, cmd, false);
 
-    cmd = S9xGetCommandT("{Superscope Cursor,Justifier1 Start}");
+    cmd = S9xGetCommandT("Justifier1 Start");
     S9xMapButton(EmuBinding::MOUSE_BUTTON2, cmd, false);
 
 }
