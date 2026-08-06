@@ -29,6 +29,9 @@
     <file>whiteicons/save.svg</file>
     <file>whiteicons/exit.svg</file>
     <file>whiteicons/fullscreen.svg</file>
+    <file>whiteicons/mouseclickl.svg</file>
+    <file>whiteicons/mouseclickr.svg</file>
+    <file>whiteicons/mouse.svg</file>
     <file>snes9x.svg</file>
     <file>snes9x.png</file>
     <file>blackicons/settings.svg</file>
@@ -60,6 +63,9 @@
     <file>blackicons/save.svg</file>
     <file>blackicons/exit.svg</file>
     <file>blackicons/fullscreen.svg</file>
+    <file>blackicons/mouseclickl.svg</file>
+    <file>blackicons/mouseclickr.svg</file>
+    <file>blackicons/mouse.svg</file>
   </qresource>
   <qresource prefix="/controllers">
     <file alias="snes_controller.png">controllers/snes_controller.png</file>

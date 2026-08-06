@@ -299,12 +299,17 @@ bool EmuConfig::setDefaults(int section)
         port_configuration = 0;
         for (auto &c : binding.controller)
             std::fill(std::begin(c.buttons), std::end(c.buttons), EmuBinding{});
+        std::fill(std::begin(binding.mouse_buttons), std::end(binding.mouse_buttons), EmuBinding{});
 
         const char *button_list[] = { "Up", "Down", "Left", "Right", "d", "c", "s", "x", "z", "a", "Return", "Space" };
         for (int i = 0; i < std::size(button_list); i++)
         {
             binding.controller[0].buttons[i * 4] = EmuBinding::from_config_string("Keyboard " + std::string(button_list[i]));
         }
+
+        // Click L/R default to the physical mouse's own Left/Right clicks.
+        binding.mouse_buttons[0 * allowed_bindings] = EmuBinding::mouse_click(1);
+        binding.mouse_buttons[1 * allowed_bindings] = EmuBinding::mouse_click(2);
     }
 
     if (section == -1 || section == 5)
@@ -554,6 +559,16 @@ void EmuConfig::config(const std::string &filename, bool write)
 
         EndSection();
     }
+
+    BeginSection("MouseButtons");
+    for (int y = 0; y < num_mouse_buttons; y++)
+        for (int x = 0; x < allowed_bindings; x++)
+        {
+            const char *names[] = { "ClickL", "ClickR" };
+            std::string keyname = names[y] + std::to_string(x);
+            Binding(keyname, binding.mouse_buttons[y * allowed_bindings + x]);
+        }
+    EndSection();
 
     BeginSection("Shortcuts");
     for (int i = 0; i < num_shortcuts; i++)

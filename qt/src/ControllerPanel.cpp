@@ -12,9 +12,7 @@ ControllerPanel::ControllerPanel(EmuApplication *app_)
 {
     setupUi(this);
     QObject::connect(controllerComboBox, &QComboBox::currentIndexChanged, [&](int index) {
-        BindingPanel::binding = this->app->config->binding.controller[index].buttons;
-        fillTable();
-        awaiting_binding = false;
+        updateBindingView(index);
     });
 
     // ─── Controller image + binding table ───
@@ -34,6 +32,13 @@ ControllerPanel::ControllerPanel(EmuApplication *app_)
     live_input_timer_.setInterval(50);
     live_input_timer_.setTimerType(Qt::CoarseTimer);
     connect(&live_input_timer_, &QTimer::timeout, this, [this, app_] {
+        // The mouse click table has no hotspots on the image (see
+        // SnesControllerWidget::setMouseMode), and its 2-row binding array
+        // isn't laid out like the 12-button controller one, so there's
+        // nothing useful to highlight while it's the active view.
+        if (BindingPanel::binding == app_->config->binding.mouse_buttons)
+            return;
+
         if (awaiting_binding)
         {
             // Currently capturing a new input for cell_row: show exactly the
@@ -56,6 +61,15 @@ ControllerPanel::ControllerPanel(EmuApplication *app_)
         controller_image_->setDebugRawState(app_->input_manager->debugRawState());
     });
     live_input_timer_.start();
+
+    BindingPanel::setTableWidget(tableWidget_mouse,
+                                 app->config->binding.mouse_buttons,
+                                 EmuConfig::allowed_bindings,
+                                 EmuConfig::num_mouse_buttons);
+    tableWidget_mouse->setVisible(false);
+    mouseDeviceLabel->setVisible(false);
+    mouseDeviceComboBox->setVisible(false);
+    mouseShortcutHintLabel->setVisible(false);
 
     BindingPanel::setTableWidget(tableWidget_controller,
                                  app->config->binding.controller[0].buttons,
@@ -82,12 +96,17 @@ ControllerPanel::ControllerPanel(EmuApplication *app_)
     for (int i = 0; i < 18; i++)
         tableWidget_controller->verticalHeaderItem(i)->setIcon(QIcon(iconset + icons[i] + ".svg"));
 
+    tableWidget_mouse->verticalHeaderItem(0)->setIcon(QIcon(iconset + "mouseclickl.svg"));
+    tableWidget_mouse->verticalHeaderItem(1)->setIcon(QIcon(iconset + "mouseclickr.svg"));
+
     recreateAutoAssignMenu();
     onJoypadsChanged([&]{ recreateAutoAssignMenu(); });
 
     connect(portComboBox, &QComboBox::currentIndexChanged, [&](int index) {
         this->app->config->port_configuration = index;
-        controller_image_->setMouseMode(index == EmuConfig::eMousePlusController);
+        controllerComboBox->setItemText(0, index == EmuConfig::eMousePlusController ?
+                                             QObject::tr("Mouse") : QObject::tr("SNES Controller 1"));
+        updateBindingView(controllerComboBox->currentIndex());
         app->updateBindings();
     });
 }
@@ -170,9 +189,22 @@ void ControllerPanel::autoPopulateWithJoystick(int joystick_id, int slot)
 
 void ControllerPanel::clearCurrentController()
 {
-    auto &c = app->config->binding.controller[controllerComboBox->currentIndex()];
-    for (auto &b : c.buttons)
-        b = {};
+    // Clears whatever is currently shown -- the mouse's click bindings or a
+    // real controller's -- using the active binding/table state so this
+    // can't accidentally clobber the wrong array.
+    for (int i = 0; i < table_width * table_height; i++)
+        binding[i] = {};
+
+    // There's no sensible "does nothing" state for the SNES Mouse's clicks,
+    // so clearing the mouse view restores the physical-click defaults
+    // instead of leaving them unbound. A row's own "-" button still fully
+    // unbinds that slot if that's actually what's wanted.
+    if (binding == app->config->binding.mouse_buttons)
+    {
+        binding[0 * table_width] = EmuBinding::mouse_click(1);
+        binding[1 * table_width] = EmuBinding::mouse_click(2);
+    }
+
     fillTable();
     app->updateBindings();
 }
@@ -184,6 +216,55 @@ void ControllerPanel::clearAllControllers()
             b = {};
     fillTable();
     app->updateBindings();
+}
+
+// In Mouse + Controller mode, combo index 0 ("Mouse") is repurposed to show
+// the SNES Mouse's click bindings instead of "SNES Controller 1". The real
+// joypad bindings stored in controller[0] (which physically drives Port 2 in
+// that mode -- see Snes9xController::updateBindings()) are left completely
+// untouched; they're just not reachable from the combo while this mode is
+// active, and reappear exactly as they were in every other port mode.
+void ControllerPanel::updateBindingView(int combo_index)
+{
+    bool show_mouse = app->config->port_configuration == EmuConfig::eMousePlusController &&
+                      combo_index == 0;
+
+    tableWidget_controller->setVisible(!show_mouse);
+    tableWidget_mouse->setVisible(show_mouse);
+    mouseDeviceLabel->setVisible(show_mouse);
+    mouseDeviceComboBox->setVisible(show_mouse);
+    mouseShortcutHintLabel->setVisible(show_mouse);
+
+    if (show_mouse)
+    {
+        binding_table_widget = tableWidget_mouse;
+        binding = app->config->binding.mouse_buttons;
+        table_width = EmuConfig::allowed_bindings;
+        table_height = EmuConfig::num_mouse_buttons;
+        updateMouseShortcutHint();
+    }
+    else
+    {
+        binding_table_widget = tableWidget_controller;
+        binding = app->config->binding.controller[combo_index].buttons;
+        table_width = EmuConfig::allowed_bindings;
+        table_height = EmuConfig::num_controller_bindings;
+    }
+
+    fillTable();
+    awaiting_binding = false;
+    controller_image_->setMouseMode(show_mouse);
+
+    // Auto-Assign fills in a full 12-button SNES layout; it doesn't apply to
+    // the 2-button mouse click table.
+    autoAssignToolButton->setEnabled(!show_mouse);
+}
+
+void ControllerPanel::updateMouseShortcutHint()
+{
+    auto &b = app->config->binding.shortcuts[EmuConfig::eGrabMouse * EmuConfig::allowed_bindings];
+    QString key = b.type == EmuBinding::None ? QObject::tr("(unassigned)") : QString::fromStdString(b.to_string());
+    mouseShortcutHintLabel->setText(QObject::tr("Press %1 to toggle Mouse Capture mode").arg(key));
 }
 
 QString ControllerPanel::snes_name_for_row(int row)
@@ -232,5 +313,7 @@ void ControllerPanel::showEvent(QShowEvent *event)
     BindingPanel::showEvent(event);
     recreateAutoAssignMenu();
     portComboBox->setCurrentIndex(app->config->port_configuration);
-    controller_image_->setMouseMode(app->config->port_configuration == EmuConfig::eMousePlusController);
+    controllerComboBox->setItemText(0, app->config->port_configuration == EmuConfig::eMousePlusController ?
+                                        QObject::tr("Mouse") : QObject::tr("SNES Controller 1"));
+    updateBindingView(controllerComboBox->currentIndex());
 }

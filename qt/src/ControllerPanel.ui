@@ -374,6 +374,103 @@
      </column>
     </widget>
    </item>
+   <item>
+    <widget class="QTableWidget" name="tableWidget_mouse">
+     <property name="whatsThis">
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Alternate keyboard or gamepad bindings that also trigger a SNES Mouse click, in addition to the physical mouse buttons. The real mouse itself does not need to be bound here.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+     <property name="editTriggers">
+      <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+     </property>
+     <property name="selectionMode">
+      <enum>QAbstractItemView::SelectionMode::SingleSelection</enum>
+     </property>
+     <attribute name="verticalHeaderCascadingSectionResizes">
+      <bool>true</bool>
+     </attribute>
+     <row>
+      <property name="text">
+       <string>Click Left</string>
+      </property>
+     </row>
+     <row>
+      <property name="text">
+       <string>Click Right</string>
+      </property>
+     </row>
+     <column>
+      <property name="text">
+       <string>Binding #1</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Binding #2</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Binding #3</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Binding #4</string>
+      </property>
+     </column>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="mouseOptionsLayout">
+     <item>
+      <widget class="QLabel" name="mouseDeviceLabel">
+       <property name="text">
+        <string>Mouse Device:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="mouseDeviceComboBox">
+       <property name="toolTip">
+        <string>Only the system's default mouse is currently supported. This will let you pick a different pointing device once multi-mouse support is added.</string>
+       </property>
+       <item>
+        <property name="text">
+         <string>System Mouse (Default)</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item>
+      <spacer name="mouseOptionsSpacer">
+       <property name="orientation">
+        <enum>Qt::Orientation::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="mouseShortcutHintLabel">
+     <property name="font">
+      <font>
+       <italic>true</italic>
+      </font>
+     </property>
+     <property name="text">
+      <string>Press the shortcut key to toggle Mouse Capture mode</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignmentFlag::AlignHCenter|Qt::AlignmentFlag::AlignVCenter</set>
+     </property>
+    </widget>
+   </item>
   </layout>
  </widget>
  <resources>

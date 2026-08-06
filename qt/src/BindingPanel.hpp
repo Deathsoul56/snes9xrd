@@ -32,6 +32,7 @@ class BindingPanel : public QWidget
     int cell_column;
     QIcon keyboard_icon;
     QIcon joypad_icon;
+    QIcon mouse_icon;
     std::unique_ptr<QTimer> timer;
     EmuApplication *app;
     QTableWidget *binding_table_widget;
