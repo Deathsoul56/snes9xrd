@@ -129,14 +129,14 @@ bool EmuCanvasOpenGL::createContext()
         return true;
 
     auto platform = QGuiApplication::platformName();
-    auto app = reinterpret_cast<QGuiApplication *>(QGuiApplication::instance());
+    auto app = static_cast<QGuiApplication *>(QGuiApplication::instance());
     QGuiApplication::sync();
 #ifndef _WIN32
     if (platform == "wayland")
     {
         auto iface = app->nativeInterface<QNativeInterface::QWaylandApplication>();
         auto display = iface->display();
-        auto surface = (wl_surface *)main_window->winId();
+        auto surface = reinterpret_cast<wl_surface *>(main_window->winId());
         auto wayland_egl_context = new WaylandEGLContext();
         int s = devicePixelRatio();
 
@@ -168,7 +168,7 @@ bool EmuCanvasOpenGL::createContext()
 #else
     auto hwnd = winId();
     auto wgl_context = new WGLContext();
-    if (!wgl_context->attach((HWND)hwnd))
+    if (!wgl_context->attach(reinterpret_cast<HWND>(hwnd)))
     {
         printf("Couldn't attach to context\n");
         context.reset();

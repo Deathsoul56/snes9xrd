@@ -69,7 +69,6 @@ void Snes9xController::init()
     Settings.FrameTimePAL = 20000;
     Settings.DisplayFrameRate = false;
     Settings.DisplayTime = false;
-    Settings.DisplayFrameRate = false;
     Settings.DisplayPressedKeys = false;
     Settings.DisplayIndicators = true;
     Settings.SoundPlaybackRate = 48000;

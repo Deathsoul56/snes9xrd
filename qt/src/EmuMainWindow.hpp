@@ -66,6 +66,12 @@ class EmuMainWindow : public QMainWindow
 
   private:
     void createWidgets();
+    QMenu *createFileMenu();
+    QMenu *createEmulationMenu();
+    QMenu *createViewMenu();
+    QMenu *createOptionsMenu();
+    QMenu *createHelpMenu();
+    void createCenterStack();
     void showLibraryPage();
     void showRunningPage();
     void handleCanvasMouseMove();

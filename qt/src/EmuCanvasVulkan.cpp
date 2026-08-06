@@ -80,13 +80,13 @@ bool EmuCanvasVulkan::createContext()
 
     platform = QGuiApplication::platformName();
     QGuiApplication::sync();
-    auto app = reinterpret_cast<QGuiApplication *>(QGuiApplication::instance());
+    auto app = static_cast<QGuiApplication *>(QGuiApplication::instance());
 
     context = std::make_unique<Vulkan::Context>();
     context->set_preferred_device(config->display_device_index);
 
 #ifdef _WIN32
-    auto hwnd = (HWND)winId();
+    auto hwnd = reinterpret_cast<HWND>(winId());
     if (!context->init_win32() ||
         !context->create_win32_surface(nullptr, hwnd) ||
         !context->swapchain->create())
@@ -296,7 +296,7 @@ void EmuCanvasVulkan::deinit()
 #endif
 }
 
-std::vector<std::string> EmuCanvasVulkan::getDeviceList()
+std::vector<std::string> EmuCanvasVulkan::getDeviceList() const
 {
     return Vulkan::Context::get_device_list();
 }

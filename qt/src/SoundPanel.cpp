@@ -153,7 +153,7 @@ void SoundPanel::showEvent(QShowEvent *event)
     driver_list.push_back("pulseaudio");
 #endif
 
-    for (int i = 0; i < driver_list.size(); i++)
+    for (size_t i = 0; i < driver_list.size(); i++)
     {
         if (driver_list[i] == config->sound_driver)
         {

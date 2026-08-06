@@ -140,28 +140,6 @@ void MultiCartDialog::refreshBiosStatus()
 }
 
 
-void MultiCartDialog::browseSlotA()
-{
-    QString start_dir = config_ ? QString::fromStdString(config_->last_multicart_folder) : QString();
-    QString path = QFileDialog::getOpenFileName(this, tr("Choose Slot A cartridge"), start_dir,
-        EmuApplication::romFileDialogFilter());
-    if (path.isEmpty()) return;
-    slot_a_edit_->setText(path);
-    slot_a_ = path;
-    if (config_) config_->last_multicart_folder = QFileInfo(path).absolutePath().toStdString();
-}
-
-void MultiCartDialog::browseSlotB()
-{
-    QString start_dir = config_ ? QString::fromStdString(config_->last_multicart_folder) : QString();
-    QString path = QFileDialog::getOpenFileName(this, tr("Choose Slot B cartridge"), start_dir,
-        EmuApplication::romFileDialogFilter());
-    if (path.isEmpty()) return;
-    slot_b_edit_->setText(path);
-    slot_b_ = path;
-    if (config_) config_->last_multicart_folder = QFileInfo(path).absolutePath().toStdString();
-}
-
 void MultiCartDialog::swapAB()
 {
     std::swap(slot_a_, slot_b_);

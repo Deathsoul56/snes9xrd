@@ -48,7 +48,7 @@ ShaderParametersDialog::ShaderParametersDialog(EmuCanvas *parent_, EmuCanvas::Sh
 
     auto buttonbox = new QHBoxLayout();
 
-    for (int i = 0; i < parameters->size(); i++)
+    for (size_t i = 0; i < parameters->size(); i++)
     {
         auto &p = (*parameters)[i];
         QSlider *slider = nullptr;
