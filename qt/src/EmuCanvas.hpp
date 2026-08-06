@@ -20,12 +20,12 @@ class EmuCanvas : public QWidget
     double get_late_frames();
     void resizeEvent(QResizeEvent *event) override = 0;
 
-    virtual std::vector<std::string> getDeviceList()
+    virtual std::vector<std::string> getDeviceList() const
     {
         return std::vector<std::string>{ "Default" };
     }
 
-    bool ready()
+    bool ready() const
     {
         return output_data.ready;
     }

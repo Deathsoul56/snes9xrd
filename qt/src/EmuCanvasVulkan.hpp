@@ -21,7 +21,7 @@ class EmuCanvasVulkan : public EmuCanvas
     void resizeEvent(QResizeEvent *event) override;
     QPaintEngine *paintEngine() const override { return nullptr; }
 
-    std::vector<std::string> getDeviceList() override;
+    std::vector<std::string> getDeviceList() const override;
     void shaderChanged() override;
     void showParametersDialog() override;
     void saveParameters(std::string filename) override;

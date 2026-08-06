@@ -10,7 +10,7 @@ DisplayPanel::DisplayPanel(EmuApplication *app_)
     setupUi(this);
 
     connect(comboBox_driver, &QComboBox::activated, [&](int index) {
-        if (driver_list.empty() || index < 0 || index >= driver_list.size())
+        if (driver_list.empty() || index < 0 || static_cast<size_t>(index) >= driver_list.size())
             return;
 
         auto display_driver = driver_list[index].second;

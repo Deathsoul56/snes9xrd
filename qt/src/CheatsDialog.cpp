@@ -83,12 +83,6 @@ void CheatsDialog::removeCode()
     delete item;
 }
 
-void CheatsDialog::disableAll()
-{
-    app->disableAllCheats();
-    refreshList();
-}
-
 void CheatsDialog::removeAll()
 {
     treeWidget_cheats->clear();
@@ -150,8 +144,9 @@ void CheatsDialog::updateCurrent()
 
     app->modifyCheat(index, description, validated);
 
-    treeWidget_cheats->currentItem()->setText(1, lineEdit_description->text());
-    treeWidget_cheats->currentItem()->setText(2, QString::fromStdString(validated));
+    auto *item = treeWidget_cheats->currentItem();
+    item->setText(1, lineEdit_description->text());
+    item->setText(2, QString::fromStdString(validated));
 }
 
 void CheatsDialog::refreshList()

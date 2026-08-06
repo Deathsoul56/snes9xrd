@@ -152,6 +152,35 @@ void EmuMainWindow::createWidgets()
                           sizeof(cornerPref));
 #endif
 
+    menuBar()->addMenu(createFileMenu());
+    menuBar()->addMenu(createEmulationMenu());
+    menuBar()->addMenu(createViewMenu());
+    menuBar()->addMenu(createOptionsMenu());
+    menuBar()->addMenu(createHelpMenu());
+
+    createCenterStack();
+
+    status_label_ = new QLabel("", this);
+    statusBar()->addPermanentWidget(status_label_, 1);
+    statusBar()->setSizeGripEnabled(false);
+
+    if (app->config->main_window_width != 0 && app->config->main_window_height != 0)
+        resize(app->config->main_window_width, app->config->main_window_height);
+
+    // Center on the primary screen instead of relying on the window manager's
+    // default placement. Harmless if the window ends up maximized right after
+    // (main.cpp decides that based on main_window_maximized).
+    if (auto *screen = QGuiApplication::primaryScreen())
+    {
+        QRect avail = screen->availableGeometry();
+        move(avail.center().x() - width() / 2, avail.center().y() - height() / 2);
+    }
+
+    setRunningActionsEnabled(false);
+}
+
+QMenu *EmuMainWindow::createFileMenu()
+{
     auto iconset = app->iconPrefix();
 
     // ──────── Menu bar ────────
@@ -277,7 +306,13 @@ void EmuMainWindow::createWidgets()
     auto exit_item = new QAction(QIcon(iconset + "exit.svg"), tr("E&xit"));
     connect(exit_item, &QAction::triggered, this, [&](bool) { close(); });
     file_menu->addAction(exit_item);
-    menuBar()->addMenu(file_menu);
+
+    return file_menu;
+}
+
+QMenu *EmuMainWindow::createEmulationMenu()
+{
+    auto iconset = app->iconPrefix();
 
     auto emulation_menu = new QMenu(tr("&Emulation"));
     auto run_item = emulation_menu->addAction(tr("&Run"));
@@ -317,7 +352,12 @@ void EmuMainWindow::createWidgets()
     });
     running_actions_.push_back(cheats_item);
 
-    menuBar()->addMenu(emulation_menu);
+    return emulation_menu;
+}
+
+QMenu *EmuMainWindow::createViewMenu()
+{
+    auto iconset = app->iconPrefix();
 
     auto view_menu = new QMenu(tr("&View"));
     auto set_size_menu = new QMenu(tr("&Set Size"));
@@ -335,7 +375,12 @@ void EmuMainWindow::createWidgets()
     connect(fullscreen_item, &QAction::triggered, [&](bool) { toggleFullscreen(); });
     running_actions_.push_back(fullscreen_item);
 
-    menuBar()->addMenu(view_menu);
+    return view_menu;
+}
+
+QMenu *EmuMainWindow::createOptionsMenu()
+{
+    auto iconset = app->iconPrefix();
 
     auto options_menu = new QMenu(tr("&Options"));
     std::array<QString, 7> setting_panels = { tr("&General…"),
@@ -348,7 +393,7 @@ void EmuMainWindow::createWidgets()
     const char *setting_icons[] = { "settings.svg", "display.svg", "sound.svg",
                                     "emulation.svg", "joypad.svg",
                                     "keyboard.svg", "folders.svg" };
-    for (int i = 0; i < setting_panels.size(); i++)
+    for (size_t i = 0; i < setting_panels.size(); i++)
     {
         auto action = options_menu->addAction(QIcon(iconset + setting_icons[i]), setting_panels[i]);
         QObject::connect(action, &QAction::triggered, [&, i] {
@@ -364,8 +409,11 @@ void EmuMainWindow::createWidgets()
     });
     options_menu->addAction(shader_settings_item);
 
-    menuBar()->addMenu(options_menu);
+    return options_menu;
+}
 
+QMenu *EmuMainWindow::createHelpMenu()
+{
     auto help_menu = new QMenu(tr("&Help"));
     auto about_item = help_menu->addAction(tr("&About…"));
     connect(about_item, &QAction::triggered, this, [&] {
@@ -389,8 +437,12 @@ void EmuMainWindow::createWidgets()
                "up-to-the-minute information and help on Snes9x.<br><br>"
                "Nintendo is a trademark.").arg(QString::fromUtf8(VERSION), kSnes9xrdVersion));
     });
-    menuBar()->addMenu(help_menu);
 
+    return help_menu;
+}
+
+void EmuMainWindow::createCenterStack()
+{
     // ──────── Center stack ────────
     center_stack_ = new QStackedWidget(this);
     game_list_ = new EmuGameList(this);
@@ -403,24 +455,6 @@ void EmuMainWindow::createWidgets()
             this, [this](const QString &path) {
         openFile(path.toStdString());
     });
-
-    status_label_ = new QLabel("", this);
-    statusBar()->addPermanentWidget(status_label_, 1);
-    statusBar()->setSizeGripEnabled(false);
-
-    if (app->config->main_window_width != 0 && app->config->main_window_height != 0)
-        resize(app->config->main_window_width, app->config->main_window_height);
-
-    // Center on the primary screen instead of relying on the window manager's
-    // default placement. Harmless if the window ends up maximized right after
-    // (main.cpp decides that based on main_window_maximized).
-    if (auto *screen = QGuiApplication::primaryScreen())
-    {
-        QRect avail = screen->availableGeometry();
-        move(avail.center().x() - width() / 2, avail.center().y() - height() / 2);
-    }
-
-    setRunningActionsEnabled(false);
 }
 
 void EmuMainWindow::showLibraryPage()
@@ -607,8 +641,8 @@ bool EmuMainWindow::event(QEvent *event)
     case QEvent::Resize:
         if (!isFullScreen() && !isMaximized())
         {
-            app->config->main_window_width = ((QResizeEvent *)event)->size().width();
-            app->config->main_window_height = ((QResizeEvent *)event)->size().height();
+            app->config->main_window_width = static_cast<QResizeEvent *>(event)->size().width();
+            app->config->main_window_height = static_cast<QResizeEvent *>(event)->size().height();
         }
         break;
     case QEvent::WindowActivate:
@@ -634,7 +668,7 @@ bool EmuMainWindow::event(QEvent *event)
         break;
     case QEvent::WindowStateChange:
     {
-        auto scevent = (QWindowStateChangeEvent *)event;
+        auto scevent = static_cast<QWindowStateChangeEvent *>(event);
         if (!(scevent->oldState() & Qt::WindowMinimized) && windowState() & Qt::WindowMinimized)
         {
             minimized_pause = true;
@@ -771,13 +805,13 @@ bool EmuMainWindow::eventFilter(QObject *watched, QEvent *event)
     {
         if (event->type() == QEvent::Resize)
         {
-            app->emu_thread->runOnThread([&] { canvas->resizeEvent((QResizeEvent *)event); }, true);
+            app->emu_thread->runOnThread([&] { canvas->resizeEvent(static_cast<QResizeEvent *>(event)); }, true);
             event->accept();
             return true;
         }
         else if (event->type() == QEvent::Paint)
         {
-            app->emu_thread->runOnThread([&] { canvas->paintEvent((QPaintEvent *)event); }, true);
+            app->emu_thread->runOnThread([&] { canvas->paintEvent(static_cast<QPaintEvent *>(event)); }, true);
             event->accept();
             return true;
         }
@@ -788,7 +822,7 @@ bool EmuMainWindow::eventFilter(QObject *watched, QEvent *event)
         }
         else if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonRelease)
         {
-            handleCanvasMouseButton((QMouseEvent *)event, event->type() == QEvent::MouseButtonPress);
+            handleCanvasMouseButton(static_cast<QMouseEvent *>(event), event->type() == QEvent::MouseButtonPress);
             return false;
         }
     }
@@ -796,7 +830,7 @@ bool EmuMainWindow::eventFilter(QObject *watched, QEvent *event)
     if (event->type() != QEvent::KeyPress && event->type() != QEvent::KeyRelease) return false;
     if (watched != this && watched != canvas && !app->binding_callback) return false;
 
-    auto key_event = (QKeyEvent *)event;
+    auto key_event = static_cast<QKeyEvent *>(event);
 
     if (mouse_grabbed && key_event->key() == Qt::Key_Escape && event->type() == QEvent::KeyPress)
     {

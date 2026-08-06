@@ -1,47 +1,30 @@
 #include "EmulationPanel.hpp"
 #include "EmuApplication.hpp"
 #include "EmuConfig.hpp"
+#include "PanelConnectHelpers.hpp"
 
 EmulationPanel::EmulationPanel(EmuApplication *app_)
     : app(app_)
 {
     setupUi(this);
 
-    auto connect_checkbox = [&](QCheckBox *box, bool *config) {
-        connect(box, &QCheckBox::clicked, [&, box, config](bool is_checked) {
-            *config = is_checked;
-            app->updateSettings();
-        });
-    };
-    auto connect_spin = [&](QSpinBox *box, int *config) {
-        connect(box, &QSpinBox::valueChanged, [&, box, config](int value) {
-            *config = value;
-            app->updateSettings();
-        });
-    };
-    auto connect_combo = [&](QComboBox *box, int *config) {
-        connect(box, &QComboBox::activated, [&, box, config](int index) {
-            *config = index;
-            app->updateSettings();
-        });
-    };
-    connect_combo(comboBox_speed_control_method, &app->config->speed_sync_method);
+    connectComboBox(comboBox_speed_control_method, &app->config->speed_sync_method, app);
     connect(doubleSpinBox_frame_rate, &QDoubleSpinBox::valueChanged, [&](double value) {
         app->config->fixed_frame_rate = value;
     });
 
-    connect_spin(spinBox_rewind_buffer_size, &app->config->rewind_buffer_size);
-    connect_spin(spinBox_rewind_frames, &app->config->rewind_frame_interval);
-    connect_spin(spinBox_fast_forward_skip_frames, &app->config->fast_forward_skip_frames);
-    connect_spin(spinBox_fixed_frame_skip, &app->config->fixed_frame_skip);
+    connectSpinBox(spinBox_rewind_buffer_size, &app->config->rewind_buffer_size, app);
+    connectSpinBox(spinBox_rewind_frames, &app->config->rewind_frame_interval, app);
+    connectSpinBox(spinBox_fast_forward_skip_frames, &app->config->fast_forward_skip_frames, app);
+    connectSpinBox(spinBox_fixed_frame_skip, &app->config->fixed_frame_skip, app);
 
-    connect_checkbox(checkBox_allow_invalid_vram_access, &app->config->allow_invalid_vram_access);
-    connect_checkbox(checkBox_allow_opposing_dpad_directions, &app->config->allow_opposing_dpad_directions);
-    connect_combo(comboBox_overclock, &app->config->overclock);
-    connect_checkbox(checkBox_remove_sprite_limit, &app->config->remove_sprite_limit);
-    connect_checkbox(checkBox_use_shadow_echo_buffer, &app->config->enable_shadow_buffer);
-    connect_spin(spinBox_superfx_clock_speed, &app->config->superfx_clock_multiplier);
-    connect_combo(comboBox_sound_filter, &app->config->sound_filter);
+    connectCheckbox(checkBox_allow_invalid_vram_access, &app->config->allow_invalid_vram_access, app);
+    connectCheckbox(checkBox_allow_opposing_dpad_directions, &app->config->allow_opposing_dpad_directions, app);
+    connectComboBox(comboBox_overclock, &app->config->overclock, app);
+    connectCheckbox(checkBox_remove_sprite_limit, &app->config->remove_sprite_limit, app);
+    connectCheckbox(checkBox_use_shadow_echo_buffer, &app->config->enable_shadow_buffer, app);
+    connectSpinBox(spinBox_superfx_clock_speed, &app->config->superfx_clock_multiplier, app);
+    connectComboBox(comboBox_sound_filter, &app->config->sound_filter, app);
 }
 
 void EmulationPanel::showEvent(QShowEvent *event)

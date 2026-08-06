@@ -146,7 +146,7 @@ void FoldersPanel::refreshEntry(QComboBox *combo, QLineEdit *lineEdit, QPushButt
 
     lineEdit->setEnabled(custom);
 
-    browse->disconnect(SIGNAL(pressed()));
+    QObject::disconnect(browse, &QPushButton::pressed, nullptr, nullptr);
     if (custom)
     {
         browse->setText(tr("Browse..."));

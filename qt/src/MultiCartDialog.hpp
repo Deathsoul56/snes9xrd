@@ -19,8 +19,6 @@ public:
     QString slotB() const { return slot_b_; }
 
 private slots:
-    void browseSlotA();
-    void browseSlotB();
     void swapAB();
 
 private:

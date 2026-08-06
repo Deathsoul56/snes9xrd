@@ -10,7 +10,6 @@ class CheatsDialog : public QDialog, public Ui_Dialog
     void addCode();
     void removeCode();
     void updateCurrent();
-    void disableAll();
     void removeAll();
     void searchDatabase();
     void refreshList();

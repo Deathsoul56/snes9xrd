@@ -1,28 +1,20 @@
 #include "GeneralPanel.hpp"
 #include "EmuApplication.hpp"
 #include "EmuConfig.hpp"
+#include "PanelConnectHelpers.hpp"
 
 GeneralPanel::GeneralPanel(EmuApplication *app_)
     : app(app_)
 {
     setupUi(this);
 
-    auto connectCheckbox = [&](QCheckBox *box, bool *config)
-    {
-        connect(box, &QCheckBox::clicked, [&, config](bool checked)
-        {
-            *config = checked;
-            app->updateSettings();
-        });
-    };
-
-    connectCheckbox(checkBox_fullscreen_on_open, &app->config->fullscreen_on_open);
-    connectCheckbox(checkBox_disable_screensaver, &app->config->disable_screensaver);
-    connectCheckbox(checkBox_pause_when_unfocused, &app->config->pause_emulation_when_unfocused);
-    connectCheckbox(checkBox_show_frame_rate, &app->config->show_frame_rate);
-    connectCheckbox(checkBox_show_indicators, &app->config->show_indicators);
-    connectCheckbox(checkBox_show_pressed_keys, &app->config->show_pressed_keys);
-    connectCheckbox(checkBox_show_time, &app->config->show_time);
+    connectCheckbox(checkBox_fullscreen_on_open, &app->config->fullscreen_on_open, app);
+    connectCheckbox(checkBox_disable_screensaver, &app->config->disable_screensaver, app);
+    connectCheckbox(checkBox_pause_when_unfocused, &app->config->pause_emulation_when_unfocused, app);
+    connectCheckbox(checkBox_show_frame_rate, &app->config->show_frame_rate, app);
+    connectCheckbox(checkBox_show_indicators, &app->config->show_indicators, app);
+    connectCheckbox(checkBox_show_pressed_keys, &app->config->show_pressed_keys, app);
+    connectCheckbox(checkBox_show_time, &app->config->show_time, app);
 }
 
 void GeneralPanel::showEvent(QShowEvent *event)
