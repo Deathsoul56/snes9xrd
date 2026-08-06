@@ -42,6 +42,13 @@ uint32_t EmuBinding::hash() const
         return h;
     }
 
+    if (type == Mouse)
+    {
+        uint32_t h = (uint32_t)Mouse << 30;
+        h |= (uint32_t)(button & 0x3fffffff);
+        return h;
+    }
+
     return 0;
 }
 
@@ -91,6 +98,14 @@ EmuBinding EmuBinding::keyboard(int keycode, bool shift, bool alt, bool ctrl, bo
     b.super_mod = super_mod;
     b.shift = shift;
     b.keycode = keycode;
+    return b;
+}
+
+EmuBinding EmuBinding::mouse_click(int button)
+{
+    EmuBinding b{};
+    b.type = Mouse;
+    b.button = button;
     return b;
 }
 
@@ -176,6 +191,13 @@ EmuBinding EmuBinding::from_config_string(std::string string)
             return joystick_hat(guid_str, hat_index, direction);
         }
     }
+    else if (string.compare(0, 6, "mouse ") == 0)
+    {
+        std::string rest = string.substr(6);
+        if (rest == "left click")   return mouse_click(1);
+        if (rest == "right click")  return mouse_click(2);
+        if (rest == "middle click") return mouse_click(3);
+    }
 
     return {};
 }
@@ -244,6 +266,16 @@ std::string EmuBinding::to_string(bool config)
             else if (direction == SDL_HAT_RIGHT)
                 rep += "Right";
         }
+    }
+    else if (type == Mouse)
+    {
+        if (config)
+            rep += "Mouse ";
+
+        if (button == 1)      rep += "Left Click";
+        else if (button == 2) rep += "Right Click";
+        else if (button == 3) rep += "Middle Click";
+        else                  rep += "Button " + std::to_string(button);
     }
     else
     {

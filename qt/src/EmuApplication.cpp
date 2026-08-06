@@ -436,6 +436,16 @@ void EmuApplication::updateBindings()
         }
     }
 
+    for (int i = 0; i < EmuConfig::num_mouse_buttons; i++)
+    {
+        for (int b = 0; b < EmuConfig::allowed_bindings; b++)
+        {
+            auto binding = config->binding.mouse_buttons[i * EmuConfig::allowed_bindings + b];
+            if (binding.hash() != 0)
+                bindings.insert({ binding.hash(), { "Snes9x", Core } });
+        }
+    }
+
     suspendThread();
     core->updateBindings(config.get());
     unsuspendThread();

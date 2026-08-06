@@ -198,6 +198,7 @@ struct EmuConfig
     static const int allowed_bindings = 4;
     static const int num_controller_bindings = 18;
     static const int num_shortcuts = 55;
+    static const int num_mouse_buttons = 2; // Click L, Click R
 
     struct
     {
@@ -205,6 +206,11 @@ struct EmuConfig
         {
             EmuBinding buttons[num_controller_bindings * allowed_bindings];
         } controller[5];
+
+        // Alternate keyboard/joystick bindings that can trigger a SNES Mouse
+        // click, independent of the real physical mouse buttons. Only used
+        // when port_configuration == eMousePlusController.
+        EmuBinding mouse_buttons[num_mouse_buttons * allowed_bindings];
 
         EmuBinding shortcuts[num_shortcuts * allowed_bindings];
     } binding;

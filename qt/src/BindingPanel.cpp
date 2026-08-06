@@ -3,6 +3,7 @@
 #include <QStyleHints>
 #include <QPushButton>
 #include <QHBoxLayout>
+#include <QHeaderView>
 
 BindingPanel::BindingPanel(EmuApplication *app)
     : app(app)
@@ -16,6 +17,7 @@ void BindingPanel::setTableWidget(QTableWidget *bindingTableWidget, EmuBinding *
     QString iconset = app->iconPrefix();
     keyboard_icon.addFile(iconset + "key.svg");
     joypad_icon.addFile(iconset + "joypad.svg");
+    mouse_icon.addFile(iconset + "mouse.svg");
     this->binding_table_widget = bindingTableWidget;
     this->binding = binding;
     table_width = width;
@@ -33,6 +35,23 @@ void BindingPanel::setTableWidget(QTableWidget *bindingTableWidget, EmuBinding *
     // "Clear Current/All Controllers" for the whole table.
     bindingTableWidget->setColumnCount(width + 1);
     bindingTableWidget->setHorizontalHeaderItem(width, new QTableWidgetItem(QObject::tr("Clear")));
+
+    // Every binding table (controller, mouse, shortcuts) must line up
+    // pixel-for-pixel, since switching between the controller and mouse
+    // views swaps one binding table for another in the same spot -- if
+    // their row-label/column widths and row heights were left to each
+    // table's own content-based auto-sizing, the grid would visibly jump
+    // when the view changes.
+    bindingTableWidget->setIconSize(QSize(16, 16));
+    bindingTableWidget->verticalHeader()->setFixedWidth(110);
+    bindingTableWidget->verticalHeader()->setDefaultSectionSize(28);
+    bindingTableWidget->verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
+    bindingTableWidget->horizontalHeader()->setFixedHeight(24);
+    bindingTableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::Fixed);
+    for (int col = 0; col < width; col++)
+        bindingTableWidget->setColumnWidth(col, 110);
+    bindingTableWidget->setColumnWidth(width, 60);
+
     for (int row = 0; row < height; row++)
     {
         auto *clear_button = new QPushButton(QStringLiteral("\u2212")); // −
@@ -114,6 +133,7 @@ void BindingPanel::updateCellFromBinding(int row, int column)
     table_item->setText(b.to_string().c_str());;
     table_item->setIcon(b.type == EmuBinding::Keyboard ? keyboard_icon :
                         b.type == EmuBinding::Joystick ? joypad_icon :
+                        b.type == EmuBinding::Mouse ? mouse_icon :
                         QIcon());
 }
 

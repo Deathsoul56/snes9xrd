@@ -723,6 +723,12 @@ void EmuMainWindow::handleCanvasMouseButton(QMouseEvent *mouse_event, bool press
     default: return;
     }
     app->reportMouseButton(button, pressed);
+
+    // Mouse1 L/R is intentionally NOT mapped by reportMouseButton() (see
+    // Snes9xController::updateBindings) -- it's only reachable through this
+    // config-driven path, so clearing/rebinding Click L/R actually changes
+    // whether the physical click does anything to the SNES Mouse.
+    app->reportBinding(EmuBinding::mouse_click(button), pressed);
 }
 
 void EmuMainWindow::handleCanvasMouseMove()
@@ -801,6 +807,27 @@ void EmuMainWindow::toggleFullscreen()
 
 bool EmuMainWindow::eventFilter(QObject *watched, QEvent *event)
 {
+    // Lets the mouse's physical buttons themselves be captured as a binding
+    // (e.g. for the SNES Mouse's Click L/R table), the same way KeyPress is
+    // captured globally below. Must run before the canvas-specific handling
+    // and before the click reaches whatever widget it landed on (a table
+    // cell, say), so it doesn't also get treated as a normal UI click.
+    if (event->type() == QEvent::MouseButtonPress && app->binding_callback)
+    {
+        auto *mouse_event = static_cast<QMouseEvent *>(event);
+        int button;
+        switch (mouse_event->button())
+        {
+        case Qt::LeftButton:   button = 1; break;
+        case Qt::RightButton:  button = 2; break;
+        case Qt::MiddleButton: button = 3; break;
+        default: return false;
+        }
+        app->reportBinding(EmuBinding::mouse_click(button), true);
+        event->accept();
+        return true;
+    }
+
     if (watched == canvas)
     {
         if (event->type() == QEvent::Resize)

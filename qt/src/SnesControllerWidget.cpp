@@ -59,17 +59,20 @@ QRectF SnesControllerWidget::imageRect() const
     if (image_.isNull()) return rect();
 
     // Scale image to fit width while preserving aspect ratio, then center it
-    // vertically. Reserve a strip above for the shoulder buttons.
+    // vertically. Reserve a strip above for the shoulder buttons -- the
+    // mouse diagram has no shoulder labels, so it gets the full height
+    // instead of looking artificially small next to the gamepad diagram.
     const qreal aspect = qreal(image_.width()) / qreal(image_.height());
+    qreal top_margin = mouse_mode_ ? 0.0 : 30.0;
     qreal w = width();
     qreal h = w / aspect;
-    if (h > height() - 30) // 30px for shoulders
+    if (h > height() - top_margin)
     {
-        h = height() - 30;
+        h = height() - top_margin;
         w = h * aspect;
     }
     qreal x = (width() - w) / 2.0;
-    qreal y = 30 + (height() - 30 - h) / 2.0;
+    qreal y = top_margin + (height() - top_margin - h) / 2.0;
     return QRectF(x, y, w, h);
 }
 

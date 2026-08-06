@@ -10,6 +10,7 @@ struct EmuBinding
     static EmuBinding joystick_hat(std::string hw_guid, int hat, uint8_t direction);
     static EmuBinding joystick_button(std::string hw_guid, int button);
     static EmuBinding keyboard(int keycode, bool shift = false, bool alt = false, bool ctrl = false, bool super_mod = false);
+    static EmuBinding mouse_click(int button);
     static EmuBinding from_config_string(std::string str);
     std::string to_config_string();
     bool operator==(const EmuBinding &);
@@ -23,7 +24,8 @@ struct EmuBinding
     {
         None = 0,
         Keyboard = 1,
-        Joystick = 2
+        Joystick = 2,
+        Mouse = 3
     };
     Type type = None;
 

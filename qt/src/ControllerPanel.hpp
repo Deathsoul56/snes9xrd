@@ -26,6 +26,9 @@ class ControllerPanel :
     QMenu auto_assign_menu;
 
   private:
+    void updateBindingView(int combo_index);
+    void updateMouseShortcutHint();
+
     SnesControllerWidget *controller_image_ = nullptr;
     QTimer live_input_timer_;
 };
