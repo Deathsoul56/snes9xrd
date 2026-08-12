@@ -43,6 +43,7 @@ class Snes9xController
     bool startMovieRecord(const std::string &filename);
     bool openMovie(const std::string &filename);
     void stopMovie();
+    bool isMovieActive() const;
     std::string romInfo() const;
     bool dumpSpc();
     void setPaused(bool paused);

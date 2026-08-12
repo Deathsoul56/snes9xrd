@@ -244,6 +244,8 @@ QMenu *EmuMainWindow::createFileMenu()
         startRunningGame();
     });
 
+    file_menu->addSeparator();
+
     // Save / Load Game Position (snes9x's "oops" snapshot used as a safety net).
     auto save_pos_item = file_menu->addAction(tr("Save Game Position"));
     connect(save_pos_item, &QAction::triggered, this, [&] {
@@ -256,22 +258,25 @@ QMenu *EmuMainWindow::createFileMenu()
             QMessageBox::warning(this, tr("Load Position"), tr("No game position file available."));
     });
 
-    // Save Other → submenu (ROM info, SPC dump)
+    file_menu->addSeparator();
+
+    // Save Other → submenu (SPC dump)
     auto save_other = file_menu->addMenu(tr("Save &Other"));
-    auto rom_info_item = save_other->addAction(tr("ROM &Information…"));
-    connect(rom_info_item, &QAction::triggered, this, [&] {
-        QMessageBox::information(this, tr("ROM Information"),
-                                 QString::fromStdString(app->coreInfo()));
-    });
     auto dump_spc_item = save_other->addAction(tr("Dump &SPC…"));
     connect(dump_spc_item, &QAction::triggered, this, [&] {
         if (!app->dumpSpc())
             QMessageBox::warning(this, tr("Dump SPC"), tr("No ROM is currently loaded."));
     });
 
-    // Movies → submenu (record / play / stop)
-    auto movies_menu = file_menu->addMenu(tr("&Movie"));
-    auto movie_record_item = movies_menu->addAction(tr("&Record…"));
+    auto rom_info_item = file_menu->addAction(tr("ROM &Information…"));
+    connect(rom_info_item, &QAction::triggered, this, [&] {
+        QMessageBox::information(this, tr("ROM Information"),
+                                 QString::fromStdString(app->coreInfo()));
+    });
+    running_actions_.push_back(rom_info_item);
+
+    file_menu->addSeparator();
+    auto movie_record_item = file_menu->addAction(tr("Movie &Record…"));
     connect(movie_record_item, &QAction::triggered, this, [&] {
         QString path = QFileDialog::getSaveFileName(this, tr("Record Movie"),
                                                     QString::fromStdString(app->config->last_rom_folder),
@@ -280,7 +285,8 @@ QMenu *EmuMainWindow::createFileMenu()
         if (!app->startMovieRecord(path.toStdString()))
             QMessageBox::warning(this, tr("Record Movie"), tr("Failed to start recording."));
     });
-    auto movie_play_item = movies_menu->addAction(tr("&Play…"));
+
+    auto movie_play_item = file_menu->addAction(tr("Movie &Play…"));
     connect(movie_play_item, &QAction::triggered, this, [&] {
         QString path = QFileDialog::getOpenFileName(this, tr("Open Movie"),
                                                     QString::fromStdString(app->config->last_rom_folder),
@@ -289,10 +295,42 @@ QMenu *EmuMainWindow::createFileMenu()
         if (!app->openMovie(path.toStdString()))
             QMessageBox::warning(this, tr("Open Movie"), tr("Failed to open movie."));
     });
-    auto movie_stop_item = movies_menu->addAction(tr("&Stop"));
+
+    auto movie_stop_item = file_menu->addAction(tr("Movie &Stop"));
     connect(movie_stop_item, &QAction::triggered, this, [&] { app->stopMovie(); });
 
-    // Reset Game (mirrors the Emulation menu's Reset, kept here for parity).
+    connect(file_menu, &QMenu::aboutToShow, this, [&, movie_record_item, movie_play_item, movie_stop_item] {
+        bool active = app->isMovieActive();
+        movie_record_item->setEnabled(canvas && !active);
+        movie_play_item->setEnabled(canvas && !active);
+        movie_stop_item->setEnabled(canvas && active);
+    });
+
+    file_menu->addSeparator();
+    auto avi_recording_item = file_menu->addAction(tr("Start AVI &Recording…"));
+    connect(avi_recording_item, &QAction::triggered, this, [&] {
+        if (app->isAviRecording())
+        {
+            app->stopAviRecording();
+            return;
+        }
+
+        QString path = QFileDialog::getSaveFileName(this, tr("Start AVI Recording"),
+                                                    QString::fromStdString(app->config->last_rom_folder),
+                                                    tr("AVI Video (*.avi)"));
+        if (path.isEmpty()) return;
+        if (!app->startAviRecording(path.toStdString()))
+            QMessageBox::warning(this, tr("AVI Recording"), tr("Failed to start AVI recording."));
+    });
+
+    connect(file_menu, &QMenu::aboutToShow, this, [&, avi_recording_item] {
+        bool recording = app->isAviRecording();
+        avi_recording_item->setText(recording ? tr("Stop AVI Recording") : tr("Start AVI &Recording…"));
+        avi_recording_item->setEnabled(canvas);
+    });
+
+    file_menu->addSeparator();
+
     auto file_reset_item = file_menu->addAction(QIcon(iconset + "refresh.svg"), tr("&Reset Game"));
     connect(file_reset_item, &QAction::triggered, this, [&] {
         app->reset();

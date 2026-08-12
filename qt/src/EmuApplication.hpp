@@ -10,6 +10,7 @@ class SDLInputManager;
 class Snes9xController;
 class S9xSoundDriver;
 class SoftwareFilter;
+class AviRecorder;
 
 struct EmuThread : public QThread
 {
@@ -62,6 +63,7 @@ struct EmuApplication
     std::unique_ptr<S9xSoundDriver> sound_driver;
     std::unique_ptr<EmuThread> emu_thread;
     std::unique_ptr<SoftwareFilter> software_filter;
+    std::unique_ptr<AviRecorder> avi_recorder;
     Snes9xController *core;
 
     EmuApplication();
@@ -74,6 +76,10 @@ struct EmuApplication
     bool startMovieRecord(const std::string &filename);
     bool openMovie(const std::string &filename);
     void stopMovie();
+    bool isMovieActive() const;
+    bool startAviRecording(const std::string &filename);
+    void stopAviRecording();
+    bool isAviRecording() const;
     std::string coreInfo() const;
     bool dumpSpc();
     void handleBinding(const std::string &name, bool pressed);

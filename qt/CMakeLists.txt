@@ -207,6 +207,7 @@ list(APPEND QT_GUI_SOURCES
     src/EmuApplication.cpp
     src/EmuMainWindow.cpp
     src/Snes9xController.cpp
+    src/AviRecorder.cpp
     src/EmuSettingsWindow.cpp
     src/EmuConfig.cpp
     src/EmuBinding.cpp

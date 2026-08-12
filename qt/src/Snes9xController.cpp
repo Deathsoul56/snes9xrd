@@ -1078,6 +1078,11 @@ void Snes9xController::stopMovie()
     resume();
 }
 
+bool Snes9xController::isMovieActive() const
+{
+    return S9xMoviePlaying() || S9xMovieRecording();
+}
+
 bool Snes9xController::dumpSpc()
 {
     if (!active) return false;

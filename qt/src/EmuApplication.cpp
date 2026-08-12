@@ -3,6 +3,7 @@
 #include "SDLInputManager.hpp"
 #include "Snes9xController.hpp"
 #include "SoftwareFilter.hpp"
+#include "AviRecorder.hpp"
 #include "common/audio/s9x_sound_driver_sdl3.hpp"
 #include "common/audio/s9x_sound_driver_cubeb.hpp"
 #ifdef USE_PULSEAUDIO
@@ -154,6 +155,9 @@ void EmuApplication::writeSamples(int16_t *data, int samples)
             QThread::usleep(50);
         }
     }
+    if (avi_recorder && avi_recorder->isActive())
+        avi_recorder->addAudioSamples(data, samples);
+
     auto buffer_level = sound_driver->buffer_level();
     core->updateSoundBufferLevel(buffer_level.first, buffer_level.second);
 
@@ -175,6 +179,9 @@ void EmuApplication::startGame()
         restartAudio();
 
     core->screen_output_function = [&](uint16_t *data, int width, int height, int stride_bytes, double frame_rate) {
+        if (avi_recorder && avi_recorder->isActive())
+            avi_recorder->addVideoFrame(data, width, height, stride_bytes, frame_rate);
+
         if (window->canvas)
         {
             const uint16_t *out_data = data;
@@ -215,7 +222,7 @@ void EmuApplication::suspendThread()
     if (!emu_thread)
         return;
 
-    if (suspend_count > 0)
+    if (suspend_count == 1)
     {
         emu_thread->runOnThread([&] { emu_thread->setStatusBits(EmuThread::eSuspended); }, true);
     }
@@ -305,6 +312,9 @@ void EmuApplication::closeCurrentGame()
 
     suspendThread();
 
+    if (avi_recorder)
+        avi_recorder->stop();
+
     if (sound_driver)
         sound_driver->stop();
 
@@ -353,6 +363,39 @@ void EmuApplication::stopMovie()
 {
     if (!core) return;
     core->stopMovie();
+}
+
+bool EmuApplication::isMovieActive() const
+{
+    if (!core) return false;
+    return core->isMovieActive();
+}
+
+bool EmuApplication::startAviRecording(const std::string &filename)
+{
+    suspendThread();
+
+    if (!avi_recorder)
+        avi_recorder = std::make_unique<AviRecorder>();
+
+    bool started = avi_recorder->start(filename, Settings.SoundPlaybackRate, Settings.Stereo ? 2 : 1);
+    unsuspendThread();
+    return started;
+}
+
+void EmuApplication::stopAviRecording()
+{
+    suspendThread();
+
+    if (avi_recorder)
+        avi_recorder->stop();
+
+    unsuspendThread();
+}
+
+bool EmuApplication::isAviRecording() const
+{
+    return avi_recorder && avi_recorder->isActive();
 }
 
 std::string EmuApplication::coreInfo() const

@@ -228,8 +228,18 @@ QMenu::item {
     border-radius: 4px;
 }
 
+QMenu::item:disabled {
+    color: #555;
+}
+
 QMenu::item:selected {
     background-color: #2a2c33;
+}
+
+QMenu::separator {
+    height: 1px;
+    margin: 4px 6px;
+    background-color: #454852;
 }
 
 QMenuBar {
