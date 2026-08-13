@@ -20,6 +20,7 @@ class Snes9xController
     bool slotUsed(int slot);
     bool loadState(const std::string &filename);
     bool loadState(int slot);
+    bool statePreview(int slot, std::vector<uint16_t> &pixels, int &width, int &height);
     void loadUndoState();
     bool saveState(const std::string &filename);
     bool saveState(int slot);
@@ -40,6 +41,9 @@ class Snes9xController
     bool loadMultiCart(const std::string &cart_a, const std::string &cart_b);
     bool saveGamePosition();
     bool loadGamePosition();
+    bool takeScreenshot();
+    bool saveSram();
+    bool saveMemoryPack();
     bool startMovieRecord(const std::string &filename);
     bool openMovie(const std::string &filename);
     void stopMovie();
@@ -75,6 +79,7 @@ class Snes9xController
     std::string cheat_folder;
     std::string patch_folder;
     std::string export_folder;
+    std::string screenshot_folder;
     std::string bios_folder;
     int16_t mouse_x, mouse_y;
     int high_resolution_effect;

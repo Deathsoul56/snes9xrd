@@ -228,6 +228,18 @@ QMenu::item {
     border-radius: 4px;
 }
 
+QMenu::indicator {
+    subcontrol-position: right center;
+    subcontrol-origin: padding;
+    right: 8px;
+}
+
+QMenu::indicator:checked {
+    image: url(:/icons/whiteicons/check.svg);
+    width: 16px;
+    height: 16px;
+}
+
 QMenu::item:disabled {
     color: #555;
 }

@@ -27,10 +27,12 @@
 #include "EmuCanvasVulkan.hpp"
 #include "EmuConfig.hpp"
 #include "EmuGameList.hpp"
+#include "HacksDialog.hpp"
 #include "EmuMainWindow.hpp"
 #include "EmuSettingsWindow.hpp"
 #include "LibraryPage.hpp"
 #include "MultiCartDialog.hpp"
+#include "StatePreviewDialog.hpp"
 #include "snes9x.h"
 
 #undef KeyPress
@@ -194,37 +196,6 @@ QMenu *EmuMainWindow::createFileMenu()
 
     file_menu->addSeparator();
 
-    load_state_menu = new QMenu(tr("&Load State"));
-    save_state_menu = new QMenu(tr("&Save State"));
-    for (size_t i = 0; i < state_items_size; i++)
-    {
-        auto action = load_state_menu->addAction(tr("Slot &%1").arg(i));
-        connect(action, &QAction::triggered, [&, i] { app->loadState(i); });
-        running_actions_.push_back(action);
-
-        action = save_state_menu->addAction(tr("Slot &%1").arg(i));
-        connect(action, &QAction::triggered, [&, i] { app->saveState(i); });
-        running_actions_.push_back(action);
-    }
-    load_state_menu->addSeparator();
-    auto load_state_file_item = load_state_menu->addAction(QIcon(iconset + "open.svg"), tr("From &File…"));
-    connect(load_state_file_item, &QAction::triggered, [&] { this->chooseState(false); });
-    running_actions_.push_back(load_state_file_item);
-
-    load_state_menu->addSeparator();
-    auto load_state_undo_item = load_state_menu->addAction(QIcon(iconset + "refresh.svg"), tr("&Undo Load State"));
-    connect(load_state_undo_item, &QAction::triggered, [&] { app->loadUndoState(); });
-    running_actions_.push_back(load_state_undo_item);
-
-    file_menu->addMenu(load_state_menu);
-    save_state_menu->addSeparator();
-    auto save_state_file_item = save_state_menu->addAction(QIcon(iconset + "save.svg"), tr("To &File…"));
-    connect(save_state_file_item, &QAction::triggered, [&] { this->chooseState(true); });
-    running_actions_.push_back(save_state_file_item);
-    file_menu->addMenu(save_state_menu);
-
-    file_menu->addSeparator();
-
     // Load MultiCart — Sufami Turbo / Same Game / etc. needs Slot A and Slot B.
     // BIOS (STBIOS.bin) is resolved from the configured BIOS folder by the
     // core itself, same as the GTK and macOS front-ends.
@@ -246,17 +217,67 @@ QMenu *EmuMainWindow::createFileMenu()
 
     file_menu->addSeparator();
 
-    // Save / Load Game Position (snes9x's "oops" snapshot used as a safety net).
-    auto save_pos_item = file_menu->addAction(tr("Save Game Position"));
-    connect(save_pos_item, &QAction::triggered, this, [&] {
-        if (!app->saveGamePosition())
-            QMessageBox::warning(this, tr("Save Position"), tr("No ROM is currently loaded."));
-    });
-    auto load_pos_item = file_menu->addAction(tr("Load Game Position"));
-    connect(load_pos_item, &QAction::triggered, this, [&] {
+    auto save_position_menu = new QMenu(tr("Save Game Position"));
+    auto load_position_menu = new QMenu(tr("Load Game Position"));
+
+    for (int bank = 0; bank < 10; bank++)
+    {
+        auto *save_bank = save_position_menu->addMenu(tr("Bank #%1").arg(bank));
+        auto *load_bank = load_position_menu->addMenu(tr("Bank #%1").arg(bank));
+
+        for (int slot = 0; slot < 10; slot++)
+        {
+            int position = bank * 10 + slot;
+            auto *save_item = save_bank->addAction(tr("Slot #%1").arg(slot));
+            connect(save_item, &QAction::triggered, this, [&, position] {
+                if (!app->saveState(position))
+                    QMessageBox::warning(this, tr("Save Position"), tr("No ROM is currently loaded."));
+            });
+            running_actions_.push_back(save_item);
+
+            auto *load_item = load_bank->addAction(tr("Slot #%1").arg(slot));
+            connect(load_item, &QAction::triggered, this, [&, position] {
+                if (!app->loadState(position))
+                    QMessageBox::warning(this, tr("Load Position"), tr("No game position file available."));
+            });
+            running_actions_.push_back(load_item);
+        }
+    }
+
+    load_position_menu->addSeparator();
+    auto *oops_item = load_position_menu->addAction(tr("Oops File"));
+    connect(oops_item, &QAction::triggered, this, [&] {
         if (!app->loadGamePosition())
             QMessageBox::warning(this, tr("Load Position"), tr("No game position file available."));
     });
+    running_actions_.push_back(oops_item);
+
+    save_position_menu->addSeparator();
+    auto *save_file_item = save_position_menu->addAction(tr("Select File"));
+    connect(save_file_item, &QAction::triggered, this, [&] { chooseState(true); });
+    running_actions_.push_back(save_file_item);
+
+    load_position_menu->addSeparator();
+    auto *load_file_item = load_position_menu->addAction(tr("Select File"));
+    connect(load_file_item, &QAction::triggered, this, [&] { chooseState(false); });
+    running_actions_.push_back(load_file_item);
+
+    file_menu->addMenu(save_position_menu);
+    file_menu->addMenu(load_position_menu);
+
+    auto save_preview_item = file_menu->addAction(tr("Save with Preview"));
+    connect(save_preview_item, &QAction::triggered, this, [&] {
+        StatePreviewDialog dialog(this, app, true);
+        dialog.exec();
+    });
+    running_actions_.push_back(save_preview_item);
+
+    auto load_preview_item = file_menu->addAction(tr("Load with Preview"));
+    connect(load_preview_item, &QAction::triggered, this, [&] {
+        StatePreviewDialog dialog(this, app, false);
+        dialog.exec();
+    });
+    running_actions_.push_back(load_preview_item);
 
     file_menu->addSeparator();
 
@@ -268,6 +289,24 @@ QMenu *EmuMainWindow::createFileMenu()
             QMessageBox::warning(this, tr("Dump SPC"), tr("No ROM is currently loaded."));
     });
 
+    auto screenshot_item = save_other->addAction(tr("Save Screenshot"));
+    connect(screenshot_item, &QAction::triggered, this, [&] {
+        if (!app->takeScreenshot())
+            QMessageBox::warning(this, tr("Save Screenshot"), tr("No ROM is currently loaded."));
+    });
+
+    auto save_sram_item = save_other->addAction(tr("Save S-RAM Data"));
+    connect(save_sram_item, &QAction::triggered, this, [&] {
+        if (!app->saveSram())
+            QMessageBox::warning(this, tr("Save S-RAM Data"), tr("No ROM is currently loaded."));
+    });
+
+    auto save_memory_pack_item = save_other->addAction(tr("Save Memory Pack"));
+    connect(save_memory_pack_item, &QAction::triggered, this, [&] {
+        if (!app->saveMemoryPack())
+            QMessageBox::warning(this, tr("Save Memory Pack"), tr("No ROM is currently loaded."));
+    });
+
     auto rom_info_item = file_menu->addAction(tr("ROM &Information…"));
     connect(rom_info_item, &QAction::triggered, this, [&] {
         QMessageBox::information(this, tr("ROM Information"),
@@ -276,16 +315,6 @@ QMenu *EmuMainWindow::createFileMenu()
     running_actions_.push_back(rom_info_item);
 
     file_menu->addSeparator();
-    auto movie_record_item = file_menu->addAction(tr("Movie &Record…"));
-    connect(movie_record_item, &QAction::triggered, this, [&] {
-        QString path = QFileDialog::getSaveFileName(this, tr("Record Movie"),
-                                                    QString::fromStdString(app->config->last_rom_folder),
-                                                    tr("Snes9x Movie (*.smv)"));
-        if (path.isEmpty()) return;
-        if (!app->startMovieRecord(path.toStdString()))
-            QMessageBox::warning(this, tr("Record Movie"), tr("Failed to start recording."));
-    });
-
     auto movie_play_item = file_menu->addAction(tr("Movie &Play…"));
     connect(movie_play_item, &QAction::triggered, this, [&] {
         QString path = QFileDialog::getOpenFileName(this, tr("Open Movie"),
@@ -294,6 +323,16 @@ QMenu *EmuMainWindow::createFileMenu()
         if (path.isEmpty()) return;
         if (!app->openMovie(path.toStdString()))
             QMessageBox::warning(this, tr("Open Movie"), tr("Failed to open movie."));
+    });
+
+    auto movie_record_item = file_menu->addAction(tr("Movie &Record…"));
+    connect(movie_record_item, &QAction::triggered, this, [&] {
+        QString path = QFileDialog::getSaveFileName(this, tr("Record Movie"),
+                                                    QString::fromStdString(app->config->last_rom_folder),
+                                                    tr("Snes9x Movie (*.smv)"));
+        if (path.isEmpty()) return;
+        if (!app->startMovieRecord(path.toStdString()))
+            QMessageBox::warning(this, tr("Record Movie"), tr("Failed to start recording."));
     });
 
     auto movie_stop_item = file_menu->addAction(tr("Movie &Stop"));
@@ -353,17 +392,50 @@ QMenu *EmuMainWindow::createEmulationMenu()
     auto iconset = app->iconPrefix();
 
     auto emulation_menu = new QMenu(tr("&Emulation"));
-    auto run_item = emulation_menu->addAction(tr("&Run"));
-    connect(run_item, &QAction::triggered, [&] {
-        if (manual_pause) { manual_pause = false; app->unpause(); }
-    });
-    running_actions_.push_back(run_item);
+    pause_item_ = emulation_menu->addAction(QIcon(iconset + "pause.svg"), tr("&Pause"));
+    connect(pause_item_, &QAction::triggered, this, [&] { pauseContinue(); });
+    running_actions_.push_back(pause_item_);
 
-    auto pause_item = emulation_menu->addAction(QIcon(iconset + "pause.svg"), tr("&Pause"));
-    connect(pause_item, &QAction::triggered, [&] {
-        if (!manual_pause) { manual_pause = true; app->pause(); }
+    connect(emulation_menu, &QMenu::aboutToShow, this, [&] {
+        updatePauseMenuItem();
     });
-    running_actions_.push_back(pause_item);
+
+    auto pause_when_inactive_item = emulation_menu->addAction(tr("Pause &When Inactive"));
+    pause_when_inactive_item->setCheckable(true);
+    pause_when_inactive_item->setChecked(app->config->pause_emulation_when_unfocused);
+    connect(pause_when_inactive_item, &QAction::toggled, this, [&](bool checked) {
+        app->config->pause_emulation_when_unfocused = checked;
+    });
+
+    auto frame_advance_item = emulation_menu->addAction(tr("&Frame Advance"));
+    connect(frame_advance_item, &QAction::triggered, this, [&] {
+        if (!manual_pause)
+        {
+            manual_pause = true;
+            app->pause();
+        }
+        app->advanceFrame();
+    });
+    running_actions_.push_back(frame_advance_item);
+
+    emulation_menu->addSeparator();
+
+    auto hacks_item = emulation_menu->addAction(tr("&Hacks…"));
+    connect(hacks_item, &QAction::triggered, this, [&] {
+        auto result = QMessageBox::warning(this, tr("Warning: Unsupported"),
+                                           tr("The settings in this dialog should only be used for\n"
+                                              "compatibility with old ROM hacks or if you otherwise know\n"
+                                              "what you're doing.\n\n"
+                                              "If any problems occur, click 'Set Defaults' to reset the options\n"
+                                              "to normal."),
+                                           QMessageBox::Ok | QMessageBox::Cancel);
+        if (result != QMessageBox::Ok)
+            return;
+
+        HacksDialog dialog(this, app);
+        dialog.exec();
+    });
+    running_actions_.push_back(hacks_item);
 
     emulation_menu->addSeparator();
 
@@ -942,6 +1014,14 @@ void EmuMainWindow::pauseContinue()
         app->pause();
         if (canvas) canvas->paintEvent(nullptr);
     }
+
+    updatePauseMenuItem();
+}
+
+void EmuMainWindow::updatePauseMenuItem()
+{
+    if (pause_item_)
+        pause_item_->setText(Settings.Paused ? tr("&Pause\t✓") : tr("&Pause"));
 }
 
 bool EmuMainWindow::isActivelyDrawing()
@@ -956,7 +1036,7 @@ void EmuMainWindow::output(uint8_t *buffer, int width, int height, QImage::Forma
 
 void EmuMainWindow::showCoreError(const QString &message)
 {
-    QMessageBox::critical(this, tr("SNES9x Error"), message);
+    QMessageBox::critical(this, tr("snes9xrd Error"), message);
 }
 
 void EmuMainWindow::recreateUIAssets()

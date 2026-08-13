@@ -22,28 +22,34 @@ FoldersPanel::FoldersPanel(EmuApplication *app_)
     connectEntry(comboBox_patch, lineEdit_patch, pushButton_patch, &app->config->patch_location, &app->config->patch_folder);
     connectEntry(comboBox_export, lineEdit_export, pushButton_export, &app->config->export_location, &app->config->export_folder);
 
-    // Append a BIOS folder row to the existing data-locations group. The
-    // snes9x core hard-codes a filename lookup for Sufami Turbo / BS-X
-    // (STBIOS.bin / BS-X.bin) in this directory, so this is required for
-    // multicart loading.
     if (auto *group = findChild<QGroupBox *>("groupBox"))
     {
         if (auto *grid = group->findChild<QGridLayout *>("gridLayout"))
         {
             int row = grid->rowCount();
-            auto *label = new QLabel(tr("BIOS"), group);
-            bios_combo_  = new QComboBox(group);
-            bios_combo_->addItem(tr("ROM Folder"));
-            bios_combo_->addItem(tr("Config Folder"));
-            bios_combo_->addItem(tr("Custom Folder"));
-            bios_line_   = new QLineEdit(group);
-            bios_line_->setReadOnly(true);
-            bios_button_ = new QPushButton(tr("Browse..."), group);
-            grid->addWidget(label, row, 0, 1, 2);
-            grid->addWidget(bios_combo_, row, 2);
-            grid->addWidget(bios_line_, row, 3);
-            grid->addWidget(bios_button_, row, 4);
-            connectEntry(bios_combo_, bios_line_, bios_button_,
+            auto addFolderRow = [this, group, grid, &row](const QString &label_text,
+                                                           QComboBox *&combo,
+                                                           QLineEdit *&line,
+                                                           QPushButton *&button,
+                                                           int *location,
+                                                           std::string *folder) {
+                auto *label = new QLabel(label_text, group);
+                combo = new QComboBox(group);
+                combo->addItems({ tr("ROM Folder"), tr("Config Folder"), tr("Custom Folder") });
+                line = new QLineEdit(group);
+                line->setReadOnly(true);
+                button = new QPushButton(tr("Browse..."), group);
+                grid->addWidget(label, row, 0, 1, 2);
+                grid->addWidget(combo, row, 2);
+                grid->addWidget(line, row, 3);
+                grid->addWidget(button, row, 4);
+                connectEntry(combo, line, button, location, folder);
+                row++;
+            };
+
+            addFolderRow(tr("Screenshots"), screenshot_combo_, screenshot_line_, screenshot_button_,
+                         &app->config->screenshot_location, &app->config->screenshot_folder);
+            addFolderRow(tr("BIOS"), bios_combo_, bios_line_, bios_button_,
                          &app->config->bios_location, &app->config->bios_folder);
         }
     }
@@ -109,6 +115,9 @@ void FoldersPanel::refreshData()
     refreshEntry(comboBox_cheat, lineEdit_cheat, pushButton_cheat, &app->config->cheat_location, &app->config->cheat_folder);
     refreshEntry(comboBox_patch, lineEdit_patch, pushButton_patch, &app->config->patch_location, &app->config->patch_folder);
     refreshEntry(comboBox_export, lineEdit_export, pushButton_export, &app->config->export_location, &app->config->export_folder);
+    if (screenshot_combo_)
+        refreshEntry(screenshot_combo_, screenshot_line_, screenshot_button_,
+                     &app->config->screenshot_location, &app->config->screenshot_folder);
     if (bios_combo_)
         refreshEntry(bios_combo_, bios_line_, bios_button_,
                      &app->config->bios_location, &app->config->bios_folder);

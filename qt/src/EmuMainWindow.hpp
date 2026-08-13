@@ -13,6 +13,7 @@ class LibraryPage;
 class QStackedWidget;
 class QLabel;
 class QMouseEvent;
+class QAction;
 
 class EmuMainWindow : public QMainWindow
 {
@@ -40,6 +41,7 @@ class EmuMainWindow : public QMainWindow
     void populateRecentlyUsed();
     void chooseState(bool save);
     void pauseContinue();
+    void updatePauseMenuItem();
     bool isActivelyDrawing();
     void openFile();
     bool openFile(const std::string &filename);
@@ -91,16 +93,13 @@ class EmuMainWindow : public QMainWindow
     bool minimized_pause = false;
     bool mouse_grabbed = false;
 
-    QMenu *load_state_menu;
-    QMenu *save_state_menu;
     QMenu *recent_menu;
+    QAction *pause_item_ = nullptr;
 
     QTimer mouse_timer;
     bool cursor_visible = true;
 
     static const size_t recent_menu_size = 10;
-    static const size_t state_items_size = 10;
-
     std::vector<QAction *> recent_menu_items;
 
     // Center

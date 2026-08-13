@@ -6,6 +6,7 @@
 #include "fscompat.h"
 
 #include <QMetaObject>
+#include <QImage>
 
 #include <QString>
 
@@ -71,6 +72,7 @@ void Snes9xController::init()
     Settings.DisplayTime = false;
     Settings.DisplayPressedKeys = false;
     Settings.DisplayIndicators = true;
+    Settings.SnapshotScreenshots = true;
     Settings.SoundPlaybackRate = 48000;
     Settings.SoundInputRate = 32040;
     Settings.BlockInvalidVRAMAccess = true;
@@ -159,6 +161,7 @@ void Snes9xController::updateSettings(const EmuConfig * const config)
     }
 
     Settings.BlockInvalidVRAMAccess = !config->allow_invalid_vram_access;
+    Settings.SeparateEchoBuffer = config->enable_shadow_buffer;
 
     Settings.SoundSync = config->speed_sync_method == EmuConfig::eSoundSync;
 
@@ -208,6 +211,7 @@ void Snes9xController::updateSettings(const EmuConfig * const config)
     doFolder(config->cheat_location, cheat_folder, config->cheat_folder, "cheat");
     doFolder(config->patch_location, patch_folder, config->patch_folder, "patch");
     doFolder(config->export_location, export_folder, config->export_folder, "export");
+    doFolder(config->screenshot_location, screenshot_folder, config->screenshot_folder, "screenshots");
     doFolder(config->bios_location, bios_folder, config->bios_folder, "bios");
 }
 
@@ -415,9 +419,12 @@ std::string S9xGetDirectory(s9x_getdirtype dirtype)
         dirname = c->sram_folder;
         break;
 
-    case SCREENSHOT_DIR:
     case SPC_DIR:
         dirname = c->export_folder;
+        break;
+
+    case SCREENSHOT_DIR:
+        dirname = c->screenshot_folder;
         break;
 
     case BIOS_DIR:
@@ -857,6 +864,27 @@ bool Snes9xController::loadState(int slot)
     return loadState(save_slot_path(slot).string());
 }
 
+bool Snes9xController::statePreview(int slot, std::vector<uint16_t> &pixels, int &width, int &height)
+{
+    auto path = save_slot_path(slot);
+    if (!fs::exists(path))
+        return false;
+
+    uint16 *image = nullptr;
+    STREAM stream = nullptr;
+    if (!S9xOpenSnapshotFile(path.string().c_str(), true, &stream))
+        return false;
+
+    int result = S9xUnfreezeScreenshotFromStream(stream, &image, width, height);
+    S9xCloseSnapshotFile(stream);
+    if (result != SUCCESS || !image)
+        return false;
+
+    pixels.assign(image, image + width * height);
+    free(image);
+    return true;
+}
+
 bool Snes9xController::loadState(const std::string &filename)
 {
     if (!active)
@@ -1037,19 +1065,48 @@ bool Snes9xController::loadMultiCart(const std::string &cart_a, const std::strin
 
 bool Snes9xController::saveGamePosition()
 {
-    // "Game Position" is snes9x's term for the oops snapshot taken at regular
-    // intervals (e.g. every N minutes) so the player can resume after a
-    // crash. For manual use we just trigger an immediate save.
     if (!active) return false;
     auto fname = S9xGetFilename(".oops", SNAPSHOT_DIR);
-    return Memory.SaveSRAM(fname.c_str()); // closest manual equivalent
+    return S9xFreezeGame(fname.c_str()) != FALSE;
 }
 
 bool Snes9xController::loadGamePosition()
 {
     if (!active) return false;
-    auto fname = S9xGetFilename(".undo", SNAPSHOT_DIR);
+    auto fname = S9xGetFilename(".oops", SNAPSHOT_DIR);
     return S9xUnfreezeGame(fname.c_str()) != FALSE;
+}
+
+bool Snes9xController::takeScreenshot()
+{
+    if (!active) return false;
+
+    int width = IPPU.RenderedScreenWidth;
+    int height = IPPU.RenderedScreenHeight;
+    if (width <= 0 || height <= 0)
+        return false;
+
+    QImage image(reinterpret_cast<const uchar *>(GFX.Screen), width, height,
+                 GFX.Pitch, QImage::Format_RGB16);
+    auto filename = S9xGetFilenameInc(".png", SCREENSHOT_DIR);
+    if (!image.copy().save(QString::fromStdString(filename), "PNG"))
+        return false;
+
+    auto message = "Saved screenshot " + S9xBasename(filename);
+    S9xSetInfoString(message.c_str());
+    return true;
+}
+
+bool Snes9xController::saveSram()
+{
+    if (!active) return false;
+    return Memory.SaveSRAM(S9xGetFilename(".srm", SRAM_DIR).c_str()) != FALSE;
+}
+
+bool Snes9xController::saveMemoryPack()
+{
+    if (!active) return false;
+    return Memory.SaveMPAK(S9xGetFilenameInc(".bs", SRAM_DIR).c_str()) != FALSE;
 }
 
 bool Snes9xController::startMovieRecord(const std::string &filename)

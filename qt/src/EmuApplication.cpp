@@ -410,6 +410,27 @@ bool EmuApplication::dumpSpc()
     return core->dumpSpc();
 }
 
+bool EmuApplication::takeScreenshot()
+{
+    if (!core || !emu_thread) return false;
+
+    bool saved = false;
+    emu_thread->runOnThread([&] { saved = core->takeScreenshot(); }, true);
+    return saved;
+}
+
+bool EmuApplication::saveSram()
+{
+    if (!core) return false;
+    return core->saveSram();
+}
+
+bool EmuApplication::saveMemoryPack()
+{
+    if (!core) return false;
+    return core->saveMemoryPack();
+}
+
 void EmuApplication::mainLoop()
 {
     if (!core->active)
@@ -424,6 +445,18 @@ void EmuApplication::mainLoop()
     QGuiApplication::processEvents();
 
     core->mainLoop();
+}
+
+void EmuApplication::advanceFrame()
+{
+    if (!core->active || !emu_thread)
+        return;
+
+    emu_thread->runOnThread([&] {
+        core->setPaused(false);
+        mainLoop();
+        core->setPaused(true);
+    }, true);
 }
 
 void EmuApplication::reportBinding(EmuBinding b, bool active)
@@ -704,32 +737,32 @@ void EmuApplication::startInputTimer()
     poll_input_timer->start();
 }
 
-void EmuApplication::loadState(int slot)
+bool EmuApplication::loadState(int slot)
 {
-    emu_thread->runOnThread([&, slot] {
-        core->loadState(slot);
-    });
+    bool loaded = false;
+    emu_thread->runOnThread([&, slot] { loaded = core->loadState(slot); }, true);
+    return loaded;
 }
 
-void EmuApplication::loadState(const std::string& filename)
+bool EmuApplication::loadState(const std::string& filename)
 {
-    emu_thread->runOnThread([&, filename] {
-        core->loadState(filename);
-    });
+    bool loaded = false;
+    emu_thread->runOnThread([&, filename] { loaded = core->loadState(filename); }, true);
+    return loaded;
 }
 
-void EmuApplication::saveState(int slot)
+bool EmuApplication::saveState(int slot)
 {
-    emu_thread->runOnThread([&, slot] {
-        core->saveState(slot);
-    });
+    bool saved = false;
+    emu_thread->runOnThread([&, slot] { saved = core->saveState(slot); }, true);
+    return saved;
 }
 
-void EmuApplication::saveState(const std::string& filename)
+bool EmuApplication::saveState(const std::string& filename)
 {
-    emu_thread->runOnThread([&, filename] {
-        core->saveState(filename);
-    });
+    bool saved = false;
+    emu_thread->runOnThread([&, filename] { saved = core->saveState(filename); }, true);
+    return saved;
 }
 
 void EmuApplication::reset()
