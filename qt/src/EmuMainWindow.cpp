@@ -283,28 +283,39 @@ QMenu *EmuMainWindow::createFileMenu()
 
     // Save Other → submenu (SPC dump)
     auto save_other = file_menu->addMenu(tr("Save &Other"));
+    save_other->setToolTipsVisible(true);
     auto dump_spc_item = save_other->addAction(tr("Dump &SPC…"));
     connect(dump_spc_item, &QAction::triggered, this, [&] {
         if (!app->dumpSpc())
             QMessageBox::warning(this, tr("Dump SPC"), tr("No ROM is currently loaded."));
     });
+    running_actions_.push_back(dump_spc_item);
 
     auto screenshot_item = save_other->addAction(tr("Save Screenshot"));
     connect(screenshot_item, &QAction::triggered, this, [&] {
         if (!app->takeScreenshot())
             QMessageBox::warning(this, tr("Save Screenshot"), tr("No ROM is currently loaded."));
     });
+    running_actions_.push_back(screenshot_item);
 
     auto save_sram_item = save_other->addAction(tr("Save S-RAM Data"));
     connect(save_sram_item, &QAction::triggered, this, [&] {
         if (!app->saveSram())
             QMessageBox::warning(this, tr("Save S-RAM Data"), tr("No ROM is currently loaded."));
     });
+    running_actions_.push_back(save_sram_item);
 
     auto save_memory_pack_item = save_other->addAction(tr("Save Memory Pack"));
     connect(save_memory_pack_item, &QAction::triggered, this, [&] {
         if (!app->saveMemoryPack())
-            QMessageBox::warning(this, tr("Save Memory Pack"), tr("No ROM is currently loaded."));
+            QMessageBox::warning(this, tr("Save Memory Pack"), tr("Failed to save the Memory Pack."));
+    });
+    running_actions_.push_back(save_memory_pack_item);
+
+    connect(save_other, &QMenu::aboutToShow, this, [&, save_memory_pack_item] {
+        bool supported = app->canSaveMemoryPack();
+        save_memory_pack_item->setEnabled(supported);
+        save_memory_pack_item->setToolTip(supported ? QString() : tr("Only available in MultiCart mode."));
     });
 
     auto rom_info_item = file_menu->addAction(tr("ROM &Information…"));

@@ -1100,13 +1100,30 @@ bool Snes9xController::takeScreenshot()
 bool Snes9xController::saveSram()
 {
     if (!active) return false;
-    return Memory.SaveSRAM(S9xGetFilename(".srm", SRAM_DIR).c_str()) != FALSE;
+    auto filename = S9xGetFilename(".srm", SRAM_DIR);
+    if (!Memory.SaveSRAM(filename.c_str()))
+        return false;
+
+    auto message = "Saved S-RAM " + S9xBasename(filename);
+    S9xSetInfoString(message.c_str());
+    return true;
 }
 
 bool Snes9xController::saveMemoryPack()
 {
-    if (!active) return false;
-    return Memory.SaveMPAK(S9xGetFilenameInc(".bs", SRAM_DIR).c_str()) != FALSE;
+    if (!canSaveMemoryPack()) return false;
+    auto filename = S9xGetFilenameInc(".bs", SRAM_DIR);
+    if (!Memory.SaveMPAK(filename.c_str()))
+        return false;
+
+    auto message = "Saved Memory Pack " + S9xBasename(filename);
+    S9xSetInfoString(message.c_str());
+    return true;
+}
+
+bool Snes9xController::canSaveMemoryPack() const
+{
+    return active && (Settings.BS || (Multi.cartSizeB && Multi.cartType == 3));
 }
 
 bool Snes9xController::startMovieRecord(const std::string &filename)
@@ -1144,8 +1161,14 @@ bool Snes9xController::dumpSpc()
 {
     if (!active) return false;
     suspend();
-    S9xDumpSPCSnapshot();
+    auto filename = S9xGetFilenameInc(".spc", SPC_DIR);
+    bool dumped = S9xSPCDump(filename.c_str()) != FALSE;
     resume();
+    if (!dumped)
+        return false;
+
+    auto message = "Saved SPC " + S9xBasename(filename);
+    S9xSetInfoString(message.c_str());
     return true;
 }
 

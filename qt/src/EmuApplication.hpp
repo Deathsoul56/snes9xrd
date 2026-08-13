@@ -76,6 +76,7 @@ struct EmuApplication
     bool takeScreenshot();
     bool saveSram();
     bool saveMemoryPack();
+    bool canSaveMemoryPack() const;
     bool startMovieRecord(const std::string &filename);
     bool openMovie(const std::string &filename);
     void stopMovie();

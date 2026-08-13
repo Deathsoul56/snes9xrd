@@ -431,6 +431,11 @@ bool EmuApplication::saveMemoryPack()
     return core->saveMemoryPack();
 }
 
+bool EmuApplication::canSaveMemoryPack() const
+{
+    return core && core->canSaveMemoryPack();
+}
+
 void EmuApplication::mainLoop()
 {
     if (!core->active)
