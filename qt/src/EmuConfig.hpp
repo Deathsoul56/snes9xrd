@@ -137,6 +137,8 @@ struct EmuConfig
 
     int rewind_buffer_size;
     int rewind_frame_interval;
+    bool apply_cheats;
+    bool avi_high_resolution;
 
     // Emulation/Hacks
 
@@ -177,6 +179,9 @@ struct EmuConfig
     int export_location;
     int screenshot_location;
     int bios_location;
+    int movie_location;
+    int spc_location;
+    int satellaview_location;
     std::string sram_folder;
     std::string state_folder;
     std::string cheat_folder;
@@ -184,6 +189,9 @@ struct EmuConfig
     std::string export_folder;
     std::string screenshot_folder;
     std::string bios_folder;
+    std::string movie_folder;
+    std::string spc_folder;
+    std::string satellaview_folder;
 
     int sram_save_interval;
 

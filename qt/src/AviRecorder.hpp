@@ -10,7 +10,7 @@ class AviRecorder
   public:
     ~AviRecorder();
 
-    bool start(const std::string &filename, int sample_rate, int channels);
+    bool start(const std::string &filename, int sample_rate, int channels, bool high_resolution);
     void addVideoFrame(const uint16_t *pixels, int width, int height, int stride_bytes, double frame_rate);
     void addAudioSamples(const int16_t *data, int samples);
 
@@ -29,6 +29,7 @@ class AviRecorder
     int sample_rate_ = 0;
     int channels_ = 0;
     int block_align_ = 0;
+    bool high_resolution_ = false;
 
     long pos_riff_size_ = 0;
     long pos_hdrl_size_ = 0;

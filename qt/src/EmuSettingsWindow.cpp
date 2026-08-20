@@ -37,9 +37,8 @@ EmuSettingsWindow::EmuSettingsWindow(QWidget *parent, EmuApplication *app_)
 
     stackedWidget->setCurrentIndex(0);
 
-    connect(closeButton, &QPushButton::clicked, [&](bool) {
-        this->close();
-    });
+    connect(buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(buttonBox, &QDialogButtonBox::rejected, this, &EmuSettingsWindow::reject);
 
     connect(panelList, &QListWidget::currentItemChanged, [&](QListWidgetItem *prev, QListWidgetItem *cur) {
         stackedWidget->setCurrentIndex(panelList->currentRow());
@@ -84,6 +83,28 @@ void EmuSettingsWindow::show(int page)
     panelList->setCurrentRow(page);
     stackedWidget->setCurrentIndex(page);
     if (!isVisible())
+    {
+        original_config_ = *app->config;
         open();
-    closeButton->setDefault(false);
+    }
+}
+
+void EmuSettingsWindow::reject()
+{
+    bool restart_audio = app->config->sound_driver != original_config_.sound_driver ||
+                         app->config->playback_rate != original_config_.playback_rate ||
+                         app->config->audio_buffer_size_ms != original_config_.audio_buffer_size_ms;
+    bool recreate_canvas = app->config->display_driver != original_config_.display_driver ||
+                           app->config->display_device_index != original_config_.display_device_index;
+
+    *app->config = original_config_;
+    app->updateSettings();
+    app->updateBindings();
+    if (restart_audio)
+        app->restartAudio();
+    if (recreate_canvas)
+        app->window->recreateCanvas();
+    app->window->shaderChanged();
+    app->window->refreshLibrary();
+    QDialog::reject();
 }

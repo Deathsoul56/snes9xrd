@@ -24,6 +24,15 @@ class FoldersPanel :
     QComboBox   *screenshot_combo_  = nullptr;
     QLineEdit   *screenshot_line_   = nullptr;
     QPushButton *screenshot_button_ = nullptr;
+    QComboBox   *movie_combo_       = nullptr;
+    QLineEdit   *movie_line_        = nullptr;
+    QPushButton *movie_button_      = nullptr;
+    QComboBox   *spc_combo_         = nullptr;
+    QLineEdit   *spc_line_          = nullptr;
+    QPushButton *spc_button_        = nullptr;
+    QComboBox   *satellaview_combo_ = nullptr;
+    QLineEdit   *satellaview_line_  = nullptr;
+    QPushButton *satellaview_button_ = nullptr;
 
     // Runtime-added ROM library folders list (the .ui doesn't define one).
     // Lets the user add/remove Library folders from Options -> Files

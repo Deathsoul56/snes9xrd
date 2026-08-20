@@ -171,9 +171,9 @@
        </layout>
       </item>
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_6">
+       <layout class="QHBoxLayout" name="horizontalLayout_overclock">
         <item>
-         <widget class="QLabel" name="label_9">
+         <widget class="QLabel" name="label_overclock">
           <property name="text">
            <string>Force frame skip:</string>
           </property>
@@ -199,7 +199,7 @@
          </widget>
         </item>
         <item>
-         <spacer name="horizontalSpacer_7">
+         <spacer name="horizontalSpacer_overclock">
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
           </property>
@@ -235,6 +235,9 @@
          <widget class="QSpinBox" name="spinBox_rewind_frames">
           <property name="whatsThis">
            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The number of frames between each rewind snapshot. More frames mean rewind can go back further and will rewind faster. &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="minimum">
+           <number>1</number>
           </property>
          </widget>
         </item>
@@ -273,6 +276,25 @@
      </layout>
     </widget>
    </item>
+    <item>
+     <widget class="QGroupBox" name="groupBox_4">
+      <property name="title">
+        <string>Recording</string>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_5">
+        <item>
+         <widget class="QCheckBox" name="checkBox_avi_high_resolution">
+          <property name="whatsThis">
+            <string>Record AVI files at the native double resolution used by hi-res and interlaced games. Disable this to record at standard SNES resolution.</string>
+          </property>
+          <property name="text">
+            <string>Hi-Res AVI Recording</string>
+          </property>
+         </widget>
+        </item>
+      </layout>
+     </widget>
+    </item>
    <item>
     <widget class="QGroupBox" name="groupBox_3">
      <property name="title">

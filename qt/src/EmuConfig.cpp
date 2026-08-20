@@ -223,6 +223,7 @@ bool EmuConfig::setDefaults(int section)
         show_indicators = true;
         show_pressed_keys = false;
         show_time = false;
+        sram_save_interval = 30;
     }
 
     if (section == -1 || section == 1)
@@ -283,6 +284,8 @@ bool EmuConfig::setDefaults(int section)
 
         rewind_buffer_size = 0;
         rewind_frame_interval = 5;
+        avi_high_resolution = false;
+        apply_cheats = false;
 
         allow_invalid_vram_access = false;
         allow_opposing_dpad_directions = false;
@@ -337,6 +340,9 @@ bool EmuConfig::setDefaults(int section)
         patch_folder = {};
         export_folder = {};
         screenshot_folder = {};
+        movie_folder = {};
+        spc_folder = {};
+        satellaview_folder = {};
 
         sram_location = eROMDirectory;
         state_location = eROMDirectory;
@@ -344,6 +350,9 @@ bool EmuConfig::setDefaults(int section)
         patch_location = eROMDirectory;
         export_location = eROMDirectory;
         screenshot_location = eROMDirectory;
+        movie_location = eROMDirectory;
+        spc_location = eROMDirectory;
+        satellaview_location = eROMDirectory;
         // Default to the config dir so the user has a stable place to drop
         // their BS-X/Sufami-Turbo BIOS ROMs (e.g. STBIOS.bin).
         bios_location = eConfigDirectory;
@@ -536,6 +545,8 @@ void EmuConfig::config(const std::string &filename, bool write)
     Int("FixedFrameSkip", fixed_frame_skip);
     Int("RewindBufferSize", rewind_buffer_size);
     Int("RewindFrameInterval", rewind_frame_interval);
+    Bool("ApplyCheats", apply_cheats);
+    Bool("AVIHighResolution", avi_high_resolution);
     Bool("AllowInvalidVRAMAccess", allow_invalid_vram_access);
     Bool("AllowOpposingDpadDirections", allow_opposing_dpad_directions);
     Int("Overclock", overclock);
@@ -605,6 +616,9 @@ void EmuConfig::config(const std::string &filename, bool write)
     Enum("PatchLocation", patch_location, { "ROMDirectory", "ConfigDirectory", "Custom" });
     Enum("ExportLocation", export_location, { "ROMDirectory", "ConfigDirectory", "Custom" });
     Enum("ScreenshotLocation", screenshot_location, { "ROMDirectory", "ConfigDirectory", "Custom" });
+    Enum("MovieLocation", movie_location, { "ROMDirectory", "ConfigDirectory", "Custom" });
+    Enum("SPCLocation", spc_location, { "ROMDirectory", "ConfigDirectory", "Custom" });
+    Enum("SatellaviewLocation", satellaview_location, { "ROMDirectory", "ConfigDirectory", "Custom" });
 
     String("SRAMFolder", sram_folder);
     String("StateFolder", state_folder);
@@ -613,6 +627,9 @@ void EmuConfig::config(const std::string &filename, bool write)
     String("ExportFolder", export_folder);
     String("ScreenshotFolder", screenshot_folder);
     String("BiosFolder", bios_folder);
+    String("MovieFolder", movie_folder);
+    String("SPCFolder", spc_folder);
+    String("SatellaviewFolder", satellaview_folder);
     Enum("BiosLocation", bios_location, { "ROMDirectory", "ConfigDirectory", "Custom" });
 
     Int("SRAMSaveInterval", sram_save_interval);

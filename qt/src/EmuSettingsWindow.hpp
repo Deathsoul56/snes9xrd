@@ -2,6 +2,7 @@
 
 #include "ui_EmuSettingsWindow.h"
 #include "EmuApplication.hpp"
+#include "EmuConfig.hpp"
 #include "GeneralPanel.hpp"
 #include "DisplayPanel.hpp"
 #include "SoundPanel.hpp"
@@ -17,6 +18,7 @@ class EmuSettingsWindow
   public:
     EmuSettingsWindow(QWidget *parent, EmuApplication *app);
     void show(int page);
+    void reject() override;
 
     EmuApplication *app;
     GeneralPanel *general_panel;
@@ -26,4 +28,7 @@ class EmuSettingsWindow
     ControllerPanel *controller_panel;
     ShortcutsPanel *shortcuts_panel;
     FoldersPanel *folders_panel;
+
+  private:
+    EmuConfig original_config_;
 };

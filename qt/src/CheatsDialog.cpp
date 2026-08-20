@@ -16,12 +16,16 @@ CheatsDialog::CheatsDialog(QWidget *parent, EmuApplication *app_)
     : QDialog(parent), app(app_)
 {
     setupUi(this);
+    setObjectName("cheatsDialog");
 
     connect(pushButton_add, &QPushButton::clicked, [&] { addCode(); });
+    connect(pushButton_clear, &QPushButton::clicked, [&] { clearCodes(); });
     connect(pushButton_remove, &QPushButton::clicked, [&] { removeCode(); });
     connect(pushButton_remove_all, &QPushButton::clicked, [&] { removeAll(); });
     connect(pushButton_check_database, &QPushButton::clicked, [&] { searchDatabase(); });
     connect(pushButton_update, &QPushButton::clicked, [&] { updateCurrent(); });
+    connect(buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(buttonBox, &QDialogButtonBox::rejected, this, &CheatsDialog::reject);
 
     treeWidget_cheats->header()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
@@ -37,9 +41,16 @@ CheatsDialog::CheatsDialog(QWidget *parent, EmuApplication *app_)
             app->disableCheat(index);
     });
 
-    connect(treeWidget_cheats, &QTreeWidget::itemDoubleClicked, [&](QTreeWidgetItem *item, int column) {
-        lineEdit_description->setText(item->text(1));
-        lineEdit_code->setText(item->text(2));
+    connect(treeWidget_cheats, &QTreeWidget::currentItemChanged, [&](QTreeWidgetItem *item) {
+        if (!item)
+        {
+            lineEdit_code->clear();
+            lineEdit_description->clear();
+            return;
+        }
+
+        lineEdit_code->setText(item->text(1));
+        lineEdit_description->setText(item->text(2));
     });
 
     if (app->config->cheat_dialog_width != 0)
@@ -51,7 +62,15 @@ CheatsDialog::CheatsDialog(QWidget *parent, EmuApplication *app_)
 void CheatsDialog::showEvent(QShowEvent *event)
 {
     refreshList();
+    original_cheats_ = app->getCheatList();
+    original_cheats_enabled_ = app->cheatsEnabled();
     QDialog::showEvent(event);
+}
+
+void CheatsDialog::reject()
+{
+    app->restoreCheats(original_cheats_, original_cheats_enabled_);
+    QDialog::reject();
 }
 
 void CheatsDialog::addCode()
@@ -70,6 +89,12 @@ void CheatsDialog::addCode()
 
     refreshList();
     treeWidget_cheats->setTreePosition(treeWidget_cheats->topLevelItemCount() - 1);
+}
+
+void CheatsDialog::clearCodes()
+{
+    app->disableAllCheats();
+    refreshList();
 }
 
 void CheatsDialog::removeCode()
@@ -145,8 +170,8 @@ void CheatsDialog::updateCurrent()
     app->modifyCheat(index, description, validated);
 
     auto *item = treeWidget_cheats->currentItem();
-    item->setText(1, lineEdit_description->text());
-    item->setText(2, QString::fromStdString(validated));
+    item->setText(1, QString::fromStdString(validated));
+    item->setText(2, lineEdit_description->text());
 }
 
 void CheatsDialog::refreshList()
@@ -161,8 +186,8 @@ void CheatsDialog::refreshList()
         auto i = new QTreeWidgetItem();
         i->setFlags(desired_flags);
         i->setCheckState(0, enabled ? Qt::Checked : Qt::Unchecked);
-        i->setText(1, QString::fromStdString(name));
-        i->setText(2, QString::fromStdString(cheat));
+        i->setText(1, QString::fromStdString(cheat));
+        i->setText(2, QString::fromStdString(name));
         items.push_back(i);
     }
 

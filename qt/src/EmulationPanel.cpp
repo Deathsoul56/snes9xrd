@@ -11,12 +11,14 @@ EmulationPanel::EmulationPanel(EmuApplication *app_)
     connectComboBox(comboBox_speed_control_method, &app->config->speed_sync_method, app);
     connect(doubleSpinBox_frame_rate, &QDoubleSpinBox::valueChanged, [&](double value) {
         app->config->fixed_frame_rate = value;
+        app->updateSettings();
     });
 
     connectSpinBox(spinBox_rewind_buffer_size, &app->config->rewind_buffer_size, app);
     connectSpinBox(spinBox_rewind_frames, &app->config->rewind_frame_interval, app);
     connectSpinBox(spinBox_fast_forward_skip_frames, &app->config->fast_forward_skip_frames, app);
     connectSpinBox(spinBox_fixed_frame_skip, &app->config->fixed_frame_skip, app);
+    connectCheckbox(checkBox_avi_high_resolution, &app->config->avi_high_resolution, app);
 
     connectCheckbox(checkBox_allow_invalid_vram_access, &app->config->allow_invalid_vram_access, app);
     connectCheckbox(checkBox_allow_opposing_dpad_directions, &app->config->allow_opposing_dpad_directions, app);
@@ -37,6 +39,7 @@ void EmulationPanel::showEvent(QShowEvent *event)
 
     spinBox_rewind_buffer_size->setValue(config->rewind_buffer_size);
     spinBox_rewind_frames->setValue(config->rewind_frame_interval);
+    checkBox_avi_high_resolution->setChecked(config->avi_high_resolution);
 
     checkBox_allow_invalid_vram_access->setChecked(config->allow_invalid_vram_access);
     checkBox_allow_opposing_dpad_directions->setChecked(config->allow_opposing_dpad_directions);

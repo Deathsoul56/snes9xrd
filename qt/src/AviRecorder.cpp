@@ -16,7 +16,7 @@ AviRecorder::~AviRecorder()
     stop();
 }
 
-bool AviRecorder::start(const std::string &filename, int sample_rate, int channels)
+bool AviRecorder::start(const std::string &filename, int sample_rate, int channels, bool high_resolution)
 {
     stop();
 
@@ -27,6 +27,7 @@ bool AviRecorder::start(const std::string &filename, int sample_rate, int channe
     sample_rate_ = sample_rate;
     channels_ = channels;
     block_align_ = channels_ * (int)sizeof(int16_t);
+    high_resolution_ = high_resolution;
     header_written_ = false;
     frame_count_ = 0;
     audio_block_count_ = 0;
@@ -179,25 +180,40 @@ void AviRecorder::addVideoFrame(const uint16_t *pixels, int width, int height, i
     if (!file_)
         return;
 
+    int target_width = high_resolution_ || width <= 256 ? width : width / 2;
+    int target_height = high_resolution_ || height <= 239 ? height : height / 2;
     if (!header_written_)
-        writeVideoHeader(width, height, frame_rate);
+        writeVideoHeader(target_width, target_height, frame_rate);
 
-    if (width != width_ || height != height_)
+    if (target_width != width_ || target_height != height_)
         return;
 
     bgr_buffer_.resize((size_t)width_ * (size_t)height_ * 3);
     uint8_t *out = bgr_buffer_.data();
     int stride_pixels = stride_bytes / (int)sizeof(uint16_t);
+    int x_scale = width / width_;
+    int y_scale = height / height_;
 
     for (int y = 0; y < height_; y++)
     {
-        const uint16_t *row = pixels + (size_t)y * stride_pixels;
         for (int x = 0; x < width_; x++)
         {
-            uint16_t p = row[x];
-            uint8_t r5 = (p >> 11) & 0x1F;
-            uint8_t g6 = (p >> 5) & 0x3F;
-            uint8_t b5 = p & 0x1F;
+            int red = 0, green = 0, blue = 0;
+            for (int source_y = 0; source_y < y_scale; source_y++)
+            {
+                const uint16_t *row = pixels + (size_t)(y * y_scale + source_y) * stride_pixels;
+                for (int source_x = 0; source_x < x_scale; source_x++)
+                {
+                    uint16_t pixel = row[x * x_scale + source_x];
+                    red += (pixel >> 11) & 0x1F;
+                    green += (pixel >> 5) & 0x3F;
+                    blue += pixel & 0x1F;
+                }
+            }
+            int sample_count = x_scale * y_scale;
+            uint8_t r5 = red / sample_count;
+            uint8_t g6 = green / sample_count;
+            uint8_t b5 = blue / sample_count;
             *out++ = (uint8_t)((b5 << 3) | (b5 >> 2));
             *out++ = (uint8_t)((g6 << 2) | (g6 >> 4));
             *out++ = (uint8_t)((r5 << 3) | (r5 >> 2));

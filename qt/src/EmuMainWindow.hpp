@@ -8,6 +8,7 @@
 
 class EmuApplication;
 class CheatsDialog;
+class CheatSearchDialog;
 class EmuGameList;
 class LibraryPage;
 class QStackedWidget;
@@ -71,6 +72,8 @@ class EmuMainWindow : public QMainWindow
     QMenu *createFileMenu();
     QMenu *createEmulationMenu();
     QMenu *createViewMenu();
+    QMenu *createCheatMenu();
+    QMenu *createNetplayMenu();
     QMenu *createOptionsMenu();
     QMenu *createHelpMenu();
     void createCenterStack();
@@ -87,6 +90,7 @@ class EmuMainWindow : public QMainWindow
     bool startRunningGame();
 
     QPointer<CheatsDialog> cheats_dialog;
+    QPointer<CheatSearchDialog> cheat_search_dialog;
 
     bool manual_pause = false;
     bool focus_pause = false;

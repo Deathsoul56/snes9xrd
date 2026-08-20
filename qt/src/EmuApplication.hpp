@@ -3,6 +3,9 @@
 #include <QTimer>
 #include <QThread>
 
+#include <atomic>
+#include <mutex>
+
 class EmuMainWindow;
 class EmuConfig;
 class EmuBinding;
@@ -28,6 +31,7 @@ Q_OBJECT
     void setMainLoop(const std::function<void()> &loop);
 
     std::function<void()> main_loop = nullptr;
+    std::mutex main_loop_mutex;
 
     enum StatusBits
     {
@@ -38,7 +42,7 @@ Q_OBJECT
         eQuit       = 8
     };
 
-    int status = eDead;
+    std::atomic<int> status{eDead};
 
   public slots:
     void runOnThread(const std::function<void()> &func, bool blocking = false);
@@ -112,6 +116,7 @@ struct EmuApplication
     bool saveState(int slot);
     bool saveState(const std::string& filename);
     std::string getStateFolder();
+    std::string getMovieFolder();
     void loadUndoState();
     void startGame();
     void startThread();
@@ -121,6 +126,10 @@ struct EmuApplication
     std::string getContentFolder();
 
     std::vector<std::tuple<bool, std::string, std::string>> getCheatList();
+    bool cheatsEnabled();
+    void setCheatsEnabled(bool enabled);
+    void restoreCheats(const std::vector<std::tuple<bool, std::string, std::string>> &cheats,
+               bool enabled);
     void disableAllCheats();
     void enableCheat(int index);
     void disableCheat(int index);
@@ -131,6 +140,12 @@ struct EmuApplication
     std::string validateCheat(const std::string &code);
     int modifyCheat(int index, const std::string &name,
                     const std::string &code);
+    void resetCheatSearch();
+    std::vector<std::tuple<uint32_t, uint32_t, uint32_t>> searchCheats(int comparison,
+                                       int data_size,
+                                       int compare_to,
+                                       uint32_t value,
+                                       bool signed_value);
 
     enum Handler
     {

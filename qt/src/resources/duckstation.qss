@@ -165,6 +165,115 @@ QPushButton:disabled {
     border-color: #23252c;
 }
 
+/* ───── Cheats dialog ───── */
+QDialog#cheatsDialog {
+    background-color: #17191f;
+}
+
+QDialog#cheatsDialog QLabel {
+    color: #c8ccd7;
+    font-weight: 600;
+}
+
+QDialog#cheatsDialog QLineEdit {
+    background-color: #101218;
+    border: 1px solid #3b414f;
+    border-radius: 5px;
+    padding: 7px 9px;
+    color: #f3f6ff;
+    selection-background-color: #3478c7;
+}
+
+QDialog#cheatsDialog QLineEdit:focus {
+    border-color: #4a9cff;
+    background-color: #151a24;
+}
+
+QDialog#cheatsDialog QPushButton {
+    min-height: 24px;
+    font-weight: 600;
+}
+
+QPushButton#cheatAddButton {
+    background-color: #2867b2;
+    border-color: #4a9cff;
+    color: #ffffff;
+}
+
+QPushButton#cheatAddButton:hover {
+    background-color: #3478c7;
+}
+
+QPushButton#cheatDatabaseButton {
+    background-color: #214d78;
+    border-color: #3972a8;
+    color: #e7f2ff;
+}
+
+QPushButton#cheatDatabaseButton:hover {
+    background-color: #2b618f;
+}
+
+QPushButton#cheatClearButton:hover {
+    background-color: #3b4555;
+    border-color: #8fa9c9;
+    color: #ffffff;
+}
+
+QPushButton#cheatRemoveButton:hover,
+QPushButton#cheatRemoveAllButton:hover {
+    background-color: #582c34;
+    border-color: #a84c59;
+    color: #ffffff;
+}
+
+QDialog#cheatsDialog QTreeWidget {
+    background-color: #101218;
+    alternate-background-color: #171c26;
+    border: 1px solid #3b414f;
+    color: #ecf0f8;
+    outline: 0;
+}
+
+QDialog#cheatsDialog QTreeWidget::item {
+    padding: 4px 6px;
+}
+
+QDialog#cheatsDialog QTreeWidget::item:hover {
+    background-color: #202a3a;
+}
+
+QDialog#cheatsDialog QTreeWidget::item:selected {
+    background-color: #2867b2;
+    color: #ffffff;
+}
+
+QDialog#cheatsDialog QHeaderView::section {
+    background-color: #242a35;
+    border: none;
+    border-bottom: 1px solid #4a5364;
+    color: #b9d5ff;
+    padding: 6px;
+    font-weight: 700;
+}
+
+QDialog#cheatsDialog QTreeWidget::indicator {
+    width: 16px;
+    height: 16px;
+}
+
+QDialog#cheatsDialog QTreeWidget::indicator:unchecked {
+    background-color: #11151d;
+    border: 1px solid #67748a;
+    border-radius: 3px;
+}
+
+QDialog#cheatsDialog QTreeWidget::indicator:checked {
+    background-color: #3c91e6;
+    border: 1px solid #83c0ff;
+    border-radius: 3px;
+}
+
 /* Small circular "clear this row's binding" button at the end of each
    binding-table row (ControllerPanel/ShortcutsPanel). The extra bottom
    padding compensates for the "−" glyph sitting at font x-height instead of
@@ -367,6 +476,18 @@ QDoubleSpinBox:disabled {
     color: #555;
     background-color: #1a1b21;
     border-color: #23252c;
+}
+
+QSpinBox#spinBox_sram_interval::up-button,
+QSpinBox#spinBox_sram_interval::down-button {
+    width: 20px;
+    background-color: #343844;
+    border-left: 1px solid #5a6070;
+}
+
+QSpinBox#spinBox_sram_interval::up-button:hover,
+QSpinBox#spinBox_sram_interval::down-button:hover {
+    background-color: #4a5d7e;
 }
 
 QSlider::groove:horizontal {

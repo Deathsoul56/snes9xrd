@@ -70,10 +70,12 @@ SoundPanel::SoundPanel(EmuApplication *app_)
 
     connect(checkBox_mute_sound, &QCheckBox::toggled, [&](bool checked) {
         app->config->mute_audio = checked;
+        app->updateSettings();
     });
 
     connect(checkBox_mute_during_alt_speed, &QCheckBox::toggled, [&](bool checked) {
         app->config->mute_audio_during_alternate_speed = checked;
+        app->updateSettings();
     });
 
     auto connect_volume_slider = [&](QSlider *slider, QSpinBox *spinbox, int EmuConfig::*field) {
@@ -82,12 +84,14 @@ SoundPanel::SoundPanel(EmuApplication *app_)
             spinbox->blockSignals(true);
             spinbox->setValue(value);
             spinbox->blockSignals(false);
+            app->updateSettings();
         });
         connect(spinbox, &QSpinBox::valueChanged, [&, slider, field](int value) {
             app->config.get()->*field = value;
             slider->blockSignals(true);
             slider->setValue(value);
             slider->blockSignals(false);
+            app->updateSettings();
         });
     };
     connect_volume_slider(horizontalSlider_volume_regular, spinBox_volume_regular, &EmuConfig::volume_regular);

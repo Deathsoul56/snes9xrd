@@ -230,6 +230,7 @@ list(APPEND QT_GUI_SOURCES
     src/SDLInputManager.cpp
     src/ShaderParametersDialog.cpp
     src/CheatsDialog.cpp
+    src/CheatSearchDialog.cpp
     src/SoftwareScalers.cpp
     src/SoftwareFilter.cpp
     src/EmuCanvasQt.cpp

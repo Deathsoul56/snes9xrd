@@ -298,6 +298,8 @@ void EmuApplication::startThread()
 bool EmuApplication::openFile(const std::string &filename)
 {
     window->gameChanging();
+    if (isAviRecording())
+        stopAviRecording();
     updateSettings();
     suspendThread();
     auto result = core->openFile(filename);
@@ -327,6 +329,8 @@ bool EmuApplication::loadMultiCart(const std::string &cart_a, const std::string 
     if (!core) return false;
 
     window->gameChanging();
+    if (isAviRecording())
+        stopAviRecording();
     updateSettings();
     suspendThread();
     auto result = core->loadMultiCart(cart_a, cart_b);
@@ -378,7 +382,8 @@ bool EmuApplication::startAviRecording(const std::string &filename)
     if (!avi_recorder)
         avi_recorder = std::make_unique<AviRecorder>();
 
-    bool started = avi_recorder->start(filename, Settings.SoundPlaybackRate, Settings.Stereo ? 2 : 1);
+    bool started = avi_recorder->start(filename, Settings.SoundPlaybackRate, Settings.Stereo ? 2 : 1,
+                                       config->avi_high_resolution);
     unsuspendThread();
     return started;
 }
@@ -654,7 +659,7 @@ void EmuApplication::updateSettings()
 
     emu_thread->runOnThread([&] {
         core->updateSettings(config.get());
-    });
+    }, true);
 }
 
 void EmuApplication::pollJoysticks()
@@ -796,6 +801,11 @@ std::string EmuApplication::getStateFolder()
     return core->getStateFolder();
 }
 
+std::string EmuApplication::getMovieFolder()
+{
+    return core->getMovieFolder();
+}
+
 std::vector<std::tuple<bool, std::string, std::string>> EmuApplication::getCheatList()
 {
     suspendThread();
@@ -803,6 +813,25 @@ std::vector<std::tuple<bool, std::string, std::string>> EmuApplication::getCheat
     unsuspendThread();
 
     return std::move(cheat_list);
+}
+
+bool EmuApplication::cheatsEnabled()
+{
+    bool enabled = false;
+    emu_thread->runOnThread([&] { enabled = core->cheatsEnabled(); }, true);
+    return enabled;
+}
+
+void EmuApplication::setCheatsEnabled(bool enabled)
+{
+    config->apply_cheats = enabled;
+    emu_thread->runOnThread([&, enabled] { core->setCheatsEnabled(enabled); });
+}
+
+void EmuApplication::restoreCheats(const std::vector<std::tuple<bool, std::string, std::string>> &cheats,
+                                   bool enabled)
+{
+    emu_thread->runOnThread([&, cheats, enabled] { core->restoreCheats(cheats, enabled); }, true);
 }
 
 void EmuApplication::disableAllCheats()
@@ -872,6 +901,24 @@ int EmuApplication::modifyCheat(int index, const std::string &name,
     auto retval = core->modifyCheat(index, name, code);
     unsuspendThread();
     return retval;
+}
+
+void EmuApplication::resetCheatSearch()
+{
+    emu_thread->runOnThread([&] { core->resetCheatSearch(); }, true);
+}
+
+std::vector<std::tuple<uint32_t, uint32_t, uint32_t>> EmuApplication::searchCheats(int comparison,
+                                                                                      int data_size,
+                                                                                      int compare_to,
+                                                                                      uint32_t value,
+                                                                                      bool signed_value)
+{
+    std::vector<std::tuple<uint32_t, uint32_t, uint32_t>> results;
+    emu_thread->runOnThread([&] {
+        results = core->searchCheats(comparison, data_size, compare_to, value, signed_value);
+    }, true);
+    return results;
 }
 
 bool EmuApplication::isCoreActive()
@@ -1006,12 +1053,18 @@ void EmuThread::run()
             continue;
         }
 
-        if (main_loop)
-            main_loop();
+        std::function<void()> loop_copy;
+        {
+            std::lock_guard<std::mutex> lock(main_loop_mutex);
+            loop_copy = main_loop;
+        }
+        if (loop_copy)
+            loop_copy();
     }
 }
 
 void EmuThread::setMainLoop(const std::function<void()> &loop)
 {
+    std::lock_guard<std::mutex> lock(main_loop_mutex);
     main_loop = loop;
 }

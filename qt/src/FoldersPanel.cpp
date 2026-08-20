@@ -51,6 +51,12 @@ FoldersPanel::FoldersPanel(EmuApplication *app_)
                          &app->config->screenshot_location, &app->config->screenshot_folder);
             addFolderRow(tr("BIOS"), bios_combo_, bios_line_, bios_button_,
                          &app->config->bios_location, &app->config->bios_folder);
+            addFolderRow(tr("Movies"), movie_combo_, movie_line_, movie_button_,
+                         &app->config->movie_location, &app->config->movie_folder);
+            addFolderRow(tr("SPCs"), spc_combo_, spc_line_, spc_button_,
+                         &app->config->spc_location, &app->config->spc_folder);
+            addFolderRow(tr("Satellaview"), satellaview_combo_, satellaview_line_, satellaview_button_,
+                         &app->config->satellaview_location, &app->config->satellaview_folder);
         }
     }
 
@@ -121,6 +127,15 @@ void FoldersPanel::refreshData()
     if (bios_combo_)
         refreshEntry(bios_combo_, bios_line_, bios_button_,
                      &app->config->bios_location, &app->config->bios_folder);
+    if (movie_combo_)
+        refreshEntry(movie_combo_, movie_line_, movie_button_,
+                     &app->config->movie_location, &app->config->movie_folder);
+    if (spc_combo_)
+        refreshEntry(spc_combo_, spc_line_, spc_button_,
+                     &app->config->spc_location, &app->config->spc_folder);
+    if (satellaview_combo_)
+        refreshEntry(satellaview_combo_, satellaview_line_, satellaview_button_,
+                     &app->config->satellaview_location, &app->config->satellaview_folder);
     refreshLibraryList();
 }
 

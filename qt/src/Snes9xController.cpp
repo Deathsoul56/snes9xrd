@@ -118,6 +118,14 @@ void Snes9xController::deinit()
 
 void Snes9xController::updateSettings(const EmuConfig * const config)
 {
+    setCheatsEnabled(config->apply_cheats);
+
+    if (Settings.AutoSaveDelay != config->sram_save_interval)
+    {
+        Settings.AutoSaveDelay = config->sram_save_interval;
+        CPU.AutoSaveTimer = 0;
+    }
+
     Settings.UpAndDown = config->allow_opposing_dpad_directions;
 
     Settings.Transparency = config->transparency;
@@ -178,7 +186,8 @@ void Snes9xController::updateSettings(const EmuConfig * const config)
         g_state_manager.init(config->rewind_buffer_size * 1048576);
     }
     rewind_buffer_size = config->rewind_buffer_size;
-    rewind_frame_interval = config->rewind_frame_interval;
+    // guard against 0 from stale config files; used as a modulo divisor below
+    rewind_frame_interval = config->rewind_frame_interval > 0 ? config->rewind_frame_interval : 1;
 
     if (config->remove_sprite_limit)
         Settings.MaxSpriteTilesPerLine = 128;
@@ -213,6 +222,9 @@ void Snes9xController::updateSettings(const EmuConfig * const config)
     doFolder(config->export_location, export_folder, config->export_folder, "export");
     doFolder(config->screenshot_location, screenshot_folder, config->screenshot_folder, "screenshots");
     doFolder(config->bios_location, bios_folder, config->bios_folder, "bios");
+    doFolder(config->movie_location, movie_folder, config->movie_folder, "movies");
+    doFolder(config->spc_location, spc_folder, config->spc_folder, "spc");
+    doFolder(config->satellaview_location, satellaview_folder, config->satellaview_folder, "satellaview");
 }
 
 bool Snes9xController::openFile(const std::string &filename)
@@ -420,7 +432,7 @@ std::string S9xGetDirectory(s9x_getdirtype dirtype)
         break;
 
     case SPC_DIR:
-        dirname = c->export_folder;
+        dirname = c->spc_folder;
         break;
 
     case SCREENSHOT_DIR:
@@ -429,6 +441,10 @@ std::string S9xGetDirectory(s9x_getdirtype dirtype)
 
     case BIOS_DIR:
         dirname = c->bios_folder;
+        break;
+
+    case SAT_DIR:
+        dirname = c->satellaview_folder;
         break;
 
     default:
@@ -854,6 +870,13 @@ std::string Snes9xController::getStateFolder()
     return S9xGetDirectory(SNAPSHOT_DIR);
 }
 
+std::string Snes9xController::getMovieFolder()
+{
+    if (!movie_folder.empty())
+        return movie_folder;
+    return getContentFolder();
+}
+
 bool Snes9xController::slotUsed(int slot)
 {
     return fs::exists(save_slot_path(slot));
@@ -965,6 +988,33 @@ std::vector<std::tuple<bool, std::string, std::string>> Snes9xController::getChe
     return std::move(cheat_list);
 }
 
+bool Snes9xController::cheatsEnabled() const
+{
+    return Settings.ApplyCheats;
+}
+
+void Snes9xController::setCheatsEnabled(bool enabled)
+{
+    Settings.ApplyCheats = enabled;
+    if (enabled)
+        S9xCheatsEnable();
+    else
+        S9xCheatsDisable();
+}
+
+void Snes9xController::restoreCheats(const std::vector<std::tuple<bool, std::string, std::string>> &cheats,
+                                     bool enabled)
+{
+    S9xDeleteCheats();
+    for (const auto &[cheat_enabled, name, code] : cheats)
+    {
+        auto index = S9xAddCheatGroup(name, code);
+        if (index >= 0 && cheat_enabled)
+            S9xEnableCheatGroup(index);
+    }
+    setCheatsEnabled(enabled);
+}
+
 void Snes9xController::disableAllCheats()
 {
     for (size_t i = 0; i < Cheat.group.size(); i++)
@@ -981,6 +1031,80 @@ void Snes9xController::enableCheat(int index)
 void Snes9xController::disableCheat(int index)
 {
     S9xDisableCheatGroup(index);
+}
+
+void Snes9xController::resetCheatSearch()
+{
+    S9xStartCheatSearch(&Cheat);
+}
+
+std::vector<std::tuple<uint32_t, uint32_t, uint32_t>> Snes9xController::searchCheats(int comparison,
+                                                                                        int data_size,
+                                                                                        int compare_to,
+                                                                                        uint32_t value,
+                                                                                        bool signed_value)
+{
+    auto size = static_cast<S9xCheatDataSize>(data_size);
+
+    if (comparison >= 0)
+    {
+        auto comp = static_cast<S9xCheatComparisonType>(comparison);
+        if (compare_to == 1)
+            S9xSearchForValue(&Cheat, comp, size, value, signed_value, FALSE);
+        else if (compare_to == 2)
+            S9xSearchForAddress(&Cheat, comp, size, value, FALSE);
+        else
+            S9xSearchForChange(&Cheat, comp, size, signed_value, FALSE);
+    }
+
+    std::vector<std::tuple<uint32_t, uint32_t, uint32_t>> results;
+    int width = data_size + 1;
+    results.reserve(0x1000);
+    for (uint32_t address = 0; address < 0x32000U - width; address++)
+    {
+        if (!(Cheat.ALL_BITS[address >> 5] & (1U << (address & 31))))
+            continue;
+
+        const uint8_t *current;
+        const uint8_t *previous;
+        uint32_t offset;
+        uint32_t display_address;
+        if (address < 0x20000)
+        {
+            current = Cheat.RAM;
+            previous = Cheat.CWRAM;
+            offset = address;
+            display_address = 0x7e0000 + address;
+        }
+        else if (address < 0x30000)
+        {
+            current = Cheat.SRAM;
+            previous = Cheat.CSRAM;
+            offset = address - 0x20000;
+            display_address = 0x7e0000 + address;
+        }
+        else
+        {
+            current = Cheat.FillRAM + 0x3000;
+            previous = Cheat.CIRAM;
+            offset = address - 0x30000;
+            display_address = 0x7e0000 + address;
+        }
+
+        uint32_t current_value = 0;
+        uint32_t previous_value = 0;
+        for (int byte = 0; byte < width; byte++)
+        {
+            current_value |= static_cast<uint32_t>(current[offset + byte]) << (byte * 8);
+            previous_value |= static_cast<uint32_t>(previous[offset + byte]) << (byte * 8);
+        }
+        results.emplace_back(display_address, current_value, previous_value);
+    }
+
+    memcpy(Cheat.CWRAM, Cheat.RAM, 0x20000);
+    memcpy(Cheat.CSRAM, Cheat.SRAM, 0x10000);
+    memcpy(Cheat.CIRAM, Cheat.FillRAM, 0x2000);
+    return results;
 }
 
 bool Snes9xController::addCheat(const std::string &description,
@@ -1112,7 +1236,7 @@ bool Snes9xController::saveSram()
 bool Snes9xController::saveMemoryPack()
 {
     if (!canSaveMemoryPack()) return false;
-    auto filename = S9xGetFilenameInc(".bs", SRAM_DIR);
+    auto filename = S9xGetFilenameInc(".bs", SAT_DIR);
     if (!Memory.SaveMPAK(filename.c_str()))
         return false;
 

@@ -61,6 +61,10 @@ class Snes9xController
     void setMessage(const std::string &message);
     void clearSoundBuffer();
     std::vector<std::tuple<bool, std::string, std::string>> getCheatList();
+    bool cheatsEnabled() const;
+    void setCheatsEnabled(bool enabled);
+    void restoreCheats(const std::vector<std::tuple<bool, std::string, std::string>> &cheats,
+               bool enabled);
     void disableAllCheats();
     void enableCheat(int index);
     void disableCheat(int index);
@@ -71,9 +75,16 @@ class Snes9xController
     std::string validateCheat(const std::string &code);
     int modifyCheat(int index, const std::string &name,
                     const std::string &code);
+    void resetCheatSearch();
+    std::vector<std::tuple<uint32_t, uint32_t, uint32_t>> searchCheats(int comparison,
+                                       int data_size,
+                                       int compare_to,
+                                       uint32_t value,
+                                       bool signed_value);
     std::string getContentFolder();
 
     std::string getStateFolder();
+    std::string getMovieFolder();
     std::string config_folder;
     std::string sram_folder;
     std::string state_folder;
@@ -82,6 +93,9 @@ class Snes9xController
     std::string export_folder;
     std::string screenshot_folder;
     std::string bios_folder;
+    std::string movie_folder;
+    std::string spc_folder;
+    std::string satellaview_folder;
     int16_t mouse_x, mouse_y;
     int high_resolution_effect;
     int rewind_buffer_size;

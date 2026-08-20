@@ -20,6 +20,7 @@
 #endif
 
 #include "CheatsDialog.hpp"
+#include "CheatSearchDialog.hpp"
 #include "EmuApplication.hpp"
 #include "EmuBinding.hpp"
 #include "EmuCanvasOpenGL.hpp"
@@ -158,6 +159,8 @@ void EmuMainWindow::createWidgets()
     menuBar()->addMenu(createEmulationMenu());
     menuBar()->addMenu(createViewMenu());
     menuBar()->addMenu(createOptionsMenu());
+    menuBar()->addMenu(createCheatMenu());
+    menuBar()->addMenu(createNetplayMenu());
     menuBar()->addMenu(createHelpMenu());
 
     createCenterStack();
@@ -329,7 +332,7 @@ QMenu *EmuMainWindow::createFileMenu()
     auto movie_play_item = file_menu->addAction(tr("Movie &Play…"));
     connect(movie_play_item, &QAction::triggered, this, [&] {
         QString path = QFileDialog::getOpenFileName(this, tr("Open Movie"),
-                                                    QString::fromStdString(app->config->last_rom_folder),
+                                                    QString::fromStdString(app->getMovieFolder()),
                                                     tr("Snes9x Movie (*.smv)"));
         if (path.isEmpty()) return;
         if (!app->openMovie(path.toStdString()))
@@ -339,7 +342,7 @@ QMenu *EmuMainWindow::createFileMenu()
     auto movie_record_item = file_menu->addAction(tr("Movie &Record…"));
     connect(movie_record_item, &QAction::triggered, this, [&] {
         QString path = QFileDialog::getSaveFileName(this, tr("Record Movie"),
-                                                    QString::fromStdString(app->config->last_rom_folder),
+                                                    QString::fromStdString(app->getMovieFolder()),
                                                     tr("Snes9x Movie (*.smv)"));
         if (path.isEmpty()) return;
         if (!app->startMovieRecord(path.toStdString()))
@@ -464,15 +467,6 @@ QMenu *EmuMainWindow::createEmulationMenu()
     });
     running_actions_.push_back(hard_reset_item);
 
-    emulation_menu->addSeparator();
-
-    auto cheats_item = emulation_menu->addAction(tr("&Cheats"));
-    connect(cheats_item, &QAction::triggered, [&] {
-        if (!cheats_dialog) cheats_dialog = new CheatsDialog(this, app);
-        cheats_dialog->show();
-    });
-    running_actions_.push_back(cheats_item);
-
     return emulation_menu;
 }
 
@@ -497,6 +491,69 @@ QMenu *EmuMainWindow::createViewMenu()
     running_actions_.push_back(fullscreen_item);
 
     return view_menu;
+}
+
+QMenu *EmuMainWindow::createCheatMenu()
+{
+    auto cheat_menu = new QMenu(tr("&Cheat"));
+
+    auto show_cheat_dialog = [this] {
+        if (!cheats_dialog) cheats_dialog = new CheatsDialog(this, app);
+        cheats_dialog->show();
+        cheats_dialog->raise();
+        cheats_dialog->activateWindow();
+    };
+
+    auto editor_item = cheat_menu->addAction(tr("&Game Genie, Pro-Action Replay Codes"));
+    connect(editor_item, &QAction::triggered, this, show_cheat_dialog);
+    running_actions_.push_back(editor_item);
+
+    auto search_item = cheat_menu->addAction(tr("&Search for New Cheats"));
+    connect(search_item, &QAction::triggered, this, [this] {
+        if (!cheat_search_dialog) cheat_search_dialog = new CheatSearchDialog(this, app);
+        cheat_search_dialog->show();
+        cheat_search_dialog->raise();
+        cheat_search_dialog->activateWindow();
+    });
+    running_actions_.push_back(search_item);
+
+    auto apply_item = cheat_menu->addAction(tr("&Apply Cheats"));
+    apply_item->setCheckable(true);
+    connect(apply_item, &QAction::toggled, this, [this](bool enabled) {
+        app->setCheatsEnabled(enabled);
+    });
+    connect(cheat_menu, &QMenu::aboutToShow, this, [this, apply_item] {
+        apply_item->setChecked(app->config->apply_cheats);
+    });
+    running_actions_.push_back(apply_item);
+
+    return cheat_menu;
+}
+
+QMenu *EmuMainWindow::createNetplayMenu()
+{
+    auto netplay_menu = new QMenu(tr("&Netplay"));
+    const auto unavailable = tr("Netplay is not available in the Qt frontend.");
+    auto add_item = [&](const QString &text, bool checkable = false, bool checked = false) {
+        auto *item = netplay_menu->addAction(text);
+        item->setCheckable(checkable);
+        item->setChecked(checked);
+        item->setEnabled(false);
+        item->setToolTip(unavailable);
+    };
+
+    add_item(tr("&Connect to Server…"));
+    add_item(tr("&Disconnect from Server"));
+    netplay_menu->addSeparator();
+    add_item(tr("&Act as Server"));
+    add_item(tr("&Re-sync all Clients Using Freeze File Now"));
+    add_item(tr("&Send ROM Image to Clients Now"));
+    add_item(tr("S&end ROM Image to Clients"), true);
+    add_item(tr("S&ync Using Reset Game"), true, true);
+    netplay_menu->addSeparator();
+    add_item(tr("&Options…"));
+
+    return netplay_menu;
 }
 
 QMenu *EmuMainWindow::createOptionsMenu()
@@ -538,7 +595,7 @@ QMenu *EmuMainWindow::createHelpMenu()
     auto help_menu = new QMenu(tr("&Help"));
     auto about_item = help_menu->addAction(tr("&About…"));
     connect(about_item, &QAction::triggered, this, [&] {
-        QMessageBox::about(this, tr("About Snes9x"),
+        QMessageBox::about(this, tr("About snes9xrd"),
             tr("Snes9x v%1 for Windows.<br>"
                "(c) Copyright 1996 - 2002  Gary Henderson and Jerremy Koot (jkoot@snes9x.com)<br>"
                "(c) Copyright 2002 - 2004  Matthew Kendora<br>"
@@ -1063,6 +1120,7 @@ void EmuMainWindow::shaderChanged()
 void EmuMainWindow::gameChanging()
 {
     if (cheats_dialog) cheats_dialog->close();
+    if (cheat_search_dialog) cheat_search_dialog->close();
 }
 
 void EmuMainWindow::toggleMouseGrab()
