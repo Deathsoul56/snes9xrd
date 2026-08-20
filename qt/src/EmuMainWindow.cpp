@@ -41,7 +41,7 @@
 // Single source of truth for the fork's own version, shown in the window
 // title and the About dialog. Separate from the upstream Snes9x core's
 // VERSION (snes9x.h), which tracks the emulator core, not this frontend fork.
-static const char *const kSnes9xrdVersion = "0.2";
+static const char *const kSnes9xrdVersion = "0.3";
 
 static EmuSettingsWindow *g_emu_settings_window = nullptr;
 

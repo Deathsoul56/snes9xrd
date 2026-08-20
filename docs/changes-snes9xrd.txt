@@ -3,6 +3,39 @@ snes9xrd changelog
 This file tracks changes specific to the snes9xrd fork, on top of upstream
 Snes9x (see changes.txt for the upstream changelog).
 
+snes9xrd v0.3
+Qt:
+- AVI recording: added Start/Stop AVI Recording to the File menu, with an
+  optional Hi-Res mode (Emulation Settings > Recording) that records at the
+  native double resolution used by hi-res and interlaced games.
+- AVI recording now stops and finalizes the file automatically when the ROM
+  changes (Open File, Load MultiCart), instead of continuing to record
+  mismatched frames from the new ROM.
+- Legacy file menu parity: added a Recent Files submenu, Load MultiCart, and
+  per-slot Save/Load Game Position submenus backed by a state preview dialog
+  (thumbnail + slot picker), matching the legacy Win32 UI.
+- Added a Hacks dialog (SuperFX clock speed, overclock, sound interpolation
+  filter, allow invalid VRAM access, separate echo buffer, disable sprite
+  limit) reachable from the legacy-style menu.
+- Added a Cheat Search dialog (search/reset/add cheat by value) alongside
+  the existing Cheats list dialog.
+- Directories panel: added dedicated folder locations for Movies, SPC
+  dumps, and Satellaview memory packs (ROM/Config/Custom), matching the
+  existing SRAM/States/Cheats/Patches pattern.
+- Fixed the SPC dump folder incorrectly resolving to the Export folder.
+- Moved the "Auto-Save SRAM" interval control from the Directories panel to
+  the General panel, and made it actually apply to the running core
+  (previously UI-only).
+- Made the SRAM interval spinbox's up/down arrows more visible in the dark
+  theme.
+- Game library: widened the Size column's default width.
+- Fixed a crash: setting the rewind "Frames between steps" to 0 could
+  divide by zero.
+- Fixed a data race between the emulation thread and the SDL audio callback
+  thread over the shared audio ring buffer.
+- Fixed a data race on the emulation thread's status flags and its
+  cross-thread main loop callback.
+
 snes9xrd v0.2
 Qt:
 - Controllers panel: added a Super Scope binding view (Fire, Pause, Auto
