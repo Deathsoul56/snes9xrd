@@ -3,6 +3,9 @@
 #include "EmuMainWindow.hpp"
 #include "EmuGameList.hpp"
 #include "SDLInputManager.hpp"
+#ifdef _WIN32
+#include "WinFileAssociation.hpp"
+#endif
 
 #include <clocale>
 #include <qnamespace.h>
@@ -83,7 +86,15 @@ int main(int argc, char *argv[])
     emu.config->setDefaults();
     emu.config->loadFile(EmuConfig::findConfigFile());
 
+#ifdef _WIN32
+    // Re-apply the file association on every launch so it self-heals if the
+    // exe was moved/updated since the user last enabled it.
+    if (emu.config->add_to_registry)
+        WinFileAssociation::apply(true, EmuApplication::romExtensionsForRegistry());
+#endif
+
     emu.input_manager = std::make_unique<SDLInputManager>();
+    SDLInputManager::setBackgroundInputEnabled(emu.config->background_gamepad_input);
     emu.window = std::make_unique<EmuMainWindow>(&emu);
     if (emu.config->main_window_maximized)
         emu.window->showMaximized();
@@ -95,6 +106,7 @@ int main(int argc, char *argv[])
     emu.qtapp->exec();
 
     emu.stopThread();
+    emu.revertControllerSwap();
     emu.config->saveFile(EmuConfig::findConfigFile());
 
     return 0;

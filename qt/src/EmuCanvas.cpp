@@ -21,14 +21,17 @@ void EmuCanvas::output(uint8_t *buffer, int width, int height, QImage::Format fo
     output_data.frame_rate = frame_rate;
     output_data.ready = true;
 
-    if (get_late_frames() >= 1.0)
+    if (get_late_frames() >= 1.0 &&
+        (config->max_frame_skip <= 0 || consecutive_skipped_frames < config->max_frame_skip))
     {
+        consecutive_skipped_frames++;
         throttle_object.advance();
         if (get_late_frames() >= 1.0)
             throttle_object.reset();
         return;
     }
 
+    consecutive_skipped_frames = 0;
     draw();
 }
 

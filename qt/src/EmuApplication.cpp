@@ -18,6 +18,7 @@
 #include <QScreen>
 #include <QThread>
 #include <QStyleHints>
+#include <QMessageBox>
 #include <cstring>
 #include <thread>
 
@@ -297,6 +298,7 @@ void EmuApplication::startThread()
 
 bool EmuApplication::openFile(const std::string &filename)
 {
+    revertControllerSwap();
     window->gameChanging();
     if (isAviRecording())
         stopAviRecording();
@@ -308,9 +310,27 @@ bool EmuApplication::openFile(const std::string &filename)
     return result;
 }
 
+void EmuApplication::revertControllerSwap()
+{
+    // The P1/P2 swap is a session-only overlay on top of the saved config,
+    // not a persistent setting -- undo it (silently, no info message) so
+    // closing the game/ROM change/emulator quit all restore the original
+    // bindings. Reset and Power Cycle deliberately don't call this, so the
+    // swap survives those.
+    if (!controllers_1_2_swapped) return;
+
+    int num_bindings = EmuConfig::num_controller_bindings * EmuConfig::allowed_bindings;
+    for (int i = 0; i < num_bindings; i++)
+        std::swap(config->binding.controller[0].buttons[i], config->binding.controller[1].buttons[i]);
+    updateBindings();
+    controllers_1_2_swapped = false;
+}
+
 void EmuApplication::closeCurrentGame()
 {
     if (!core) return;
+
+    revertControllerSwap();
 
     suspendThread();
 
@@ -328,6 +348,7 @@ bool EmuApplication::loadMultiCart(const std::string &cart_a, const std::string 
 {
     if (!core) return false;
 
+    revertControllerSwap();
     window->gameChanging();
     if (isAviRecording())
         stopAviRecording();
@@ -593,14 +614,28 @@ void EmuApplication::handleBinding(const std::string &name, bool pressed)
             {
                 loadState(save_slot);
             }
+            else if (name.rfind("QuickSave", 0) == 0)
+            {
+                saveState(std::stoi(name.substr(9)));
+            }
+            else if (name.rfind("QuickLoad", 0) == 0)
+            {
+                loadState(std::stoi(name.substr(9)));
+            }
             else if (name == "SwapControllers1and2")
             {
+                // EmuBinding has a std::string member (hw_guid), so it isn't
+                // trivially copyable -- memcpy'ing raw bytes between two
+                // arrays corrupts their internal string state (crashes after
+                // a few swaps). std::swap uses the real assignment operator.
                 int num_bindings = EmuConfig::num_controller_bindings * EmuConfig::allowed_bindings;
-                EmuBinding temp[num_bindings];
-                memcpy(temp, config->binding.controller[0].buttons, sizeof(temp));
-                memcpy(config->binding.controller[0].buttons, config->binding.controller[1].buttons, sizeof(temp));
-                memcpy(config->binding.controller[1].buttons, temp, sizeof(temp));
+                for (int i = 0; i < num_bindings; i++)
+                    std::swap(config->binding.controller[0].buttons[i], config->binding.controller[1].buttons[i]);
                 updateBindings();
+
+                controllers_1_2_swapped = !controllers_1_2_swapped;
+                core->setMessage(controllers_1_2_swapped ? "Swap pads: P1=Joypad2 P2=Joypad1"
+                                                          : "Swap pads: P1=Joypad1 P2=Joypad2");
             }
             else if (name == "GrabMouse")
             {
@@ -610,6 +645,51 @@ void EmuApplication::handleBinding(const std::string &name, bool pressed)
                 // has nothing to grab.
                 if (config->port_configuration == EmuConfig::eMousePlusController)
                     window->toggleMouseGrab();
+            }
+            else if (name == "SpeedUp" || name == "SpeedDown")
+            {
+                double native_rate = window->canvas ? window->canvas->output_data.frame_rate : 60.098813;
+                double current = config->fixed_frame_rate > 0.0 ? config->fixed_frame_rate : native_rate;
+                double step = native_rate * 0.1;
+                double new_rate = current + (name == "SpeedUp" ? step : -step);
+                if (new_rate < step)
+                    new_rate = step;
+                if (new_rate > native_rate * 10.0)
+                    new_rate = native_rate * 10.0;
+                config->fixed_frame_rate = new_rate;
+                updateSettings();
+                core->setMessage("Speed: " + std::to_string((int) (new_rate / native_rate * 100.0)) + "%");
+            }
+            else if (name == "FrameSkipUp" || name == "FrameSkipDown")
+            {
+                config->fixed_frame_skip += (name == "FrameSkipUp" ? 1 : -1);
+                if (config->fixed_frame_skip < 0)
+                    config->fixed_frame_skip = 0;
+                if (config->fixed_frame_skip > 59)
+                    config->fixed_frame_skip = 59;
+                updateSettings();
+                core->setMessage("Frame skip: " + std::to_string(config->fixed_frame_skip));
+            }
+            else if (name == "ToggleMute")
+            {
+                config->mute_audio = !config->mute_audio;
+                updateSettings();
+            }
+            else if (name == "FrameAdvance")
+            {
+                window->frameAdvance();
+            }
+            else if (name == "ToggleCheats")
+            {
+                setCheatsEnabled(!cheatsEnabled());
+            }
+            else if (name == "CheatsEditor")
+            {
+                window->showCheatsDialog();
+            }
+            else if (name == "CheatsSearch")
+            {
+                window->showCheatSearchDialog();
             }
         }
     }
@@ -749,6 +829,11 @@ void EmuApplication::startInputTimer()
 
 bool EmuApplication::loadState(int slot)
 {
+    if (config->confirm_save_load && core->slotUsed(slot) &&
+        QMessageBox::question(window.get(), QObject::tr("Confirm Load"),
+            QObject::tr("Load game position from slot #%1?").arg(slot)) != QMessageBox::Yes)
+        return false;
+
     bool loaded = false;
     emu_thread->runOnThread([&, slot] { loaded = core->loadState(slot); }, true);
     return loaded;
@@ -763,6 +848,11 @@ bool EmuApplication::loadState(const std::string& filename)
 
 bool EmuApplication::saveState(int slot)
 {
+    if (config->confirm_save_load && core->slotUsed(slot) &&
+        QMessageBox::question(window.get(), QObject::tr("Confirm Save"),
+            QObject::tr("Overwrite existing game position in slot #%1?").arg(slot)) != QMessageBox::Yes)
+        return false;
+
     bool saved = false;
     emu_thread->runOnThread([&, slot] { saved = core->saveState(slot); }, true);
     return saved;
@@ -960,6 +1050,21 @@ QString EmuApplication::romFileDialogFilter()
     QStringList exts = supportedRomExtensions();
     exts.removeDuplicates();
     return QString("ROM Files (%1);;All Files (*)").arg(exts.join(' '));
+}
+
+std::vector<std::string> EmuApplication::romExtensionsForRegistry()
+{
+    // Bare, lower-case, de-duped extensions (no "*." prefix) for registry
+    // file-association APIs (e.g. WinFileAssociation::apply()).
+    QStringList lowered;
+    for (auto &ext : supportedRomExtensions())
+        lowered << ext.mid(2).toLower();
+    lowered.removeDuplicates();
+
+    std::vector<std::string> extensions;
+    for (auto &ext : lowered)
+        extensions.push_back(ext.toStdString());
+    return extensions;
 }
 
 std::string EmuApplication::getContentFolder()

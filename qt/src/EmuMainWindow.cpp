@@ -422,14 +422,7 @@ QMenu *EmuMainWindow::createEmulationMenu()
     });
 
     auto frame_advance_item = emulation_menu->addAction(tr("&Frame Advance"));
-    connect(frame_advance_item, &QAction::triggered, this, [&] {
-        if (!manual_pause)
-        {
-            manual_pause = true;
-            app->pause();
-        }
-        app->advanceFrame();
-    });
+    connect(frame_advance_item, &QAction::triggered, this, [&] { frameAdvance(); });
     running_actions_.push_back(frame_advance_item);
 
     emulation_menu->addSeparator();
@@ -497,24 +490,12 @@ QMenu *EmuMainWindow::createCheatMenu()
 {
     auto cheat_menu = new QMenu(tr("&Cheat"));
 
-    auto show_cheat_dialog = [this] {
-        if (!cheats_dialog) cheats_dialog = new CheatsDialog(this, app);
-        cheats_dialog->show();
-        cheats_dialog->raise();
-        cheats_dialog->activateWindow();
-    };
-
     auto editor_item = cheat_menu->addAction(tr("&Game Genie, Pro-Action Replay Codes"));
-    connect(editor_item, &QAction::triggered, this, show_cheat_dialog);
+    connect(editor_item, &QAction::triggered, this, [this] { showCheatsDialog(); });
     running_actions_.push_back(editor_item);
 
     auto search_item = cheat_menu->addAction(tr("&Search for New Cheats"));
-    connect(search_item, &QAction::triggered, this, [this] {
-        if (!cheat_search_dialog) cheat_search_dialog = new CheatSearchDialog(this, app);
-        cheat_search_dialog->show();
-        cheat_search_dialog->raise();
-        cheat_search_dialog->activateWindow();
-    });
+    connect(search_item, &QAction::triggered, this, [this] { showCheatSearchDialog(); });
     running_actions_.push_back(search_item);
 
     auto apply_item = cheat_menu->addAction(tr("&Apply Cheats"));
@@ -985,6 +966,17 @@ void EmuMainWindow::toggleFullscreen()
 
 bool EmuMainWindow::eventFilter(QObject *watched, QEvent *event)
 {
+    // Alt (and Ctrl+Alt) combos would otherwise get intercepted as a menu
+    // mnemonic/shortcut before ever becoming a normal KeyPress -- Qt asks
+    // via ShortcutOverride first, and accepting it here tells Qt "this key
+    // is ours", so the real KeyPress still follows and reaches the capture
+    // logic below.
+    if (event->type() == QEvent::ShortcutOverride && app->binding_callback)
+    {
+        event->accept();
+        return true;
+    }
+
     // Lets the mouse's physical buttons themselves be captured as a binding
     // (e.g. for the SNES Mouse's Click L/R table), the same way KeyPress is
     // captured globally below. Must run before the canvas-specific handling
@@ -1046,6 +1038,28 @@ bool EmuMainWindow::eventFilter(QObject *watched, QEvent *event)
     {
         toggleFullscreen();
         return true;
+    }
+
+    // While capturing a Shortcuts binding, a bare modifier press shouldn't
+    // finalize the binding by itself -- hold it so the next key can combine
+    // with it (e.g. Ctrl+G). Controller/mouse bindings don't opt into this,
+    // so a bare modifier there still finalizes as its own single binding.
+    if (app->binding_callback && app->binding_allow_combos && event->type() == QEvent::KeyPress)
+    {
+        switch (key_event->key())
+        {
+        case Qt::Key_Control:
+        case Qt::Key_Shift:
+        case Qt::Key_Alt:
+        case Qt::Key_AltGr:
+        case Qt::Key_Meta:
+        case Qt::Key_Super_L:
+        case Qt::Key_Super_R:
+            event->accept();
+            return true;
+        default:
+            break;
+        }
     }
 
     auto binding = EmuBinding::keyboard(key_event->key(),
@@ -1141,4 +1155,30 @@ void EmuMainWindow::autoGrabMouseIfNeeded()
 {
     if (canvas && !mouse_grabbed && app->config->port_configuration == EmuConfig::eMousePlusController)
         toggleMouseGrab();
+}
+
+void EmuMainWindow::frameAdvance()
+{
+    if (!manual_pause)
+    {
+        manual_pause = true;
+        app->pause();
+    }
+    app->advanceFrame();
+}
+
+void EmuMainWindow::showCheatsDialog()
+{
+    if (!cheats_dialog) cheats_dialog = new CheatsDialog(this, app);
+    cheats_dialog->show();
+    cheats_dialog->raise();
+    cheats_dialog->activateWindow();
+}
+
+void EmuMainWindow::showCheatSearchDialog()
+{
+    if (!cheat_search_dialog) cheat_search_dialog = new CheatSearchDialog(this, app);
+    cheat_search_dialog->show();
+    cheat_search_dialog->raise();
+    cheat_search_dialog->activateWindow();
 }

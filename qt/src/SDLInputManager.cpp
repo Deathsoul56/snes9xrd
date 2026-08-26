@@ -12,6 +12,11 @@ SDLInputManager::SDLInputManager()
 
 SDLInputManager::~SDLInputManager() = default;
 
+void SDLInputManager::setBackgroundInputEnabled(bool enabled)
+{
+    SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, enabled ? "1" : "0");
+}
+
 void SDLInputManager::addDevice(int device_index)
 {
     SDLInputDevice d;

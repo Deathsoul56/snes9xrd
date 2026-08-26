@@ -3366,15 +3366,20 @@ const char * CMemory::Country (void)
 	}
 }
 
+const char * CMemory::PublishingCompanyById (int id)
+{
+	if (id >= (int) (sizeof(nintendo_licensees) / sizeof(nintendo_licensees[0])) || id < 0)
+		return ("Unknown");
+
+	if (nintendo_licensees[id] == NULL)
+		return ("Unknown");
+
+	return (nintendo_licensees[id]);
+}
+
 const char * CMemory::PublishingCompany (void)
 {
-	if (CompanyId >= (int) (sizeof(nintendo_licensees) / sizeof(nintendo_licensees[0])) || CompanyId < 0)
-		return ("Unknown");
-
-	if (nintendo_licensees[CompanyId] == NULL)
-		return ("Unknown");
-
-	return (nintendo_licensees[CompanyId]);
+	return (PublishingCompanyById(CompanyId));
 }
 
 std::string CMemory::GetMultilineROMInfo()

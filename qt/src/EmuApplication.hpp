@@ -5,6 +5,8 @@
 
 #include <atomic>
 #include <mutex>
+#include <string>
+#include <vector>
 
 class EmuMainWindow;
 class EmuConfig;
@@ -59,6 +61,7 @@ struct EmuApplication
     // a new extension (e.g. .jma) propagates everywhere automatically.
     static QStringList supportedRomExtensions();
     static QString     romFileDialogFilter();
+    static std::vector<std::string> romExtensionsForRegistry();
 
     std::unique_ptr<QApplication> qtapp;
     std::unique_ptr<EmuConfig> config;
@@ -74,6 +77,7 @@ struct EmuApplication
     ~EmuApplication();
     bool openFile(const std::string &filename);
     void closeCurrentGame();
+    void revertControllerSwap();
     bool loadMultiCart(const std::string &cart_a, const std::string &cart_b);
     bool saveGamePosition();
     bool loadGamePosition();
@@ -155,8 +159,17 @@ struct EmuApplication
     std::map<uint32_t, std::pair<std::string, Handler>> bindings;
     std::unique_ptr<QTimer> poll_input_timer;
     std::function<void(EmuBinding)> binding_callback = nullptr;
+    // Set by BindingPanel while capturing a binding. When true, a bare
+    // modifier keypress (Ctrl/Shift/Alt/Meta) is held rather than finalizing
+    // the binding immediately, so the next key press can combine with it
+    // (e.g. Ctrl+G). Only Shortcuts opts into this; Controller bindings keep
+    // accepting a single key/button press as-is.
+    bool binding_allow_combos = false;
     std::function<void()> joypads_changed_callback = nullptr;
     int save_slot = 0;
     int pause_count = 0;
     int suspend_count = 0;
+    // Tracks parity only, purely to word the "Swap pads" info message like
+    // legacy does -- the actual bindings are swapped in place either way.
+    bool controllers_1_2_swapped = false;
 };

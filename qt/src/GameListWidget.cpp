@@ -45,9 +45,11 @@ GameListWidget::GameListWidget(EmuGameList *model, QWidget *parent)
     horizontalHeader()->setStretchLastSection(true);
     horizontalHeader()->setHighlightSections(false);
 
-    setColumnWidth(EmuGameList::Column_FileTitle, 360);
+    setColumnWidth(EmuGameList::Column_FileTitle, 300);
+    setColumnWidth(EmuGameList::Column_Title, 220);
     setColumnWidth(EmuGameList::Column_Region, 90);
     setColumnWidth(EmuGameList::Column_Size, 120);
+    setColumnWidth(EmuGameList::Column_Company, 140);
     setColumnWidth(EmuGameList::Column_Serial, 100);
 
     sortByColumn(EmuGameList::Column_FileTitle, Qt::AscendingOrder);

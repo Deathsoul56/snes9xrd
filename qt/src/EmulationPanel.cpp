@@ -18,6 +18,7 @@ EmulationPanel::EmulationPanel(EmuApplication *app_)
     connectSpinBox(spinBox_rewind_frames, &app->config->rewind_frame_interval, app);
     connectSpinBox(spinBox_fast_forward_skip_frames, &app->config->fast_forward_skip_frames, app);
     connectSpinBox(spinBox_fixed_frame_skip, &app->config->fixed_frame_skip, app);
+    connectSpinBox(spinBox_max_frame_skip, &app->config->max_frame_skip, app);
     connectCheckbox(checkBox_avi_high_resolution, &app->config->avi_high_resolution, app);
 
     connectCheckbox(checkBox_allow_invalid_vram_access, &app->config->allow_invalid_vram_access, app);
@@ -36,6 +37,7 @@ void EmulationPanel::showEvent(QShowEvent *event)
     doubleSpinBox_frame_rate->setValue(config->fixed_frame_rate);
     spinBox_fast_forward_skip_frames->setValue(config->fast_forward_skip_frames);
     spinBox_fixed_frame_skip->setValue(config->fixed_frame_skip);
+    spinBox_max_frame_skip->setValue(config->max_frame_skip);
 
     spinBox_rewind_buffer_size->setValue(config->rewind_buffer_size);
     spinBox_rewind_frames->setValue(config->rewind_frame_interval);

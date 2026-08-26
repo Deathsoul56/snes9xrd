@@ -78,6 +78,8 @@ class EmuCanvas : public QWidget
         double frame_rate;
     } output_data;
 
+    int consecutive_skipped_frames = 0;
+
     QWidget *main_window{};
     EmuConfig *config{};
     Throttle throttle_object;

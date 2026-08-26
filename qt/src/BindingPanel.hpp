@@ -2,6 +2,8 @@
 
 #include <QWidget>
 #include <QTableWidget>
+#include <functional>
+#include <string>
 #include "EmuBinding.hpp"
 
 class EmuApplication;
@@ -23,6 +25,8 @@ class BindingPanel : public QWidget
     void setRedirectInput(bool redirect);
     void onJoypadsChanged(const std::function<void()> &func);
     void clearRow(int row);
+    void resetRowToDefault(int row);
+    void updateConflictHighlights();
 
     bool awaiting_binding;
     bool accept_return;
@@ -38,4 +42,12 @@ class BindingPanel : public QWidget
     QTableWidget *binding_table_widget;
     EmuBinding *binding;
     std::function<void()> joypads_changed;
+    // Set by ShortcutsPanel to allow Ctrl/Shift/Alt/Meta + key combos when
+    // capturing a binding. Left false for ControllerPanel/mouse tables,
+    // which only ever accept a single key/button press per binding.
+    bool allow_key_combos = false;
+    // Set by ShortcutsPanel before calling setTableWidget() to opt into the
+    // per-row "reset to default" column. Left unset (empty) by
+    // ControllerPanel/mouse tables, which have no per-row default lookup.
+    std::function<std::string(int row)> default_binding_resolver;
 };

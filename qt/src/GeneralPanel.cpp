@@ -2,6 +2,8 @@
 #include "EmuApplication.hpp"
 #include "EmuConfig.hpp"
 #include "PanelConnectHelpers.hpp"
+#include "SDLInputManager.hpp"
+#include "WinFileAssociation.hpp"
 
 GeneralPanel::GeneralPanel(EmuApplication *app_)
     : app(app_)
@@ -11,6 +13,19 @@ GeneralPanel::GeneralPanel(EmuApplication *app_)
     connectCheckbox(checkBox_fullscreen_on_open, &app->config->fullscreen_on_open, app);
     connectCheckbox(checkBox_disable_screensaver, &app->config->disable_screensaver, app);
     connectCheckbox(checkBox_pause_when_unfocused, &app->config->pause_emulation_when_unfocused, app);
+    connectCheckbox(checkBox_background_gamepad_input, &app->config->background_gamepad_input, app);
+    connect(checkBox_background_gamepad_input, &QCheckBox::clicked, this, [](bool checked) {
+        SDLInputManager::setBackgroundInputEnabled(checked);
+    });
+    connectCheckbox(checkBox_confirm_save_load, &app->config->confirm_save_load, app);
+#ifdef _WIN32
+    connectCheckbox(checkBox_add_to_registry, &app->config->add_to_registry, app);
+    connect(checkBox_add_to_registry, &QCheckBox::clicked, this, [](bool checked) {
+        WinFileAssociation::apply(checked, EmuApplication::romExtensionsForRegistry());
+    });
+#else
+    checkBox_add_to_registry->setVisible(false);
+#endif
     connectCheckbox(checkBox_show_frame_rate, &app->config->show_frame_rate, app);
     connectCheckbox(checkBox_show_indicators, &app->config->show_indicators, app);
     connectCheckbox(checkBox_show_pressed_keys, &app->config->show_pressed_keys, app);
@@ -25,6 +40,11 @@ void GeneralPanel::showEvent(QShowEvent *event)
     checkBox_disable_screensaver->setChecked(config->disable_screensaver);
     checkBox_disable_screensaver->setVisible(false);
     checkBox_pause_when_unfocused->setChecked(config->pause_emulation_when_unfocused);
+    checkBox_background_gamepad_input->setChecked(config->background_gamepad_input);
+    checkBox_confirm_save_load->setChecked(config->confirm_save_load);
+#ifdef _WIN32
+    checkBox_add_to_registry->setChecked(config->add_to_registry);
+#endif
     checkBox_show_frame_rate->setChecked(config->show_frame_rate);
     checkBox_show_indicators->setChecked(config->show_indicators);
     checkBox_show_pressed_keys->setChecked(config->show_pressed_keys);

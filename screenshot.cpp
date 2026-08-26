@@ -11,11 +11,24 @@
 #include <ctime>
 #include <sstream>
 #include <iomanip>
+#include <cerrno>
+#include <cstring>
 
 #include "snes9x.h"
 #include "memmap.h"
 #include "screenshot.h"
 
+#ifdef HAVE_LIBPNG
+static std::string s9x_png_last_error;
+
+static void s9x_png_error_fn(png_structp png_ptr, png_const_charp msg)
+{
+	s9x_png_last_error = msg ? msg : "unknown libpng error";
+	longjmp(png_jmpbuf(png_ptr), 1);
+}
+
+static void s9x_png_warning_fn(png_structp, png_const_charp) {}
+#endif
 
 bool8 S9xDoScreenshot (int width, int height)
 {
@@ -50,16 +63,18 @@ bool8 S9xDoScreenshot (int width, int height)
 	fp = fopen(fname.c_str(), "wb");
 	if (!fp)
 	{
-		S9xMessage(S9X_ERROR, 0, "Failed to take screenshot.");
+		std::string msg = "Failed to take screenshot: " + fname + " (" + strerror(errno) + ")";
+		S9xMessage(S9X_ERROR, 0, msg.c_str());
 		return (FALSE);
 	}
 
-	png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	s9x_png_last_error.clear();
+	png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, s9x_png_error_fn, s9x_png_warning_fn);
 	if (!png_ptr)
 	{
 		fclose(fp);
 		remove(fname.c_str());
-		S9xMessage(S9X_ERROR, 0, "Failed to take screenshot.");
+		S9xMessage(S9X_ERROR, 0, "Failed to take screenshot: png_create_write_struct failed.");
 		return (FALSE);
 	}
 
@@ -69,7 +84,7 @@ bool8 S9xDoScreenshot (int width, int height)
 		png_destroy_write_struct(&png_ptr, (png_infopp) NULL);
 		fclose(fp);
 		remove(fname.c_str());
-		S9xMessage(S9X_ERROR, 0, "Failed to take screenshot.");
+		S9xMessage(S9X_ERROR, 0, "Failed to take screenshot: png_create_info_struct failed.");
 		return (FALSE);
 	}
 
@@ -78,7 +93,8 @@ bool8 S9xDoScreenshot (int width, int height)
 		png_destroy_write_struct(&png_ptr, &info_ptr);
 		fclose(fp);
 		remove(fname.c_str());
-		S9xMessage(S9X_ERROR, 0, "Failed to take screenshot.");
+		std::string msg = "Failed to take screenshot: " + s9x_png_last_error;
+		S9xMessage(S9X_ERROR, 0, msg.c_str());
 		return (FALSE);
 	}
 
@@ -101,6 +117,11 @@ bool8 S9xDoScreenshot (int width, int height)
 	png_init_io(png_ptr, fp);
 
 	png_set_IHDR(png_ptr, info_ptr, imgwidth, imgheight, 8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+
+	// Recent libpng validates png_set_shift()'s true_bits against png_ptr->bit_depth/color_type,
+	// which are only populated once IHDR is actually written -- force that now so the check
+	// below doesn't see stale (zeroed) values and reject a valid shift.
+	png_write_info_before_PLTE(png_ptr, info_ptr);
 
 	sig_bit.red   = 5;
 	sig_bit.green = 5;
@@ -152,7 +173,7 @@ bool8 S9xDoScreenshot (int width, int height)
 	fprintf(stderr, "%s saved.\n", fname.c_str());
 
 	std::string base = "Saved screenshot " + S9xBasename(fname);
-	S9xMessage(S9X_INFO, 0, base.c_str());
+	S9xMessage(S9X_INFO, S9X_SCREENSHOT_INFO, base.c_str());
 
 	return (TRUE);
 #else

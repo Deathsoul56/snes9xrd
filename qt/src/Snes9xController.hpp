@@ -101,6 +101,11 @@ class Snes9xController
     int rewind_buffer_size;
     int rewind_frame_interval;
     bool rewinding = false;
+    // Forces g_state_manager.init() to (re)run the next time updateSettings()
+    // sees an active ROM, even if rewind_buffer_size hasn't changed -- needed
+    // both for the very first ROM of a session and for S9xFreezeSize()
+    // potentially differing between ROMs.
+    bool rewind_needs_init = true;
 
     // Bitmask of enabled SNES APU voices (bit N = channel N, all 8 bits set
     // by default). Mirrors what S9xSetSoundControl was last called with, so

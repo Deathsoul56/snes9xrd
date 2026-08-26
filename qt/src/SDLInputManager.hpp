@@ -44,6 +44,10 @@ struct SDLInputManager
     SDLInputManager();
     ~SDLInputManager();
 
+    // Controls whether connected gamepads/joysticks keep reporting input
+    // while the app window doesn't have OS focus. Can be called anytime.
+    static void setBackgroundInputEnabled(bool enabled);
+
     std::optional<SDL_Event> processEvent();
     std::vector<std::pair<int, std::string>> getXInputControllers();
     void clearEvents();

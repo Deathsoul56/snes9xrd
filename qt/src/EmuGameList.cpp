@@ -12,6 +12,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QElapsedTimer>
+#include <cctype>
 
 namespace {
 constexpr int SNES_HEADER_LO = 0x7FC0;
@@ -20,7 +21,7 @@ constexpr int SNES_HEADER_HI = 0xFFC0;
 // Identifies the on-disk scan cache format/version so a future field change
 // doesn't get misread as a previous layout.
 constexpr quint32 kCacheMagic = 0x53394758; // "S9GX"
-constexpr quint32 kCacheVersion = 1;
+constexpr quint32 kCacheVersion = 2; // bumped for title/company fields
 
 QString cacheFilePath()
 {
@@ -196,11 +197,13 @@ QVariant EmuGameList::data(const QModelIndex &index, int role) const
         switch (index.column())
         {
         case Column_FileTitle: return QFileInfo(e.path).fileName();
+        case Column_Title:     return e.title;
         case Column_Region:    return e.region;
         case Column_Size:
             if (e.file_size < 1024)        return QString::number(e.file_size) + " B";
             if (e.file_size < 1024 * 1024) return QString::number(e.file_size / 1024.0, 'f', 1) + " KB";
             return QString::number(e.file_size / (1024.0 * 1024.0), 'f', 2) + " MB";
+        case Column_Company: return e.company;
         case Column_Serial: return e.serial;
         }
     }
@@ -223,8 +226,10 @@ QVariant EmuGameList::headerData(int section, Qt::Orientation orientation, int r
     switch (section)
     {
     case Column_FileTitle: return tr("File Title");
+    case Column_Title:     return tr("Title");
     case Column_Region:    return tr("Region");
     case Column_Size:      return tr("Size");
+    case Column_Company: return tr("Company");
     case Column_Serial: return tr("Serial");
     }
     return {};
@@ -322,6 +327,19 @@ GameListEntry EmuGameList::parseRom(const QString &path)
     int lo_score = scoreLoRom(rom, rom_size, header_offset);
     QString rom_map = (lo_score >= hi_score) ? QStringLiteral("LoROM") : QStringLiteral("HiROM");
 
+    // Title: 21 bytes at +0x00 of the SNES header (CMemory::ParseSNESHeader).
+    {
+        int header_base = (rom_map == QStringLiteral("HiROM")) ? SNES_HEADER_HI : SNES_HEADER_LO;
+        if (rom_size - header_offset >= header_base + 21)
+        {
+            const uint8_t *title = rom + header_offset + header_base;
+            char title_buf[21];
+            for (int i = 0; i < 21; i++)
+                title_buf[i] = isPrintableAscii(title[i]) ? static_cast<char>(title[i]) : ' ';
+            entry.title = QString::fromLatin1(title_buf, 21).trimmed();
+        }
+    }
+
     // Region at +0x19 of the SNES header.
     if (rom_map == QStringLiteral("HiROM")
         && rom_size - header_offset >= SNES_HEADER_HI + 0x19)
@@ -344,6 +362,32 @@ GameListEntry EmuGameList::parseRom(const QString &path)
         for (int i = 0; i < 4; i++) serial_buf[i] = static_cast<char>(serial[i] & 0x7F);
         QString s = QString::fromLatin1(serial_buf, 4).trimmed();
         if (!s.isEmpty()) entry.serial = s.toUpper();
+    }
+
+    // Company/licensee: mirrors CMemory::InitROM()'s CompanyId computation.
+    // Its "RomHeader" base sits 0x10 before the title (SNES_HEADER_LO/HI -
+    // 0x10): old license code at +0x2A, falling back to the new-style
+    // 2-char alnum code at +0x00/+0x01 when the old code is 0x33.
+    {
+        int header_base = ((rom_map == QStringLiteral("HiROM")) ? SNES_HEADER_HI : SNES_HEADER_LO) - 0x10;
+        if (rom_size - header_offset >= header_base + 0x2B)
+        {
+            const uint8_t *base = rom + header_offset + header_base;
+            int company_id = -1;
+            if (base[0x2A] != 0x33)
+            {
+                company_id = ((base[0x2A] >> 4) & 0x0F) * 36 + (base[0x2A] & 0x0F);
+            }
+            else if (isalnum(base[0x00]) && isalnum(base[0x01]))
+            {
+                int l = toupper(base[0x00]);
+                int r = toupper(base[0x01]);
+                int l2 = (l > '9') ? l - '7' : l - '0';
+                int r2 = (r > '9') ? r - '7' : r - '0';
+                company_id = l2 * 36 + r2;
+            }
+            entry.company = QString::fromLatin1(Memory.PublishingCompanyById(company_id));
+        }
     }
 
     entry.crc32 = crc32_calculate(rom, rom_size);
@@ -369,7 +413,7 @@ QHash<QString, GameListEntry> EmuGameList::loadCache()
     {
         GameListEntry e;
         quint64 size = 0;
-        in >> e.path >> e.region >> e.serial >> e.file_type
+        in >> e.path >> e.title >> e.region >> e.serial >> e.company >> e.file_type
            >> size >> e.mtime_ms >> e.crc32 >> e.valid;
         e.file_size = size;
         cache.insert(e.path, e);
@@ -387,7 +431,7 @@ void EmuGameList::saveCache(const std::vector<GameListEntry> &entries)
     out << kCacheMagic << kCacheVersion << static_cast<quint32>(entries.size());
     for (const auto &e : entries)
     {
-        out << e.path << e.region << e.serial << e.file_type
+        out << e.path << e.title << e.region << e.serial << e.company << e.file_type
             << static_cast<quint64>(e.file_size) << e.mtime_ms << e.crc32 << e.valid;
     }
 }

@@ -181,9 +181,10 @@ void Snes9xController::updateSettings(const EmuConfig * const config)
 
     Settings.SuperFXClockMultiplier  = config->superfx_clock_multiplier;
 
-    if (rewind_buffer_size != config->rewind_buffer_size && active)
+    if (active && (rewind_needs_init || rewind_buffer_size != config->rewind_buffer_size))
     {
         g_state_manager.init(config->rewind_buffer_size * 1048576);
+        rewind_needs_init = false;
     }
     rewind_buffer_size = config->rewind_buffer_size;
     // guard against 0 from stale config files; used as a modulo divisor below
@@ -232,6 +233,7 @@ bool Snes9xController::openFile(const std::string &filename)
     if (active)
         S9xAutoSaveSRAM();
     active = false;
+    rewind_needs_init = true;
     auto result = Memory.LoadROM(filename.c_str());
     if (result)
     {
@@ -589,6 +591,15 @@ void S9xMessage(int message_class, int type, const char *message)
 
     fprintf(stderr, "[snes9x] %s\n", message);
     fflush(stderr);
+
+    // Missing freeze file (quick-load slot not saved yet) is a routine,
+    // expected condition, not a failure worth interrupting the user with a
+    // modal dialog -- show it the same way a successful load/save is shown.
+    if (type == S9X_FREEZE_FILE_NOT_FOUND || type == S9X_SCREENSHOT_INFO)
+    {
+        S9xSetInfoString(message);
+        return;
+    }
 
     // Surface the message to the user via the message bus. Errors become modal
     // dialogs so a "multicart failed because BIOS missing" is visible, not
@@ -1149,6 +1160,7 @@ bool Snes9xController::loadMultiCart(const std::string &cart_a, const std::strin
     if (active)
         S9xAutoSaveSRAM();
     active = false;
+    rewind_needs_init = true;
 
     bool ok = Memory.LoadMultiCart(cart_a.c_str(), cart_b.c_str());
     if (ok)

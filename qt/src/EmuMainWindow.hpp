@@ -59,6 +59,9 @@ class EmuMainWindow : public QMainWindow
     // repeatedly, e.g. whenever bindings/settings are refreshed.
     void autoGrabMouseIfNeeded();
     std::vector<std::string> getDisplayDeviceList();
+    void frameAdvance();
+    void showCheatsDialog();
+    void showCheatSearchDialog();
 
     // Called by FoldersPanel after adding/removing a ROM library folder, so
     // the Library page picks up the change without requiring a restart.

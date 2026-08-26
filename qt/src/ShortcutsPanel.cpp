@@ -5,6 +5,10 @@ ShortcutsPanel::ShortcutsPanel(EmuApplication *app_)
     : BindingPanel(app_)
 {
     setupUi(this);
+    allow_key_combos = true;
+    default_binding_resolver = [](int row) {
+        return std::string(EmuConfig::getDefaultShortcutKeys()[row]);
+    };
     setTableWidget(tableWidget_shortcuts,
                    app->config->binding.shortcuts,
                    EmuConfig::allowed_bindings,

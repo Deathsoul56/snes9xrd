@@ -10,8 +10,10 @@
 struct GameListEntry
 {
     QString path;
+    QString title;        // internal cart name, e.g. "SUPER MARIO WORLD"
     QString region;       // "NTSC", "PAL", "NTSC-J", etc.
     QString serial;       // e.g. "SHVC-ABCE"
+    QString company;      // publisher/licensee, e.g. "Nintendo"
     QString file_type;    // ".smc", ".sfc", ".fig", ...
     uint64_t file_size = 0;
     qint64 mtime_ms = 0;  // last-modified time, used to invalidate the scan cache.
@@ -27,8 +29,10 @@ public:
     enum Column
     {
         Column_FileTitle = 0,
+        Column_Title,
         Column_Region,
         Column_Size,
+        Column_Company,
         Column_Serial,
         Column_Count,
     };

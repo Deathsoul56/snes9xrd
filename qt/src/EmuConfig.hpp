@@ -44,6 +44,9 @@ struct EmuConfig
     bool fullscreen_on_open;
     bool disable_screensaver;
     bool pause_emulation_when_unfocused;
+    bool background_gamepad_input;
+    bool confirm_save_load;
+    bool add_to_registry;
 
     bool show_frame_rate;
     bool show_indicators;
@@ -134,6 +137,7 @@ struct EmuConfig
     double fixed_frame_rate;
     int fast_forward_skip_frames;
     int fixed_frame_skip;
+    int max_frame_skip;
 
     int rewind_buffer_size;
     int rewind_frame_interval;
@@ -207,7 +211,7 @@ struct EmuConfig
 
     static const int allowed_bindings = 4;
     static const int num_controller_bindings = 18;
-    static const int num_shortcuts = 55;
+    static const int num_shortcuts = 64;
     static const int num_mouse_buttons = 2; // Click L, Click R
     static const int num_superscope_buttons = 5; // Fire, Pause, Auto Fire, Cursor, Aim Offscreen
 

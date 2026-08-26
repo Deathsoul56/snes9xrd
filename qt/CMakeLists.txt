@@ -1,6 +1,15 @@
 cmake_minimum_required(VERSION 3.20)
 project(snes9xrd VERSION 1.63)
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    # RC isn't enabled by default with the Ninja/Clang(MinGW) generator, unlike
+    # the MSVC generator -- without this, snes9x_win32.rc (manifest, icon,
+    # version info) is silently dropped from the source list and never
+    # compiled, so e.g. the UTF-8 activeCodePage manifest setting never
+    # actually applies to the built exe.
+    enable_language(RC)
+endif()
+
 include(GNUInstallDirs)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -127,6 +136,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
     list(APPEND PLATFORM_SOURCES
         ../common/video/opengl/wgl_context.cpp
         ../external/glad/src/wgl.c
+        src/WinFileAssociation.cpp
         src/resources/snes9x_win32.rc)
 else()
 

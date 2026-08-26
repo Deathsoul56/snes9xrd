@@ -69,6 +69,15 @@ static const char *shortcut_names[] =
     "BeginRecordingMovie",
     "EndRecordingMovie",
     "SeekToFrame",
+    "SpeedUp",
+    "SpeedDown",
+    "FrameSkipUp",
+    "FrameSkipDown",
+    "ToggleMute",
+    "FrameAdvance",
+    "ToggleCheats",
+    "CheatsEditor",
+    "CheatsSearch",
 };
 
 static const char *default_controller_keys[] =
@@ -81,35 +90,35 @@ static const char *default_controller_keys[] =
     "", //    ePowerCycle
     "Keyboard Ctrl+q", //    eQuit
     "Keyboard F11", //    eToggleFullscreen
-    "", //    eSaveScreenshot
+    "Keyboard F12", //    eSaveScreenshot
     "", //    eSaveSPC
-    "Keyboard F2", //    eSaveState
-    "Keyboard F4", //    eLoadState
-    "Keyboard F6", //    eIncreaseSlot
-    "Keyboard F5", //    eDecreaseSlot
-    "Keyboard 0", //    eSaveState0
-    "Keyboard 1", //    eSaveState1
-    "Keyboard 2", //    eSaveState2
-    "Keyboard 3", //    eSaveState3
-    "Keyboard 4", //    eSaveState4
-    "Keyboard 5", //    eSaveState5
-    "Keyboard 6", //    eSaveState6
-    "Keyboard 7", //    eSaveState7
-    "Keyboard 8", //    eSaveState8
-    "Keyboard 9", //    eSaveState9
-    "Keyboard Ctrl+0", //    eLoadState0
-    "Keyboard Ctrl+1", //    eLoadState1
-    "Keyboard Ctrl+2", //    eLoadState2
-    "Keyboard Ctrl+3", //    eLoadState3
-    "Keyboard Ctrl+4", //    eLoadState4
-    "Keyboard Ctrl+5", //    eLoadState5
-    "Keyboard Ctrl+6", //    eLoadState6
-    "Keyboard Ctrl+7", //    eLoadState7
-    "Keyboard Ctrl+8", //    eLoadState8
-    "Keyboard Ctrl+9", //    eLoadState9
-    "", //    eRewind
+    "Keyboard Ctrl+s", //    eSaveState
+    "Keyboard Ctrl+l", //    eLoadState
+    "Keyboard Ctrl++", //    eIncreaseSlot
+    "Keyboard Ctrl+-", //    eDecreaseSlot
+    "Keyboard Shift+F1", //    eSaveState0
+    "Keyboard Shift+F2", //    eSaveState1
+    "Keyboard Shift+F3", //    eSaveState2
+    "Keyboard Shift+F4", //    eSaveState3
+    "Keyboard Shift+F5", //    eSaveState4
+    "Keyboard Shift+F6", //    eSaveState5
+    "Keyboard Shift+F7", //    eSaveState6
+    "Keyboard Shift+F8", //    eSaveState7
+    "Keyboard Shift+F9", //    eSaveState8
+    "Keyboard Shift+F10", //    eSaveState9
+    "Keyboard F1", //    eLoadState0
+    "Keyboard F2", //    eLoadState1
+    "Keyboard F3", //    eLoadState2
+    "Keyboard F4", //    eLoadState3
+    "Keyboard F5", //    eLoadState4
+    "Keyboard F6", //    eLoadState5
+    "Keyboard F7", //    eLoadState6
+    "Keyboard F8", //    eLoadState7
+    "Keyboard F9", //    eLoadState8
+    "Keyboard F10", //    eLoadState9
+    "Keyboard y", //    eRewind
     "Keyboard Ctrl+g", //    eGrabMouse
-    "", //    eSwapControllers1and2
+    "Keyboard 6", //    eSwapControllers1and2
     "", //    eToggleBG0
     "", //    eToggleBG1
     "", //    eToggleBG2
@@ -125,9 +134,18 @@ static const char *default_controller_keys[] =
     "", //    eToggleSoundChannel7
     "", //    eToggleSoundChannel8
     "", //    eToggleAllSoundChannels
-    "", //    eStartRecording
-    "", //    eStopRecording
-    ""
+    "Keyboard Ctrl+Alt+r", //    eStartRecording
+    "Keyboard Ctrl+Alt+p", //    eStopRecording
+    "", //    eSeekToFrame
+    "Keyboard =", //    eSpeedUp
+    "Keyboard -", //    eSpeedDown
+    "Keyboard Shift+=", //    eFrameSkipUp
+    "Keyboard Shift+-", //    eFrameSkipDown
+    "", //    eToggleMute
+    "Keyboard \\", //    eFrameAdvance
+    "", //    eToggleCheats
+    "Keyboard Alt+g", //    eCheatsEditor
+    "Keyboard Alt+a", //    eCheatsSearch
 };
 
 const char **EmuConfig::getDefaultShortcutKeys()
@@ -218,6 +236,9 @@ bool EmuConfig::setDefaults(int section)
         fullscreen_on_open = false;
         disable_screensaver = true;
         pause_emulation_when_unfocused = true;
+        background_gamepad_input = false;
+        confirm_save_load = false;
+        add_to_registry = false;
 
         show_frame_rate = false;
         show_indicators = true;
@@ -281,8 +302,9 @@ bool EmuConfig::setDefaults(int section)
         fixed_frame_rate = 0.0;
         fast_forward_skip_frames = 9;
         fixed_frame_skip = 0;
+        max_frame_skip = 0;
 
-        rewind_buffer_size = 0;
+        rewind_buffer_size = 10;
         rewind_frame_interval = 5;
         avi_high_resolution = false;
         apply_cheats = false;
@@ -486,6 +508,9 @@ void EmuConfig::config(const std::string &filename, bool write)
     Bool("FullscreenOnOpen", fullscreen_on_open);
     Bool("DisableScreensaver", disable_screensaver);
     Bool("PauseEmulationWhenUnfocused", pause_emulation_when_unfocused);
+    Bool("BackgroundGamepadInput", background_gamepad_input);
+    Bool("ConfirmSaveLoad", confirm_save_load);
+    Bool("AddToRegistry", add_to_registry);
 
     Bool("ShowFrameRate", show_frame_rate);
     Bool("ShowIndicators", show_indicators);
@@ -543,6 +568,7 @@ void EmuConfig::config(const std::string &filename, bool write)
     Double("FixedFrameRate", fixed_frame_rate);
     Int("FastForwardSkipFrames", fast_forward_skip_frames);
     Int("FixedFrameSkip", fixed_frame_skip);
+    Int("MaxFrameSkip", max_frame_skip);
     Int("RewindBufferSize", rewind_buffer_size);
     Int("RewindFrameInterval", rewind_frame_interval);
     Bool("ApplyCheats", apply_cheats);

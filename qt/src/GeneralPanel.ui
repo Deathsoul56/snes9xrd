@@ -41,6 +41,27 @@
         </property>
        </widget>
       </item>
+      <item>
+       <widget class="QCheckBox" name="checkBox_background_gamepad_input">
+        <property name="text">
+         <string>Allow gamepad input while window is not focused</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBox_confirm_save_load">
+        <property name="text">
+         <string>Ask for confirmation when saving/loading over an existing game position</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBox_add_to_registry">
+        <property name="text">
+         <string>Add Snes9x to the "Open with" list for supported file types (Windows only)</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>

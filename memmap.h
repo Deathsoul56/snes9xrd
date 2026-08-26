@@ -186,6 +186,7 @@ struct CMemory
 	const char *	KartContents (void);
 	const char *	Country (void);
 	const char *	PublishingCompany (void);
+	const char *	PublishingCompanyById (int id);
 };
 
 struct SMulti

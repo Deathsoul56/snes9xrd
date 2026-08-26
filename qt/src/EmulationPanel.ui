@@ -131,6 +131,49 @@
        </widget>
       </item>
       <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_skip_at_most">
+        <item>
+         <widget class="QLabel" name="label_skip_at_most">
+          <property name="text">
+           <string>Skip at most:</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSpinBox" name="spinBox_max_frame_skip">
+          <property name="toolTip">
+           <string>Most frames "Timer with Frame Skipping" will skip in a row to keep up. 0 = no limit.</string>
+          </property>
+          <property name="whatsThis">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Caps how many consecutive frames the &lt;span style=&quot; font-style:italic;&quot;&gt;Timer with Frame Skipping&lt;/span&gt; speed control method will skip in a row before forcing a frame to render, even if it's still behind. Set to 0 for no limit.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="suffix">
+           <string> frames</string>
+          </property>
+          <property name="minimum">
+           <number>0</number>
+          </property>
+          <property name="maximum">
+           <number>59</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer_skip_at_most">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+      <item>
        <layout class="QHBoxLayout" name="horizontalLayout_5">
         <item>
          <widget class="QLabel" name="label_8">
