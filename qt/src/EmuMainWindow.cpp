@@ -41,7 +41,7 @@
 // Single source of truth for the fork's own version, shown in the window
 // title and the About dialog. Separate from the upstream Snes9x core's
 // VERSION (snes9x.h), which tracks the emulator core, not this frontend fork.
-static const char *const kSnes9xrdVersion = "0.3";
+static const char *const kSnes9xrdVersion = "0.4";
 
 
 EmuMainWindow::EmuMainWindow(EmuApplication *app)
@@ -593,6 +593,8 @@ QMenu *EmuMainWindow::createHelpMenu()
                "This is snes9xrd v%2 <s>sex edition</s>, a fork of Snes9x.<br><br>"
                "Please visit http://www.snes9x.com for<br>"
                "up-to-the-minute information and help on Snes9x.<br><br>"
+               "Visit the snes9xrd GitHub at<br>"
+               "https://github.com/Deathsoul56/snes9xrd<br><br>"
                "Nintendo is a trademark.").arg(QString::fromUtf8(VERSION), kSnes9xrdVersion));
     });
 

@@ -3,6 +3,34 @@ snes9xrd changelog
 This file tracks changes specific to the snes9xrd fork, on top of upstream
 Snes9x (see changes.txt for the upstream changelog).
 
+snes9xrd v0.4
+Qt:
+- Save State / Load State failures are now surfaced via the on-screen message
+  overlay instead of failing silently.
+- Audio driver initialization failures now show an error message instead of
+  failing silently.
+- Fixed the OpenGL renderer not falling back to the Qt renderer on context
+  creation failure (it now behaves like the Vulkan renderer already did).
+- Shader preset load failures (OpenGL and Vulkan) now report through the
+  on-screen message overlay instead of only printing to the console.
+- Fixed a settings-window dangling pointer/lifetime issue (converted to a
+  QPointer).
+- Fixed the Shader Parameters dialog stealing focus from the Emulation
+  Settings dialog.
+- Sound Settings: expanded the playback rate list and buffer size step,
+  and added a Frame Advance mute option.
+- Added the sharp-bilinear-flexible software filter.
+- Global QSpinBox/QDoubleSpinBox style polish.
+- Default rewind buffer size is now 10MB on a clean config instead of
+  disabled (0).
+- Freeze-file-not-found and successful-screenshot notices now use the
+  on-screen message overlay instead of a modal dialog.
+- Fixed screenshot saving being rejected by newer libpng bit-depth/color-type
+  validation.
+- Fixed the Windows build not compiling in the app icon/manifest/version
+  resource.
+- About dialog: added a link to the snes9xrd GitHub repository.
+
 snes9xrd v0.3
 Qt:
 - AVI recording: added Start/Stop AVI Recording to the File menu, with an
