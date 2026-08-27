@@ -59,6 +59,7 @@ struct EmuConfig
     bool enable_vsync;
     bool bilinear_filter;
     bool reduce_input_lag;
+    bool triple_buffering;
     bool adjust_for_vrr;
     bool use_shader;
     std::string shader;
@@ -96,9 +97,16 @@ struct EmuConfig
         eFilterTwoXBRZ,
         eFilterThreeXBRZ,
         eFilterFourXBRZ,
-        eFilterNTSC
+        eFilterFiveXBRZ,
+        eFilterSixXBRZ,
+        eFilterSharpBilinear4x,
+        eFilterNTSC,
+        eFilterNTSCRF,
+        eFilterNTSCSVideo,
+        eFilterNTSCRGB
     };
     int software_filter;
+    bool ntsc_scanlines;
 
     enum DisplayMessages
     {
@@ -121,6 +129,7 @@ struct EmuConfig
     double dynamic_rate_limit;
     bool mute_audio;
     bool mute_audio_during_alternate_speed;
+    bool mute_audio_during_frame_advance;
     int volume_regular;
     int volume_turbo;
 

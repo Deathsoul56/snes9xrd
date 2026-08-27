@@ -172,4 +172,7 @@ struct EmuApplication
     // Tracks parity only, purely to word the "Swap pads" info message like
     // legacy does -- the actual bindings are swapped in place either way.
     bool controllers_1_2_swapped = false;
+    // Set for the duration of a single advanceFrame() call, so writeSamples()
+    // can honor mute_audio_during_frame_advance.
+    bool frame_advancing = false;
 };

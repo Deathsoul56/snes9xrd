@@ -137,6 +137,19 @@
           </property>
          </widget>
         </item>
+        <item row="0" column="1">
+         <widget class="QCheckBox" name="checkBox_triple_buffering">
+          <property name="toolTip">
+           <string>Requires the Vulkan driver to be selected above.</string>
+          </property>
+          <property name="whatsThis">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Allows the GPU to queue an extra frame before display, which can reduce stutter at the cost of some added input lag.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="text">
+           <string>Enable triple buffering</string>
+          </property>
+         </widget>
+        </item>
        </layout>
       </item>
       <item>
@@ -376,6 +389,19 @@ Output directly will cause the screen to change between the two modes and look w
            </size>
           </property>
          </spacer>
+        </item>
+        <item row="1" column="0" colspan="2">
+         <widget class="QCheckBox" name="checkBox_ntsc_scanlines">
+          <property name="toolTip">
+           <string>Only affects the NTSC filter. Draws visible scanline gaps to emulate a CRT.</string>
+          </property>
+          <property name="whatsThis">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;When the &lt;span style=&quot; font-style:italic;&quot;&gt;NTSC&lt;/span&gt; filter is selected above, this doubles the vertical resolution and darkens every other line to simulate the scanline gaps of a CRT display.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="text">
+           <string>NTSC filter scanlines</string>
+          </property>
+         </widget>
         </item>
        </layout>
       </item>

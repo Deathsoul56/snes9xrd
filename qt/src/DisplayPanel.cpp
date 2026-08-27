@@ -2,6 +2,7 @@
 #include "EmuMainWindow.hpp"
 #include "EmuConfig.hpp"
 #include "SoftwareFilter.hpp"
+#include "PanelConnectHelpers.hpp"
 #include <QFileDialog>
 
 DisplayPanel::DisplayPanel(EmuApplication *app_)
@@ -20,6 +21,7 @@ DisplayPanel::DisplayPanel(EmuApplication *app_)
             app->config->display_driver = display_driver;
             app->window->recreateCanvas();
             populateDevices();
+            updateTripleBufferingEnabled();
         }
     });
 
@@ -34,6 +36,7 @@ DisplayPanel::DisplayPanel(EmuApplication *app_)
     connect(checkBox_use_shader, &QCheckBox::clicked, [&](bool checked) {
         app->config->use_shader = checked;
         app->window->shaderChanged();
+        updateShaderParametersEnabled();
     });
 
     connect(pushButton_browse_shader, &QPushButton::clicked, [&] {
@@ -48,6 +51,11 @@ DisplayPanel::DisplayPanel(EmuApplication *app_)
         app->config->reduce_input_lag = checked;
     });
 
+    connect(checkBox_triple_buffering, &QCheckBox::clicked, [&](bool checked) {
+        app->config->triple_buffering = checked;
+        app->window->recreateCanvas();
+    });
+
     connect(checkBox_bilinear_filter, &QCheckBox::clicked, [&](bool checked) {
         app->config->bilinear_filter = checked;
     });
@@ -56,10 +64,7 @@ DisplayPanel::DisplayPanel(EmuApplication *app_)
         app->config->adjust_for_vrr = checked;
     });
 
-    connect(checkBox_transparency, &QCheckBox::clicked, [&](bool checked) {
-        app->config->transparency = checked;
-        app->updateSettings();
-    });
+    connectCheckbox(checkBox_transparency, &app->config->transparency, app);
 
     connect(pushButton_shader_parameters, &QPushButton::clicked, [&] {
         if (app->window->canvas)
@@ -81,10 +86,7 @@ DisplayPanel::DisplayPanel(EmuApplication *app_)
         app->config->use_integer_scaling = checked;
     });
 
-    connect(checkBox_overscan, &QCheckBox::clicked, [&](bool checked) {
-        app->config->show_overscan = checked;
-        app->updateSettings();
-    });
+    connectCheckbox(checkBox_overscan, &app->config->show_overscan, app);
 
     connect(comboBox_aspect_ratio, &QComboBox::activated, [&](int index) {
         auto &num = app->config->aspect_ratio_numerator;
@@ -94,10 +96,7 @@ DisplayPanel::DisplayPanel(EmuApplication *app_)
         if (index == 2) { num = 8,  den = 7;  }
     });
 
-    connect(comboBox_high_resolution_mode, &QComboBox::currentIndexChanged, [&](int index) {
-        app->config->high_resolution_effect = index;
-        app->updateSettings();
-    });
+    connectComboBox(comboBox_high_resolution_mode, &app->config->high_resolution_effect, app);
 
     connect(comboBox_messages, &QComboBox::currentIndexChanged, [&](int index) {
         bool recreate = (app->config->display_messages == EmuConfig::eOnscreen || index == EmuConfig::eOnscreen);
@@ -120,6 +119,11 @@ DisplayPanel::DisplayPanel(EmuApplication *app_)
 
     connect(comboBox_software_filter, &QComboBox::activated, [&](int index) {
         app->config->software_filter = index;
+        updateNtscScanlinesEnabled();
+    });
+
+    connect(checkBox_ntsc_scanlines, &QCheckBox::clicked, [&](bool checked) {
+        app->config->ntsc_scanlines = checked;
     });
 }
 
@@ -138,6 +142,42 @@ void DisplayPanel::selectShaderDialog()
     app->config->last_shader_folder = dialog.directory().absolutePath().toStdString();
     lineEdit_shader->setText(app->config->shader.c_str());
     app->window->shaderChanged();
+    updateShaderParametersEnabled();
+}
+
+void DisplayPanel::updateNtscScanlinesEnabled()
+{
+    bool ntsc_selected = (app->config->software_filter >= EmuConfig::eFilterNTSC &&
+                          app->config->software_filter <= EmuConfig::eFilterNTSCRGB);
+    checkBox_ntsc_scanlines->setEnabled(ntsc_selected);
+    checkBox_ntsc_scanlines->setToolTip(ntsc_selected
+        ? tr("Draws visible scanline gaps to emulate a CRT.")
+        : tr("Requires the NTSC filter to be selected above."));
+}
+
+void DisplayPanel::updateTripleBufferingEnabled()
+{
+    bool vulkan_selected = (app->config->display_driver == "vulkan");
+    checkBox_triple_buffering->setEnabled(vulkan_selected);
+    checkBox_triple_buffering->setToolTip(vulkan_selected
+        ? tr("Allows the GPU to queue an extra frame before display, which can reduce stutter at the cost of some added input lag.")
+        : tr("Requires the Vulkan driver to be selected above."));
+}
+
+void DisplayPanel::updateShaderParametersEnabled()
+{
+    if (!app->window->canvas)
+    {
+        pushButton_shader_parameters->setEnabled(false);
+        pushButton_shader_parameters->setToolTip(tr("Requires a game to be running."));
+        return;
+    }
+
+    bool shader_active = app->config->use_shader && !app->config->shader.empty();
+    pushButton_shader_parameters->setEnabled(shader_active);
+    pushButton_shader_parameters->setToolTip(shader_active
+        ? tr("Configure the parameters exposed by the current shader preset.")
+        : tr("Check \"Use a hardware shader\" and select a shader file above to enable this."));
 }
 
 void DisplayPanel::populateDevices()
@@ -174,9 +214,12 @@ void DisplayPanel::showEvent(QShowEvent *event)
 
     checkBox_use_shader->setChecked(config->use_shader);
     lineEdit_shader->setText(config->shader.c_str());
+    updateShaderParametersEnabled();
 
     checkBox_vsync->setChecked(config->enable_vsync);
     checkBox_reduce_input_lag->setChecked(config->reduce_input_lag);
+    checkBox_triple_buffering->setChecked(config->triple_buffering);
+    updateTripleBufferingEnabled();
     checkBox_bilinear_filter->setChecked(config->bilinear_filter);
     checkBox_adjust_for_vrr->setChecked(config->adjust_for_vrr);
     checkBox_transparency->setChecked(config->transparency);
@@ -199,6 +242,8 @@ void DisplayPanel::showEvent(QShowEvent *event)
     spinBox_osd_size->setValue(config->osd_size);
 
     comboBox_software_filter->setCurrentIndex(config->software_filter);
+    checkBox_ntsc_scanlines->setChecked(config->ntsc_scanlines);
+    updateNtscScanlinesEnabled();
 
     QWidget::showEvent(event);
 }

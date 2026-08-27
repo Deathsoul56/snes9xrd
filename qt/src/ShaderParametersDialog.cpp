@@ -20,7 +20,9 @@ static bool is_pointless(const EmuCanvas::Parameter &p)
 }
 
 ShaderParametersDialog::ShaderParametersDialog(EmuCanvas *parent_, EmuCanvas::ShaderProperties properties_)
-    : QDialog(parent_), properties(properties_), parameters(properties.parameters), canvas(parent_), config(parent_->config)
+    // No Qt parent: the canvas lives under the main window, which the (window-modal) Settings
+    // dialog blocks input to. Parenting there fights that dialog for focus on every click.
+    : QDialog(nullptr), properties(properties_), parameters(properties.parameters), canvas(parent_), config(parent_->config)
 {
     setWindowTitle(tr("Shader Parameters"));
     setMinimumSize(600, 200);

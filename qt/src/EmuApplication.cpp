@@ -68,7 +68,10 @@ void EmuApplication::restartAudio()
         sound_driver->start();
     else
     {
+        auto msg = "Could not initialize the sound driver (" + config->sound_driver +
+                   "). Choose a different driver in Settings \u2192 Sound.";
         printf("Couldn't initialize sound driver: %s\n", config->sound_driver.c_str());
+        S9xMessage(S9X_ERROR, S9X_SOUND_DEVICE_OPEN_FAILED, msg.c_str());
         sound_driver.reset();
     }
 
@@ -132,7 +135,8 @@ void EmuApplication::writeSamples(int16_t *data, int samples)
     // legacy Volume sliders and "mute during turbo/rewind" option. This is
     // the single place all mixed audio passes through before reaching the
     // sound driver, so it applies identically no matter which driver is active.
-    if (abnormal_speed && config->mute_audio_during_alternate_speed)
+    if ((abnormal_speed && config->mute_audio_during_alternate_speed) ||
+        (frame_advancing && config->mute_audio_during_frame_advance))
     {
         std::memset(data, 0, samples * sizeof(int16_t));
     }
@@ -188,7 +192,7 @@ void EmuApplication::startGame()
             const uint16_t *out_data = data;
             int out_width = width, out_height = height, out_pitch = stride_bytes;
 
-            if (software_filter->apply(config->software_filter, data, stride_bytes, width, height,
+            if (software_filter->apply(config->software_filter, config->ntsc_scanlines, data, stride_bytes, width, height,
                                         out_data, out_width, out_height, out_pitch))
             {
                 window->output((uint8_t *)out_data, out_width, out_height, QImage::Format_RGB16, out_pitch, frame_rate);
@@ -485,7 +489,9 @@ void EmuApplication::advanceFrame()
 
     emu_thread->runOnThread([&] {
         core->setPaused(false);
+        frame_advancing = true;
         mainLoop();
+        frame_advancing = false;
         core->setPaused(true);
     }, true);
 }

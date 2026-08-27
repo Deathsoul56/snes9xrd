@@ -43,7 +43,6 @@
 // VERSION (snes9x.h), which tracks the emulator core, not this frontend fork.
 static const char *const kSnes9xrdVersion = "0.3";
 
-static EmuSettingsWindow *g_emu_settings_window = nullptr;
 
 EmuMainWindow::EmuMainWindow(EmuApplication *app)
     : app(app)
@@ -108,7 +107,14 @@ bool EmuMainWindow::createCanvas()
     {
         canvas = new EmuCanvasOpenGL(app->config.get(), this);
         QGuiApplication::processEvents();
-        app->emu_thread->runOnThread([&] { canvas->createContext(); }, true);
+        bool created = false;
+        app->emu_thread->runOnThread([&] { created = canvas->createContext(); }, true);
+        if (!created)
+        {
+            delete canvas;
+            canvas = nullptr;
+            return fallback();
+        }
     }
     else
         canvas = new EmuCanvasQt(app->config.get(), this);
@@ -556,18 +562,11 @@ QMenu *EmuMainWindow::createOptionsMenu()
     {
         auto action = options_menu->addAction(QIcon(iconset + setting_icons[i]), setting_panels[i]);
         QObject::connect(action, &QAction::triggered, [&, i] {
-            if (!g_emu_settings_window)
-                g_emu_settings_window = new EmuSettingsWindow(this, app);
-            g_emu_settings_window->show(i);
+            if (!settings_window)
+                settings_window = new EmuSettingsWindow(this, app);
+            settings_window->show(i);
         });
     }
-    options_menu->addSeparator();
-    auto shader_settings_item = new QAction(QIcon(iconset + "shader.svg"), tr("S&hader Settings…"));
-    QObject::connect(shader_settings_item, &QAction::triggered, [&] {
-        if (canvas) canvas->showParametersDialog();
-    });
-    options_menu->addAction(shader_settings_item);
-
     return options_menu;
 }
 

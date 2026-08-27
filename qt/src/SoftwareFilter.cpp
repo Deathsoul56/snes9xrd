@@ -5,6 +5,7 @@
 #include "filter/hq2x.h"
 #include "filter/xbrz.h"
 #include "filter/xbrz_tools.h"
+#include "filter/sharpbilinear_flexible.h"
 #include "filter/snes_ntsc.h"
 #include <cstring>
 
@@ -65,22 +66,28 @@ struct FilterInfo
 const FilterInfo &filterInfo(int type)
 {
     static const FilterInfo table[] = {
-        { "None",        nullptr,    1, 1 },
-        { "Scanlines",   scanlines,  1, 2 },
-        { "Simple 2x",   simple2x,   2, 2 },
-        { "Simple 3x",   simple3x,   3, 3 },
-        { "Simple 4x",   simple4x,   4, 4 },
-        { "Super Eagle", SuperEagle, 2, 2 },
-        { "2xSaI",       _2xSaI,     2, 2 },
-        { "Super 2xSaI", Super2xSaI, 2, 2 },
-        { "EPX",         EPX_16,     2, 2 },
-        { "HQ2x",        HQ2X_16,    2, 2 },
-        { "HQ3x",        HQ3X_16,    3, 3 },
-        { "HQ4x",        HQ4X_16,    4, 4 },
-        { "2xBRZ",       nullptr,    2, 2 },
-        { "3xBRZ",       nullptr,    3, 3 },
-        { "4xBRZ",       nullptr,    4, 4 },
-        { "NTSC",        nullptr,    1, 2 }, // width handled via SNES_NTSC_OUT_WIDTH
+        { "None",             nullptr,          1, 1 },
+        { "Scanlines",        scanlines,        1, 2 },
+        { "Simple 2x",        simple2x,         2, 2 },
+        { "Simple 3x",        simple3x,         3, 3 },
+        { "Simple 4x",        simple4x,         4, 4 },
+        { "Super Eagle",      SuperEagle,       2, 2 },
+        { "2xSaI",            _2xSaI,           2, 2 },
+        { "Super 2xSaI",      Super2xSaI,       2, 2 },
+        { "EPX",              EPX_16,           2, 2 },
+        { "HQ2x",             HQ2X_16,          2, 2 },
+        { "HQ3x",             HQ3X_16,          3, 3 },
+        { "HQ4x",             HQ4X_16,          4, 4 },
+        { "2xBRZ",            nullptr,          2, 2 },
+        { "3xBRZ",            nullptr,          3, 3 },
+        { "4xBRZ",            nullptr,          4, 4 },
+        { "5xBRZ",            nullptr,          5, 5 },
+        { "6xBRZ",            nullptr,          6, 6 },
+        { "SharpBilinear4x",  sharpbilinear_4x, 4, 4 },
+        { "NTSC (Composite)", nullptr,          1, 2 }, // width handled via SNES_NTSC_OUT_WIDTH
+        { "NTSC (RF)",        nullptr,          1, 2 },
+        { "NTSC (S-Video)",   nullptr,          1, 2 },
+        { "NTSC (RGB)",       nullptr,          1, 2 },
     };
     return table[type];
 }
@@ -91,7 +98,7 @@ const std::vector<const char *> &SoftwareFilter::names()
 {
     static const std::vector<const char *> list = [] {
         std::vector<const char *> v;
-        for (int i = EmuConfig::eFilterNone; i <= EmuConfig::eFilterNTSC; i++)
+        for (int i = EmuConfig::eFilterNone; i <= EmuConfig::eFilterNTSCRGB; i++)
             v.push_back(filterInfo(i).name);
         return v;
     }();
@@ -131,38 +138,64 @@ void SoftwareFilter::applyXBRZ(int factor, const uint16_t *src, int src_pitch, i
     }
 }
 
-void SoftwareFilter::applyNTSC(const uint16_t *src, int src_pitch, int width, int height,
+void SoftwareFilter::applyNTSC(int type, bool scanlines, const uint16_t *src, int src_pitch, int width, int height,
                                 uint16_t *dst, int dst_pitch)
 {
-    if (!ntsc)
+    if (!ntsc || ntsc_preset != type)
     {
-        ntsc = std::make_unique<snes_ntsc_t>();
-        snes_ntsc_init(ntsc.get(), &snes_ntsc_composite);
+        snes_ntsc_setup_t setup;
+        switch (type)
+        {
+            default:
+            case EmuConfig::eFilterNTSC:       setup = snes_ntsc_composite; setup.merge_fields = 1; break;
+            case EmuConfig::eFilterNTSCRF:     setup = snes_ntsc_composite; setup.merge_fields = 0; break;
+            case EmuConfig::eFilterNTSCSVideo: setup = snes_ntsc_svideo;    setup.merge_fields = 1; break;
+            case EmuConfig::eFilterNTSCRGB:    setup = snes_ntsc_rgb;       setup.merge_fields = 1; break;
+        }
+
+        if (!ntsc)
+            ntsc = std::make_unique<snes_ntsc_t>();
+        snes_ntsc_init(ntsc.get(), &setup);
+        ntsc_preset = type;
     }
 
     if (width > 256)
-        snes_ntsc_blit_hires_scanlines(ntsc.get(), (SNES_NTSC_IN_T *)src, src_pitch >> 1,
-                                        burst_phase, width, height, dst, dst_pitch);
-    else
-        snes_ntsc_blit_scanlines(ntsc.get(), (SNES_NTSC_IN_T *)src, src_pitch >> 1,
+    {
+        if (scanlines)
+            snes_ntsc_blit_hires_scanlines(ntsc.get(), (SNES_NTSC_IN_T *)src, src_pitch >> 1,
+                                            burst_phase, width, height, dst, dst_pitch);
+        else
+            snes_ntsc_blit_hires(ntsc.get(), (SNES_NTSC_IN_T *)src, src_pitch >> 1,
                                   burst_phase, width, height, dst, dst_pitch);
+    }
+    else
+    {
+        if (scanlines)
+            snes_ntsc_blit_scanlines(ntsc.get(), (SNES_NTSC_IN_T *)src, src_pitch >> 1,
+                                      burst_phase, width, height, dst, dst_pitch);
+        else
+            snes_ntsc_blit(ntsc.get(), (SNES_NTSC_IN_T *)src, src_pitch >> 1,
+                            burst_phase, width, height, dst, dst_pitch);
+    }
 
     burst_phase = (burst_phase + 1) % 3;
 }
 
-bool SoftwareFilter::apply(int type,
+bool SoftwareFilter::apply(int type, bool ntsc_scanlines,
                            const uint16_t *src, int src_pitch, int width, int height,
                            const uint16_t *&out_data, int &out_width, int &out_height, int &out_pitch)
 {
-    if (type <= EmuConfig::eFilterNone || type > EmuConfig::eFilterNTSC)
+    if (type <= EmuConfig::eFilterNone || type > EmuConfig::eFilterNTSCRGB)
         return false;
 
     const auto &info = filterInfo(type);
+    bool is_ntsc = (type >= EmuConfig::eFilterNTSC && type <= EmuConfig::eFilterNTSCRGB);
+    bool is_xbrz = (type >= EmuConfig::eFilterTwoXBRZ && type <= EmuConfig::eFilterSixXBRZ);
 
-    if (type == EmuConfig::eFilterNTSC)
+    if (is_ntsc)
     {
         out_width = SNES_NTSC_OUT_WIDTH(256);
-        out_height = height * info.yscale;
+        out_height = height * (ntsc_scanlines ? info.yscale : 1);
     }
     else
     {
@@ -174,11 +207,11 @@ bool SoftwareFilter::apply(int type,
     scratch.resize((size_t)out_pitch * out_height);
     auto dst = (uint16_t *)scratch.data();
 
-    if (type == EmuConfig::eFilterNTSC)
+    if (is_ntsc)
     {
-        applyNTSC(src, src_pitch, width, height, dst, out_pitch);
+        applyNTSC(type, ntsc_scanlines, src, src_pitch, width, height, dst, out_pitch);
     }
-    else if (type == EmuConfig::eFilterTwoXBRZ || type == EmuConfig::eFilterThreeXBRZ || type == EmuConfig::eFilterFourXBRZ)
+    else if (is_xbrz)
     {
         applyXBRZ(info.xscale, src, src_pitch, width, height, dst, out_pitch);
     }

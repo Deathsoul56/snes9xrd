@@ -11,6 +11,9 @@ class DisplayPanel :
     void showEvent(QShowEvent *event) override;
     void populateDevices();
     void selectShaderDialog();
+    void updateNtscScanlinesEnabled();
+    void updateTripleBufferingEnabled();
+    void updateShaderParametersEnabled();
 
     std::vector<std::pair<int, std::string>> driver_list;
     bool updating = true;

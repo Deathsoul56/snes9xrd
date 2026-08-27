@@ -418,6 +418,11 @@ QCheckBox {
     spacing: 8px;
 }
 
+QCheckBox:disabled {
+    color: #555;
+    font-style: italic;
+}
+
 QCheckBox::indicator {
     width: 15px;
     height: 15px;
@@ -496,16 +501,81 @@ QDoubleSpinBox:disabled {
     border-color: #23252c;
 }
 
-QSpinBox#spinBox_sram_interval::up-button,
-QSpinBox#spinBox_sram_interval::down-button {
-    width: 20px;
+QSpinBox::up-button,
+QSpinBox::down-button,
+QDoubleSpinBox::up-button,
+QDoubleSpinBox::down-button {
+    width: 18px;
     background-color: #343844;
     border-left: 1px solid #5a6070;
+    subcontrol-origin: border;
 }
 
-QSpinBox#spinBox_sram_interval::up-button:hover,
-QSpinBox#spinBox_sram_interval::down-button:hover {
+QSpinBox::up-button,
+QDoubleSpinBox::up-button {
+    subcontrol-position: top right;
+    border-top-right-radius: 6px;
+    border-bottom: 1px solid #5a6070;
+}
+
+QSpinBox::down-button,
+QDoubleSpinBox::down-button {
+    subcontrol-position: bottom right;
+    border-bottom-right-radius: 6px;
+}
+
+QSpinBox::up-button:hover,
+QSpinBox::down-button:hover,
+QDoubleSpinBox::up-button:hover,
+QDoubleSpinBox::down-button:hover {
     background-color: #4a5d7e;
+}
+
+QSpinBox::up-button:pressed,
+QSpinBox::down-button:pressed,
+QDoubleSpinBox::up-button:pressed,
+QDoubleSpinBox::down-button:pressed {
+    background-color: #4a90ff;
+}
+
+QSpinBox::up-button:disabled,
+QSpinBox::down-button:disabled,
+QDoubleSpinBox::up-button:disabled,
+QDoubleSpinBox::down-button:disabled {
+    background-color: #23252c;
+    border-left-color: #2c2e36;
+}
+
+QSpinBox::up-arrow,
+QDoubleSpinBox::up-arrow {
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 5px solid #d8d8d8;
+}
+
+QSpinBox::down-arrow,
+QDoubleSpinBox::down-arrow {
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid #d8d8d8;
+}
+
+QSpinBox::up-arrow:disabled,
+QSpinBox::up-arrow:off,
+QDoubleSpinBox::up-arrow:disabled,
+QDoubleSpinBox::up-arrow:off {
+    border-bottom-color: #555;
+}
+
+QSpinBox::down-arrow:disabled,
+QSpinBox::down-arrow:off,
+QDoubleSpinBox::down-arrow:disabled,
+QDoubleSpinBox::down-arrow:off {
+    border-top-color: #555;
 }
 
 QSlider::groove:horizontal {

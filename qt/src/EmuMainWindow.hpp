@@ -9,6 +9,7 @@
 class EmuApplication;
 class CheatsDialog;
 class CheatSearchDialog;
+class EmuSettingsWindow;
 class EmuGameList;
 class LibraryPage;
 class QStackedWidget;
@@ -94,6 +95,7 @@ class EmuMainWindow : public QMainWindow
 
     QPointer<CheatsDialog> cheats_dialog;
     QPointer<CheatSearchDialog> cheat_search_dialog;
+    QPointer<EmuSettingsWindow> settings_window;
 
     bool manual_pause = false;
     bool focus_pause = false;

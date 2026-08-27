@@ -13,6 +13,7 @@ using namespace QNativeInterface;
 #endif
 #include "common/video/opengl/shaders/glsl.h"
 #include "EmuMainWindow.hpp"
+#include "snes9x.h"
 #include "snes9x_imgui.h"
 #include "imgui_impl_opengl3.h"
 #include <clocale>
@@ -180,6 +181,8 @@ bool EmuCanvasOpenGL::createContext()
     if (!context->create_context())
     {
         printf("Couldn't create OpenGL context.\n");
+        context.reset();
+        return false;
     }
 
     context->make_current();
@@ -230,6 +233,9 @@ void EmuCanvasOpenGL::loadShaders()
         shader = std::make_unique<GLSLShader>();
         if (!shader->load_shader(config->shader.c_str()))
         {
+            auto msg = "Couldn't load shader preset: " + config->shader;
+            printf("%s\n", msg.c_str());
+            S9xMessage(S9X_ERROR, 0, msg.c_str());
             shader.reset();
             using_shader = false;
             createStockShaders();
@@ -329,7 +335,6 @@ void EmuCanvasOpenGL::resizeEvent(QResizeEvent *event)
 
 void EmuCanvasOpenGL::paintEvent(QPaintEvent *event)
 {
-    // TODO: If emu not running
     if (!context || !isVisible())
         return;
 
@@ -397,6 +402,8 @@ void EmuCanvasOpenGL::showParametersDialog()
             std::make_unique<ShaderParametersDialog>(this, properties);
 
     shader_parameters_dialog->show();
+    shader_parameters_dialog->raise();
+    shader_parameters_dialog->activateWindow();
 }
 
 void EmuCanvasOpenGL::saveParameters(std::string filename)

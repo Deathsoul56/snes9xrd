@@ -4,6 +4,7 @@
 #include "EmuCanvasVulkan.hpp"
 #include "EmuMainWindow.hpp"
 
+#include "snes9x.h"
 #include "snes9x_imgui.h"
 #include "imgui_impl_vulkan.h"
 
@@ -84,6 +85,7 @@ bool EmuCanvasVulkan::createContext()
 
     context = std::make_unique<Vulkan::Context>();
     context->set_preferred_device(config->display_device_index);
+    context->swapchain->set_desired_latency(config->triple_buffering ? 3 : -1);
 
 #ifdef _WIN32
     auto hwnd = reinterpret_cast<HWND>(winId());
@@ -158,7 +160,9 @@ void EmuCanvasVulkan::tryLoadShader()
         current_shader = config->shader;
         if (!shader_chain->load_shader_preset(config->shader))
         {
-            printf("Couldn't load shader preset: %s\n", config->shader.c_str());
+            auto msg = "Couldn't load shader preset: " + config->shader;
+            printf("%s\n", msg.c_str());
+            S9xMessage(S9X_ERROR, 0, msg.c_str());
             shader_chain.reset();
         }
         setlocale(LC_NUMERIC, previous_locale);
@@ -260,7 +264,6 @@ void EmuCanvasVulkan::resizeEvent(QResizeEvent *event)
 
 void EmuCanvasVulkan::paintEvent(QPaintEvent *event)
 {
-    // TODO: If emu not running
     if (!context || !isVisible())
         return;
 
@@ -332,6 +335,8 @@ void EmuCanvasVulkan::showParametersDialog()
             std::make_unique<ShaderParametersDialog>(this, properties);
 
     shader_parameters_dialog->show();
+    shader_parameters_dialog->raise();
+    shader_parameters_dialog->activateWindow();
 }
 
 void EmuCanvasVulkan::signalInputStage()

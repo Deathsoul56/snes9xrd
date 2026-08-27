@@ -935,6 +935,8 @@ bool Snes9xController::loadState(const std::string &filename)
     else
     {
         fprintf(stderr, "Failed to load state file: %s\n", filename.c_str());
+        auto info_string = "Failed to load " + filename;
+        S9xSetInfoString(info_string.c_str());
         return false;
     }
 }
@@ -953,6 +955,8 @@ bool Snes9xController::saveState(const std::string &filename)
     else
     {
         fprintf(stderr, "Couldn't save state file: %s\n", filename.c_str());
+        auto info_string = "Failed to save " + filename;
+        S9xSetInfoString(info_string.c_str());
         return false;
     }
 }

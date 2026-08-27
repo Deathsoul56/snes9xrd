@@ -261,6 +261,8 @@ list(APPEND QT_GUI_SOURCES
     ../filter/xbrz.h
     ../filter/xbrz_config.h
     ../filter/xbrz_tools.h
+    ../filter/sharpbilinear_flexible.cpp
+    ../filter/sharpbilinear_flexible.h
     ../filter/snes_ntsc_config.h
     ../filter/snes_ntsc.h
     ../filter/snes_ntsc_impl.h

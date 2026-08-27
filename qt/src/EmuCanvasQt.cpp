@@ -35,7 +35,6 @@ void EmuCanvasQt::draw()
 
 void EmuCanvasQt::paintEvent(QPaintEvent *event)
 {
-    // TODO: If emu not running
     if (!output_data.ready)
     {
         QPainter paint(this);

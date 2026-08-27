@@ -255,6 +255,7 @@ bool EmuConfig::setDefaults(int section)
         enable_vsync = true;
         bilinear_filter = true;
         reduce_input_lag = true;
+        triple_buffering = false;
         adjust_for_vrr = false;
         restart_set(use_shader, false);
         if (use_shader)
@@ -273,6 +274,7 @@ bool EmuConfig::setDefaults(int section)
         high_resolution_effect = eLeaveAlone;
 
         software_filter = eFilterNone;
+        ntsc_scanlines = true;
 
         display_messages = eOnscreen;
         osd_size = 24;
@@ -292,6 +294,7 @@ bool EmuConfig::setDefaults(int section)
         dynamic_rate_limit = 0.005;
         mute_audio = false;
         mute_audio_during_alternate_speed = false;
+        mute_audio_during_frame_advance = false;
         volume_regular = 100;
         volume_turbo = 100;
     }
@@ -523,6 +526,7 @@ void EmuConfig::config(const std::string &filename, bool write)
     Int("DisplayDevice", display_device_index);
     Bool("VSync", enable_vsync);
     Bool("ReduceInputLag", reduce_input_lag);
+    Bool("TripleBuffering", triple_buffering);
     Bool("BilinearFilter", bilinear_filter);
     Bool("AdjustForVRR", adjust_for_vrr);
     Bool("UseShader", use_shader);
@@ -541,8 +545,10 @@ void EmuConfig::config(const std::string &filename, bool write)
     Enum("SoftwareFilter", software_filter, {
         "None", "Scanlines", "Simple2x", "Simple3x", "Simple4x",
         "SuperEagle", "2xSaI", "Super2xSaI", "EPX",
-        "HQ2x", "HQ3x", "HQ4x", "2xBRZ", "3xBRZ", "4xBRZ", "NTSC"
+        "HQ2x", "HQ3x", "HQ4x", "2xBRZ", "3xBRZ", "4xBRZ", "5xBRZ", "6xBRZ",
+        "SharpBilinear4x", "NTSC", "NTSCRF", "NTSCSVideo", "NTSCRGB"
     });
+    Bool("NTSCScanlines", ntsc_scanlines);
 
     Enum("DisplayMessages", display_messages, { "Onscreen", "Inscreen", "None" });
     Int("OSDSize", osd_size);
@@ -559,6 +565,7 @@ void EmuConfig::config(const std::string &filename, bool write)
     Double("DynamicRateLimit", dynamic_rate_limit);
     Bool("Mute", mute_audio);
     Bool("MuteAudioDuringAlternateSpeed", mute_audio_during_alternate_speed);
+    Bool("MuteAudioDuringFrameAdvance", mute_audio_during_frame_advance);
     Int("VolumeRegular", volume_regular);
     Int("VolumeTurbo", volume_turbo);
     EndSection();

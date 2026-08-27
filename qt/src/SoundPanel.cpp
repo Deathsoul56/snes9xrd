@@ -3,7 +3,7 @@
 #include "EmuConfig.hpp"
 #include "Snes9xController.hpp"
 
-static constexpr int playback_rates[] = { 96000, 48000, 44100 };
+static constexpr int playback_rates[] = { 8000, 11025, 16000, 22050, 30000, 32000, 35000, 44100, 48000, 96000 };
 
 SoundPanel::SoundPanel(EmuApplication *app_)
     : app(app_)
@@ -20,7 +20,7 @@ SoundPanel::SoundPanel(EmuApplication *app_)
 
     connect(comboBox_playback_rate, &QComboBox::activated, [&](int index)
     {
-        if (index < 3)
+        if (index < (int)(sizeof(playback_rates) / sizeof(playback_rates[0])))
         {
             if (playback_rates[index] != app->config->playback_rate)
             {
@@ -75,6 +75,11 @@ SoundPanel::SoundPanel(EmuApplication *app_)
 
     connect(checkBox_mute_during_alt_speed, &QCheckBox::toggled, [&](bool checked) {
         app->config->mute_audio_during_alternate_speed = checked;
+        app->updateSettings();
+    });
+
+    connect(checkBox_mute_during_frame_advance, &QCheckBox::toggled, [&](bool checked) {
+        app->config->mute_audio_during_frame_advance = checked;
         app->updateSettings();
     });
 
@@ -170,14 +175,15 @@ void SoundPanel::showEvent(QShowEvent *event)
     comboBox_device->addItem("Default");
 
     comboBox_playback_rate->clear();
-    comboBox_playback_rate->addItem("96000Hz");
-    comboBox_playback_rate->addItem("48000Hz");
-    comboBox_playback_rate->addItem("44100Hz");
-    int pbr_index = 1;
-    if (config->playback_rate == 96000)
-        pbr_index = 0;
-    else if (config->playback_rate == 44100)
-        pbr_index = 2;
+    int pbr_index = -1;
+    for (size_t i = 0; i < sizeof(playback_rates) / sizeof(playback_rates[0]); i++)
+    {
+        comboBox_playback_rate->addItem(QString("%1 Hz").arg(playback_rates[i]));
+        if (playback_rates[i] == config->playback_rate)
+            pbr_index = (int)i;
+    }
+    if (pbr_index < 0)
+        pbr_index = 8; // 48000Hz, the recommended default.
 
     comboBox_playback_rate->setCurrentIndex(pbr_index);
     spinBox_buffer_size->setValue(config->audio_buffer_size_ms);
@@ -190,6 +196,7 @@ void SoundPanel::showEvent(QShowEvent *event)
 
     checkBox_mute_sound->setChecked(config->mute_audio);
     checkBox_mute_during_alt_speed->setChecked(config->mute_audio_during_alternate_speed);
+    checkBox_mute_during_frame_advance->setChecked(config->mute_audio_during_frame_advance);
 
     horizontalSlider_volume_regular->setValue(config->volume_regular);
     spinBox_volume_regular->setValue(config->volume_regular);

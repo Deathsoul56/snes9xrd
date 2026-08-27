@@ -24,12 +24,13 @@ class SoftwareFilter
     // Returns false if `type` is eFilterNone; the caller should keep using the
     // original buffer in that case. Otherwise out_data/out_width/out_height/out_pitch
     // describe the filtered image, valid until the next call to apply().
-    bool apply(int type,
+    // `ntsc_scanlines` only matters when `type` is one of the NTSC variants.
+    bool apply(int type, bool ntsc_scanlines,
                const uint16_t *src, int src_pitch, int width, int height,
                const uint16_t *&out_data, int &out_width, int &out_height, int &out_pitch);
 
   private:
-    void applyNTSC(const uint16_t *src, int src_pitch, int width, int height,
+    void applyNTSC(int type, bool scanlines, const uint16_t *src, int src_pitch, int width, int height,
                    uint16_t *dst, int dst_pitch);
     void applyXBRZ(int factor, const uint16_t *src, int src_pitch, int width, int height,
                    uint16_t *dst, int dst_pitch);
@@ -38,5 +39,6 @@ class SoftwareFilter
     std::vector<uint32_t> xbrz_src;
     std::vector<uint32_t> xbrz_dst;
     std::unique_ptr<snes_ntsc_t> ntsc;
+    int ntsc_preset = -1; // last type passed to applyNTSC(), so it only reinits on change
     int burst_phase = 0;
 };
