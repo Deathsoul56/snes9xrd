@@ -1,3 +1,6 @@
+# Local agent config, not part of the repo
+.opencode/
+
 # Files that can arise when using snes9x
 win32/snes9x.conf
 win32/Valid.Ext
