@@ -201,6 +201,20 @@ void S9xNPServerAddTask (uint32 task, void *data);
 bool8 S9xNPStartServer (int port);
 void S9xNPStopServer ();
 void S9xNPSendJoypadSwap ();
+
+#if defined(__WIN32__) && defined(SNES9X_QT)
+// Front-ends without a classic win32 message loop must implement this: ask
+// the user whether to load the ROM the server just requested and return the
+// answer. Called synchronously from the netplay client thread.
+bool8 S9xNPConfirmLoadROM (const char *rom_name);
+
+// Main-thread netplay pacing for frontends without a classic win32 message
+// loop. Must be used instead of S9xNPCheckForHeartBeat()/
+// S9xNPWaitForHeartBeatDelay(), which read NetPlay.Socket directly and race
+// against the background client thread spawned by S9xNPConnectToServer().
+bool8 S9xNPClientWaitPendingSync (uint32 time_msec);
+bool8 S9xNPClientSyncSpeed (uint32 my_joypad, uint32 client_joypads [NP_MAX_CLIENTS]);
+#endif
 #ifdef __WIN32__
 #define S9xGetMilliTime timeGetTime
 #else

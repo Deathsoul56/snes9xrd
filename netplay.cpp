@@ -14,11 +14,18 @@
 
 #include "snes9x.h"
 #include "controls.h"
+#include "memmap.h"
+#include "netplay.h"
+#include "snapshot.h"
+#include "display.h"
+#include "ppu.h"
 
 #ifdef __WIN32__
 	#include <winsock.h>
 	#include <process.h>
+	#ifndef SNES9X_QT
 	#include "win32/wsnes9x.h"
+	#endif
 
 	#define ioctl ioctlsocket
 	#define close(h) if(h){closesocket(h);}
@@ -48,11 +55,6 @@
 #include <semaphore.h>
 #endif
 
-#include "memmap.h"
-#include "netplay.h"
-#include "snapshot.h"
-#include "display.h"
-
 void S9xNPClientLoop (void *);
 bool8 S9xNPLoadROM (uint32 len);
 bool8 S9xNPLoadROMDialog (const char *);
@@ -62,7 +64,92 @@ void S9xNPGetFreezeFile (uint32 len);
 
 unsigned long START = 0;
 
+#if defined(__WIN32__) && defined(SNES9X_QT)
+// Front-ends without a classic win32 message loop (Qt) own this semaphore
+// directly instead of routing through the legacy win32 port's GUI struct.
+static HANDLE S9xNPClientSemaphore = NULL;
+#define NP_CLIENT_SEMAPHORE S9xNPClientSemaphore
+#elif defined(__WIN32__)
+#define NP_CLIENT_SEMAPHORE GUI.ClientSemaphore
+#endif
+
 bool8 S9xNPConnect ();
+
+#if defined(__WIN32__) && defined(SNES9X_QT)
+// S9xNPConnectToServer() spawns S9xNPClientLoop() on its own thread, which is
+// the sole reader of NetPlay.Socket (see the ReleaseSemaphore call in that
+// loop). A frontend main-thread must therefore only ever synchronize via
+// NP_CLIENT_SEMAPHORE, never via S9xNPCheckForHeartBeat()/
+// S9xNPWaitForHeartBeatDelay() directly -- those read the socket too, and
+// racing the client thread for the same bytes stalls both sides forever.
+// This mirrors win32/win32.cpp's S9xSyncSpeed() netplay branch exactly.
+bool8 S9xNPClientWaitPendingSync (uint32 time_msec)
+{
+    return WaitForSingleObject (NP_CLIENT_SEMAPHORE, time_msec) == WAIT_OBJECT_0;
+}
+
+bool8 S9xNPClientSyncSpeed (uint32 my_joypad, uint32 client_joypads [NP_MAX_CLIENTS])
+{
+    if (!NetPlay.Connected)
+        return FALSE;
+
+    S9xNPSendJoypadUpdate (my_joypad);
+
+    for (int i = 0; i < NP_MAX_CLIENTS; i++)
+        client_joypads [i] = S9xNPGetJoypad (i);
+
+    LONG prev;
+    BOOL success;
+
+    if ((success = ReleaseSemaphore (NP_CLIENT_SEMAPHORE, 1, &prev)) && prev == 0)
+    {
+        WaitForSingleObject (NP_CLIENT_SEMAPHORE, 0);
+        NetPlay.PendingWait4Sync = WaitForSingleObject (NP_CLIENT_SEMAPHORE, 100) != WAIT_OBJECT_0;
+        IPPU.RenderThisFrame = TRUE;
+        IPPU.SkippedFrames = 0;
+    }
+    else
+    {
+        if (success)
+        {
+            WaitForSingleObject (NP_CLIENT_SEMAPHORE, 0);
+            // Use a threshold derived from the configured max-behind count,
+            // not a fixed magic number -- win32.cpp hardcodes 4 here, which
+            // silently assumes a fixed MaxBehindFrameCount of 8. Qt lets the
+            // user configure MaxBehindFrameCount (default 15), so an exact
+            // "== 4" match can be skipped over entirely and never fire,
+            // leaving the client (and thus the server, and thus the game)
+            // paused forever.
+            if ((uint32) prev <= NetPlay.MaxBehindFrameCount / 2 && NetPlay.Waiting4EmulationThread)
+            {
+                NetPlay.Waiting4EmulationThread = FALSE;
+                S9xNPSendPause (FALSE);
+            }
+        }
+
+        NetPlay.PendingWait4Sync = WaitForSingleObject (NP_CLIENT_SEMAPHORE, 200) != WAIT_OBJECT_0;
+
+        if (IPPU.SkippedFrames < NetPlay.MaxFrameSkip)
+        {
+            IPPU.SkippedFrames++;
+            IPPU.RenderThisFrame = FALSE;
+        }
+        else
+        {
+            IPPU.SkippedFrames = 0;
+            IPPU.RenderThisFrame = TRUE;
+        }
+    }
+
+    if (!NetPlay.PendingWait4Sync)
+    {
+        NetPlay.FrameCount++;
+        S9xNPStepJoypadHistory ();
+    }
+
+    return TRUE;
+}
+#endif
 
 bool8 S9xNPConnectToServer (const char *hostname, int port,
                             const char *rom_name)
@@ -90,8 +177,8 @@ bool8 S9xNPConnectToServer (const char *hostname, int port,
     NetPlay.PendingWait4Sync = FALSE;
 
 #ifdef __WIN32__
-    if (GUI.ClientSemaphore == NULL)
-        GUI.ClientSemaphore = CreateSemaphore (NULL, 0, NP_JOYPAD_HIST_SIZE, NULL);
+    if (NP_CLIENT_SEMAPHORE == NULL)
+        NP_CLIENT_SEMAPHORE = CreateSemaphore (NULL, 0, NP_JOYPAD_HIST_SIZE, NULL);
 
     if (NetPlay.ReplyEvent == NULL)
         NetPlay.ReplyEvent = CreateEvent (NULL, FALSE, FALSE, NULL);
@@ -345,7 +432,7 @@ void S9xNPClientLoop (void *)
             if (S9xNPWaitForHeartBeat ())
             {
                 LONG prev;
-                if (!ReleaseSemaphore (GUI.ClientSemaphore, 1, &prev))
+                if (!ReleaseSemaphore (NP_CLIENT_SEMAPHORE, 1, &prev))
                 {
 #ifdef NP_DEBUG
                     printf ("CLIENT: ReleaseSemaphore failed - already hit max count (%d) %ld\n", NP_JOYPAD_HIST_SIZE, S9xGetMilliTime () - START);
@@ -550,7 +637,9 @@ bool8 S9xNPLoadROMDialog (const char *rom_name)
 {
     NetPlay.Answer = FALSE;
 
-#ifdef __WIN32__
+#if defined(__WIN32__) && defined(SNES9X_QT)
+    NetPlay.Answer = S9xNPConfirmLoadROM (rom_name);
+#elif defined(__WIN32__)
     ResetEvent (NetPlay.ReplyEvent);
 
 #ifdef NP_DEBUG
@@ -659,7 +748,7 @@ bool8 S9xNPGetROMImage (uint32 len)
     S9xNPResetJoypadReadPos ();
     Settings.StopEmulation = FALSE;
 
-#ifdef __WIN32__
+#if defined(__WIN32__) && !defined(SNES9X_QT)
     PostMessage (GUI.hWnd, WM_NULL, 0, 0);
 #endif
 
@@ -955,7 +1044,7 @@ bool8 S9xNPGetData (int socket, uint8 *data, int length)
         if (!Settings.NetPlayServer && length > 1024)
         {
             NetPlay.PercentageComplete = (uint8) (((length - len) * 100) / length);
-#ifdef __WIN32__
+#if defined(__WIN32__) && !defined(SNES9X_QT)
             PostMessage (GUI.hWnd, WM_USER, NetPlay.PercentageComplete,
                          NetPlay.PercentageComplete);
             Sleep (0);
@@ -1003,7 +1092,7 @@ void S9xNPDiscardHeartbeats ()
 #endif
 
 #ifdef __WIN32__
-    while (WaitForSingleObject (GUI.ClientSemaphore, 200) == WAIT_OBJECT_0)
+    while (WaitForSingleObject (NP_CLIENT_SEMAPHORE, 200) == WAIT_OBJECT_0)
         ;
 #endif
 
@@ -1022,7 +1111,7 @@ void S9xNPSetAction (const char *action, bool8 force)
     {
         strncpy (NetPlay.ActionMsg, action, NP_MAX_ACTION_LEN - 1);
         NetPlay.ActionMsg [NP_MAX_ACTION_LEN - 1] = 0;
-#ifdef __WIN32__
+#if defined(__WIN32__) && !defined(SNES9X_QT)
         PostMessage (GUI.hWnd, WM_USER, 0, 0);
         Sleep (0);
 #endif
@@ -1037,7 +1126,7 @@ void S9xNPSetError (const char *error)
 #endif
     strncpy (NetPlay.ErrorMsg, error, NP_MAX_ACTION_LEN - 1);
     NetPlay.ErrorMsg [NP_MAX_ACTION_LEN - 1] = 0;
-#ifdef __WIN32__
+#if defined(__WIN32__) && !defined(SNES9X_QT)
     PostMessage (GUI.hWnd, WM_USER + 1, 0, 0);
     Sleep (0);
 #endif
@@ -1051,7 +1140,7 @@ void S9xNPSetWarning (const char *warning)
 #endif
     strncpy (NetPlay.WarningMsg, warning, NP_MAX_ACTION_LEN - 1);
     NetPlay.WarningMsg [NP_MAX_ACTION_LEN - 1] = 0;
-#ifdef __WIN32__
+#if defined(__WIN32__) && !defined(SNES9X_QT)
     PostMessage (GUI.hWnd, WM_USER + 2, 0, 0);
     Sleep (0);
 #endif

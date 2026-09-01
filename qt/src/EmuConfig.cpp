@@ -239,6 +239,7 @@ bool EmuConfig::setDefaults(int section)
         background_gamepad_input = false;
         confirm_save_load = false;
         add_to_registry = false;
+        save_state_on_close = false;
 
         show_frame_rate = false;
         show_indicators = true;
@@ -383,6 +384,19 @@ bool EmuConfig::setDefaults(int section)
         bios_location = eConfigDirectory;
     }
 
+    if (section == -1)
+    {
+        // Netplay (no dedicated settings page, only reset on a full reset)
+        netplay_last_rom = {};
+        netplay_last_host = {};
+        netplay_last_port = 6096;
+        netplay_default_port = 6096;
+        netplay_sync_reset = true;
+        netplay_send_rom = false;
+        netplay_max_frame_loss = 15;
+        netplay_is_server = false;
+    }
+
     return restart;
 }
 
@@ -514,6 +528,7 @@ void EmuConfig::config(const std::string &filename, bool write)
     Bool("BackgroundGamepadInput", background_gamepad_input);
     Bool("ConfirmSaveLoad", confirm_save_load);
     Bool("AddToRegistry", add_to_registry);
+    Bool("SaveStateOnClose", save_state_on_close);
 
     Bool("ShowFrameRate", show_frame_rate);
     Bool("ShowIndicators", show_indicators);
@@ -666,6 +681,17 @@ void EmuConfig::config(const std::string &filename, bool write)
     Enum("BiosLocation", bios_location, { "ROMDirectory", "ConfigDirectory", "Custom" });
 
     Int("SRAMSaveInterval", sram_save_interval);
+    EndSection();
+
+    BeginSection("Netplay");
+    String("LastROM", netplay_last_rom);
+    String("LastHost", netplay_last_host);
+    Int("LastPort", netplay_last_port);
+    Int("DefaultPort", netplay_default_port);
+    Bool("SyncReset", netplay_sync_reset);
+    Bool("SendROM", netplay_send_rom);
+    Int("MaxFrameLoss", netplay_max_frame_loss);
+    Bool("IsServer", netplay_is_server);
     EndSection();
 }
 

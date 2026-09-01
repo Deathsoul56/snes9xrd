@@ -3,6 +3,7 @@
 #include <QSortFilterProxyModel>
 #include <QTableView>
 #include <QString>
+#include <QElapsedTimer>
 #include <QWidget>
 
 class EmuGameList;
@@ -31,7 +32,18 @@ public:
 signals:
     void entryActivated(const QString &path);
 
+private slots:
+    void onHeaderContextMenuRequested(const QPoint &pos);
+
+protected:
+    // Qt's default keyboardSearch() only receives one character per call, so
+    // multi-letter typeahead (e.g. "SUPER") and instant cycling on repeated
+    // identical letters are both reimplemented here from scratch.
+    void keyboardSearch(const QString &search) override;
+
 private:
     EmuGameList      *model_;
     GameListProxyModel *proxy_;
+    QString          keyboard_search_buffer_;
+    QElapsedTimer    keyboard_search_timer_;
 };

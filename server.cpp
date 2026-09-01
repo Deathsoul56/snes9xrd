@@ -16,12 +16,22 @@
 #endif
 
 #include "snes9x.h"
+#include "memmap.h"
+#include "snapshot.h"
+#include "netplay.h"
 
 #ifdef __WIN32__
 
 	#include <winsock.h>
 	#include <process.h>
+	#ifndef SNES9X_QT
 	#include "win32/wsnes9x.h"
+	#else
+	// <winsock.h> (WinSock 1.1) doesn't declare socklen_t like <ws2tcpip.h>
+	// does; the legacy win32 port pulls it in transitively via wsnes9x.h's
+	// MFC/afxsock headers, which Qt doesn't have.
+	typedef int socklen_t;
+	#endif
 	#define ioctl ioctlsocket
 	#define close closesocket
 	#define read(a,b,c) recv(a, b, c, 0)
@@ -45,10 +55,6 @@
 	#endif
 
 #endif // !__WIN32__
-
-#include "memmap.h"
-#include "snapshot.h"
-#include "netplay.h"
 
 #ifdef __WIN32__
 #define NP_ONE_CLIENT 1
@@ -214,7 +220,7 @@ static bool8 S9xNPSSendData (int fd, const uint8 *data, int length)
 	data += sent;
         if (length > 1024)
         {
-#ifdef __WIN32__
+#if defined(__WIN32__) && !defined(SNES9X_QT)
             int Percent = (uint8) (((length - len) * 100) / length);
             PostMessage (GUI.hWnd, WM_USER, Percent, Percent);
             Sleep (0);
@@ -696,7 +702,7 @@ void S9xNPSendJoypadSwap()
 
 void S9xNPServerLoop (void *)
 {
-#ifdef __WIN32__
+#if defined(__WIN32__) && !defined(SNES9X_QT)
     BOOL success = FALSE;
 #else
     bool8 success = FALSE;
@@ -770,8 +776,31 @@ void S9xNPServerLoop (void *)
             }
         } while (res > 0);
 
-#ifdef __WIN32__
+#if defined(__WIN32__) && !defined(SNES9X_QT)
         success = WaitForSingleObject (GUI.ServerTimerSemaphore, 200) == WAIT_OBJECT_0;
+#elif defined(__WIN32__)
+        // No classic win32 message loop to drive a timer semaphore here --
+        // pace heartbeats off S9xGetMilliTime() directly instead.
+        static uint32 next_frame_time = 0;
+        uint32 now_ms = S9xGetMilliTime ();
+
+        if (next_frame_time == 0)
+            next_frame_time = now_ms;
+
+        success = FALSE;
+
+        if (next_frame_time > now_ms)
+        {
+            uint32 wait_ms = next_frame_time - now_ms;
+            Sleep (wait_ms < 200 ? wait_ms : 200);
+            now_ms = S9xGetMilliTime ();
+        }
+
+        if (next_frame_time <= now_ms)
+        {
+            next_frame_time += Settings.FrameTime / 1000;
+            success = TRUE;
+        }
 #else
         while (gettimeofday (&now, NULL) < 0) ;
 

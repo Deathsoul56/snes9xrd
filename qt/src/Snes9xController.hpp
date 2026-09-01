@@ -16,6 +16,21 @@ class Snes9xController
     void init();
     void deinit();
     void mainLoop();
+    bool netplayConnect(const std::string &host, int port);
+    bool netplayStartServer(int port);
+    void netplayDisconnect();
+    bool netplayConnected() const;
+    bool netplayIsServer() const;
+    void netplayResyncClients();
+    void netplaySendRomToClients();
+    void netplaySendJoypadSwap();
+    void netplaySetSendRomOnConnect(bool enabled);
+    void netplaySetSyncByReset(bool enabled);
+    void netplaySetMaxFrameLoss(int frames);
+    std::string netplayLastError();
+    bool netplayPush();
+    void netplayPop();
+    int netplaySyncSpeed();
     bool openFile(const std::string &filename);
     bool slotUsed(int slot);
     bool loadState(const std::string &filename);
@@ -24,6 +39,8 @@ class Snes9xController
     void loadUndoState();
     bool saveState(const std::string &filename);
     bool saveState(int slot);
+    std::string resumeStatePath();
+    bool resumeStateExists();
     void updateSettings(const EmuConfig * const config);
     void updateBindings(const EmuConfig * const config);
     void reportBinding(EmuBinding b, bool active);
@@ -123,6 +140,16 @@ class Snes9xController
 
   private:
     void SamplesAvailable();
+    bool netplayConnectInternal(const std::string &host, int port);
+
+    uint32_t netplay_local_joypads[8] = {};
+    uint32_t netplay_joypads[8] = {};
+    std::string netplay_last_warning;
+    // Tracks per-slot Connected state (size matches NP_MAX_CLIENTS in
+    // netplay.h) so the host can announce new players without relying on
+    // NetPlay.WarningMsg, which gets overwritten by rapid sync chatter
+    // before the poll in mainLoop() ever sees the connect message.
+    bool netplay_client_was_connected[8] = {};
 
 };
 

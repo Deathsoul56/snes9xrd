@@ -47,6 +47,7 @@ struct EmuConfig
     bool background_gamepad_input;
     bool confirm_save_load;
     bool add_to_registry;
+    bool save_state_on_close;
 
     bool show_frame_rate;
     bool show_indicators;
@@ -217,6 +218,15 @@ struct EmuConfig
         eControllerPlusMultitap
     };
     int port_configuration;
+
+    std::string netplay_last_rom;
+    std::string netplay_last_host;
+    int netplay_last_port;
+    int netplay_default_port;
+    bool netplay_sync_reset;
+    bool netplay_send_rom;
+    int netplay_max_frame_loss;
+    bool netplay_is_server;
 
     static const int allowed_bindings = 4;
     static const int num_controller_bindings = 18;

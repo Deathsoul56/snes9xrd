@@ -18,6 +18,7 @@ GeneralPanel::GeneralPanel(EmuApplication *app_)
         SDLInputManager::setBackgroundInputEnabled(checked);
     });
     connectCheckbox(checkBox_confirm_save_load, &app->config->confirm_save_load, app);
+    connectCheckbox(checkBox_save_state_on_close, &app->config->save_state_on_close, app);
 #ifdef _WIN32
     connectCheckbox(checkBox_add_to_registry, &app->config->add_to_registry, app);
     connect(checkBox_add_to_registry, &QCheckBox::clicked, this, [](bool checked) {
@@ -42,6 +43,7 @@ void GeneralPanel::showEvent(QShowEvent *event)
     checkBox_pause_when_unfocused->setChecked(config->pause_emulation_when_unfocused);
     checkBox_background_gamepad_input->setChecked(config->background_gamepad_input);
     checkBox_confirm_save_load->setChecked(config->confirm_save_load);
+    checkBox_save_state_on_close->setChecked(config->save_state_on_close);
 #ifdef _WIN32
     checkBox_add_to_registry->setChecked(config->add_to_registry);
 #endif

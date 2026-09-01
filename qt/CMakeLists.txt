@@ -96,7 +96,7 @@ set(SNES9X_CORE_SOURCES
     ../jma/winout.cpp)
 add_library(snes9x-core ${SNES9X_CORE_SOURCES})
 target_include_directories(snes9x-core PRIVATE ../ ../unzip)
-target_compile_definitions(snes9x-core PRIVATE ${DEFINES} ZLIB HAVE_STDINT_H HAVE_LIBPNG ALLOW_CPU_OVERCLOCK UNZIP_SUPPORT JMA_SUPPORT)
+target_compile_definitions(snes9x-core PRIVATE ${DEFINES} ZLIB HAVE_STDINT_H HAVE_LIBPNG ALLOW_CPU_OVERCLOCK UNZIP_SUPPORT JMA_SUPPORT NETPLAY_SUPPORT)
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
     set(PREBUILT_QT "${PROJECT_SOURCE_DIR}/../external/qt6-mingw-clang-bin")
@@ -132,7 +132,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
         list(APPEND LIBS libstdc++.a)
     endif()
 
-    list(APPEND LIBS libz.a libpng.a opengl32 gdi32 winmm imm32 ole32 oleaut32 version uuid advapi32 setupapi shell32 dinput8)
+    list(APPEND LIBS libz.a libpng.a opengl32 gdi32 winmm imm32 ole32 oleaut32 version uuid advapi32 setupapi shell32 dinput8 ws2_32)
     list(APPEND PLATFORM_SOURCES
         ../common/video/opengl/wgl_context.cpp
         ../external/glad/src/wgl.c
@@ -219,6 +219,7 @@ list(APPEND QT_GUI_SOURCES
     src/Snes9xController.cpp
     src/AviRecorder.cpp
     src/HacksDialog.cpp
+    src/NetplayDialog.cpp
     src/StatePreviewDialog.cpp
     src/EmuSettingsWindow.cpp
     src/EmuConfig.cpp

@@ -13,6 +13,8 @@
 #include <filesystem>
 namespace fs = std::filesystem;
 
+#include <cstring>
+
 #include "snes9x.h"
 #include "memmap.h"
 #include "apu/apu.h"
@@ -24,6 +26,12 @@ namespace fs = std::filesystem;
 #include "display.h"
 #include "conffile.h"
 #include "statemanager.h"
+#include "netplay.h"
+
+#include <chrono>
+#include <thread>
+
+extern SNPServer NPServer;
 
 Snes9xController *g_snes9xcontroller = nullptr;
 StateManager g_state_manager;
@@ -119,6 +127,10 @@ void Snes9xController::deinit()
 void Snes9xController::updateSettings(const EmuConfig * const config)
 {
     setCheatsEnabled(config->apply_cheats);
+
+    NetPlay.MaxBehindFrameCount = config->netplay_max_frame_loss;
+    NPServer.SyncByReset = config->netplay_sync_reset;
+    NPServer.SendROMImageOnConnect = config->netplay_send_rom;
 
     if (Settings.AutoSaveDelay != config->sram_save_interval)
     {
@@ -240,6 +252,13 @@ bool Snes9xController::openFile(const std::string &filename)
         active = true;
         Memory.LoadSRAM(S9xGetFilename(".srm", SRAM_DIR).c_str());
     }
+
+    // server.cpp's netplay heartbeat pacer refuses to send heartbeats while
+    // this is true (see S9xNPServerLoop); GTK/win32 clear it on successful
+    // ROM load, Qt never did, so hosting could never send a single
+    // heartbeat and the client would freeze immediately, forever.
+    Settings.StopEmulation = !active;
+
     return active;
 }
 
@@ -251,7 +270,65 @@ void Snes9xController::mainLoop()
     if (!active)
         return;
 
-    if (rewind_buffer_size > 0)
+    if (Settings.ForcedPause)
+        return;
+
+    // The netplay server/client threads report connects, disconnects and
+    // sync warnings by writing NetPlay.WarningMsg (see S9xNPSetWarning in
+    // netplay.cpp/server.cpp) -- Qt has no WM_USER-style hook to catch that
+    // like the legacy win32 GUI does, so poll for changes here instead.
+    // "has paused."/"has resumed." are routine per-frame flow-control
+    // chatter from the lockstep pacing (see S9xNPClientSyncSpeed), not
+    // connect/disconnect events, and can repeat many times a second -- skip
+    // those so the HUD only shows actionable connect/disconnect messages.
+    if ((Settings.NetPlay || Settings.NetPlayServer) && NetPlay.WarningMsg[0] &&
+        netplay_last_warning != NetPlay.WarningMsg &&
+        !strstr(NetPlay.WarningMsg, "has paused") &&
+        !strstr(NetPlay.WarningMsg, "has resumed"))
+    {
+        netplay_last_warning = NetPlay.WarningMsg;
+        S9xSetInfoString(NetPlay.WarningMsg);
+    }
+
+    // NPServer.Clients[].Connected is a stable flag (unlike NetPlay.WarningMsg,
+    // which the rapid post-connect resync chatter overwrites before this poll
+    // ever runs), so use it directly to announce new players to the host.
+    if (Settings.NetPlayServer)
+    {
+        for (int i = 0; i < 8; i++)
+        {
+            if (NPServer.Clients[i].Connected && !netplay_client_was_connected[i])
+            {
+                if (NPServer.Clients[i].HostName)
+                {
+                    std::string msg = "Player " + std::to_string(i + 1) + " on " +
+                                       NPServer.Clients[i].HostName + " has connected.";
+                    S9xSetInfoString(msg.c_str());
+                    netplay_client_was_connected[i] = true;
+
+                    // "Sync By Reset" alone isn't reliable enough to keep a
+                    // newly-joined client from silently drifting out of sync
+                    // (see S9xNPAcceptClient's NP_SERVER_RESET_ALL path in
+                    // server.cpp) -- always follow up with a full savestate
+                    // resync too, regardless of that setting.
+                    if (NPServer.NumClients > 1)
+                        S9xNPServerQueueSyncAll();
+                }
+            }
+            else
+            {
+                netplay_client_was_connected[i] = NPServer.Clients[i].Connected;
+            }
+        }
+    }
+
+    if (netplayPush())
+        return;
+
+    // Rewinding pops local save-state history without telling the other
+    // peers, which would desync them immediately -- block it while netplay
+    // is connected, same as fast-forward is already blocked above.
+    if (rewind_buffer_size > 0 && !Settings.NetPlay)
     {
         if (rewinding)
         {
@@ -274,6 +351,8 @@ void Snes9xController::mainLoop()
     }
 
     S9xMainLoop();
+
+    netplayPop();
 }
 
 void Snes9xController::setPaused(bool paused)
@@ -357,6 +436,9 @@ bool8 S9xContinueUpdate(int width, int height)
 
 void S9xSyncSpeed()
 {
+    if (Snes9xController::get()->netplaySyncSpeed())
+        return;
+
     if (Settings.TurboMode)
     {
         IPPU.FrameSkip++;
@@ -893,6 +975,16 @@ bool Snes9xController::slotUsed(int slot)
     return fs::exists(save_slot_path(slot));
 }
 
+std::string Snes9xController::resumeStatePath()
+{
+    return S9xGetFilename(".resume", SNAPSHOT_DIR);
+}
+
+bool Snes9xController::resumeStateExists()
+{
+    return fs::exists(resumeStatePath());
+}
+
 bool Snes9xController::loadState(int slot)
 {
     return loadState(save_slot_path(slot).string());
@@ -1200,6 +1292,9 @@ bool Snes9xController::loadMultiCart(const std::string &cart_a, const std::strin
                  "BS-X/Sufami Turbo combination is supported).");
         }
     }
+
+    Settings.StopEmulation = !active;
+
     return ok;
 }
 
@@ -1329,4 +1424,246 @@ std::string Snes9xController::romInfo() const
 std::string Snes9xController::getContentFolder()
 {
     return S9xGetDirectory(ROMFILENAME_DIR);
+}
+
+bool8 S9xNPConfirmLoadROM(const char *rom_name)
+{
+    // MVP: the Qt frontend requires both peers to already have the same ROM
+    // loaded before connecting, so this ought not be hit in practice. Auto-
+    // accept rather than block the netplay thread on a dialog.
+    return TRUE;
+}
+
+void S9xSetPause(uint32 mask)
+{
+    Settings.ForcedPause |= mask;
+}
+
+void S9xClearPause(uint32 mask)
+{
+    Settings.ForcedPause &= ~mask;
+}
+
+bool Snes9xController::netplayConnectInternal(const std::string &host, int port)
+{
+    if (!active)
+    {
+        S9xNPSetError("Load a ROM before connecting to a Netplay server.");
+        return false;
+    }
+
+    S9xAutoSaveSRAM();
+
+    NetPlay.MaxBehindFrameCount = 15;
+    NetPlay.Waiting4EmulationThread = false;
+    NetPlay.ErrorMsg[0] = 0;
+    NetPlay.WarningMsg[0] = 0;
+    netplay_last_warning.clear();
+
+    uint32 flags = CPU.Flags;
+
+    S9xSetPause(PAUSE_NETPLAY_CONNECT);
+
+    if (!S9xNPConnectToServer(host.c_str(), port, Memory.ROMName))
+    {
+        S9xClearPause(PAUSE_NETPLAY_CONNECT);
+        return false;
+    }
+
+    for (int waited = 0; waited < 15000 && !Settings.NetPlay && !NetPlay.ErrorMsg[0]; waited += 20)
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+
+    if (!Settings.NetPlay)
+    {
+        // The actual connect() runs on a background thread (see
+        // S9xNPConnectToServer/S9xNPClientLoop) and may still be stuck
+        // waiting on a filtered/unreachable port when our wait above gives
+        // up, leaving NetPlay.ErrorMsg empty -- without this, the dialog
+        // shows a blank, uninformative error box.
+        if (!NetPlay.ErrorMsg[0])
+            S9xNPSetError("Connection attempt timed out.\n\nCheck that the server address and port are "
+                          "correct, and that the port is forwarded/open on the host's router and firewall.");
+        return false;
+    }
+
+    S9xReset();
+    CPU.Flags = flags;
+
+    return true;
+}
+
+bool Snes9xController::netplayConnect(const std::string &host, int port)
+{
+    netplayDisconnect();
+
+    if (!netplayConnectInternal(host, port))
+        return false;
+
+    S9xSetInfoString(("Connected to " + host + ":" + std::to_string(port)).c_str());
+    return true;
+}
+
+bool Snes9xController::netplayStartServer(int port)
+{
+    netplayDisconnect();
+
+    if (!active)
+    {
+        S9xNPSetError("Load a ROM before starting a Netplay server.");
+        return false;
+    }
+
+    S9xAutoSaveSRAM();
+
+    Settings.NetPlayServer = true;
+
+    if (!S9xNPStartServer(port))
+    {
+        Settings.NetPlayServer = false;
+        return false;
+    }
+
+    // Give the server thread a moment to start listening before connecting
+    // to it as the first client. Use the internal helper directly so we
+    // don't tear the server back down via netplayDisconnect().
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    if (!netplayConnectInternal("127.0.0.1", port))
+    {
+        S9xNPStopServer();
+        Settings.NetPlayServer = false;
+        return false;
+    }
+
+    // Seed the tracked state with the loopback self-connect above already
+    // applied, so mainLoop() doesn't mistake it for a new player joining.
+    for (int i = 0; i < 8; i++)
+        netplay_client_was_connected[i] = NPServer.Clients[i].Connected;
+
+    S9xSetInfoString(("Netplay server started on port " + std::to_string(port)).c_str());
+    return true;
+}
+
+void Snes9xController::netplayDisconnect()
+{
+    bool was_server = Settings.NetPlayServer;
+    bool was_connected = Settings.NetPlay && NetPlay.Connected;
+
+    if (was_connected)
+        S9xNPDisconnect();
+
+    if (Settings.NetPlayServer)
+    {
+        S9xNPStopServer();
+        Settings.NetPlayServer = false;
+    }
+
+    NetPlay.Paused = false;
+    netplay_last_warning.clear();
+    for (int i = 0; i < 8; i++)
+        netplay_client_was_connected[i] = false;
+
+    if (was_server)
+        S9xSetInfoString("Netplay server stopped");
+    else if (was_connected)
+        S9xSetInfoString("Disconnected from netplay server");
+}
+
+bool Snes9xController::netplayConnected() const
+{
+    return Settings.NetPlay && NetPlay.Connected;
+}
+
+bool Snes9xController::netplayIsServer() const
+{
+    return Settings.NetPlayServer;
+}
+
+void Snes9xController::netplayResyncClients()
+{
+    if (Settings.NetPlay && Settings.NetPlayServer)
+        S9xNPServerQueueSyncAll();
+}
+
+void Snes9xController::netplaySendRomToClients()
+{
+    if (Settings.NetPlay && Settings.NetPlayServer)
+        S9xNPServerQueueSendingROMImage();
+}
+
+void Snes9xController::netplaySendJoypadSwap()
+{
+    if (Settings.NetPlay)
+        S9xNPSendJoypadSwap();
+}
+
+void Snes9xController::netplaySetSendRomOnConnect(bool enabled)
+{
+    NPServer.SendROMImageOnConnect = enabled;
+}
+
+void Snes9xController::netplaySetSyncByReset(bool enabled)
+{
+    NPServer.SyncByReset = enabled;
+}
+
+void Snes9xController::netplaySetMaxFrameLoss(int frames)
+{
+    NetPlay.MaxBehindFrameCount = frames;
+}
+
+std::string Snes9xController::netplayLastError()
+{
+    return std::string(NetPlay.ErrorMsg);
+}
+
+int Snes9xController::netplaySyncSpeed()
+{
+    if (!Settings.NetPlay || !NetPlay.Connected)
+        return 0;
+
+    // S9xNPConnectToServer() spawns a background thread that owns
+    // NetPlay.Socket on Windows -- must synchronize via the semaphore
+    // helper, not by reading the socket ourselves (see netplay.cpp).
+    S9xNPClientSyncSpeed(netplay_local_joypads[0], netplay_joypads);
+
+    return 1;
+}
+
+bool Snes9xController::netplayPush()
+{
+    if (!Settings.NetPlay)
+        return false;
+
+    if (NetPlay.PendingWait4Sync && !S9xNPClientWaitPendingSync(100))
+    {
+        NetPlay.Paused = true;
+        return true;
+    }
+
+    NetPlay.Paused = false;
+
+    for (int i = 0; i < 8; i++)
+    {
+        netplay_local_joypads[i] = MovieGetJoypad(i);
+        MovieSetJoypad(i, netplay_joypads[i]);
+    }
+
+    if (NetPlay.PendingWait4Sync)
+    {
+        NetPlay.PendingWait4Sync = false;
+        NetPlay.FrameCount++;
+        S9xNPStepJoypadHistory();
+    }
+
+    return false;
+}
+
+void Snes9xController::netplayPop()
+{
+    if (!Settings.NetPlay)
+        return;
+
+    for (int i = 0; i < 8; i++)
+        MovieSetJoypad(i, netplay_local_joypads[i]);
 }

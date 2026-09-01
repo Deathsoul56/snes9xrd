@@ -309,6 +309,8 @@ bool EmuApplication::openFile(const std::string &filename)
     updateSettings();
     suspendThread();
     auto result = core->openFile(filename);
+    if (result && config->save_state_on_close && core->resumeStateExists())
+        core->loadState(core->resumeStatePath());
     unsuspendThread();
 
     return result;
@@ -343,6 +345,9 @@ void EmuApplication::closeCurrentGame()
 
     if (sound_driver)
         sound_driver->stop();
+
+    if (config->save_state_on_close && core->active)
+        core->saveState(core->resumeStatePath());
 
     core->active = false;
     unsuspendThread();
@@ -1076,6 +1081,74 @@ std::vector<std::string> EmuApplication::romExtensionsForRegistry()
 std::string EmuApplication::getContentFolder()
 {
     return core->getContentFolder();
+}
+
+bool EmuApplication::netplayConnect(const std::string &host, int port)
+{
+    suspendThread();
+    auto result = core->netplayConnect(host, port);
+    unsuspendThread();
+    return result;
+}
+
+bool EmuApplication::netplayStartServer(int port)
+{
+    suspendThread();
+    auto result = core->netplayStartServer(port);
+    unsuspendThread();
+    return result;
+}
+
+void EmuApplication::netplayDisconnect()
+{
+    suspendThread();
+    core->netplayDisconnect();
+    unsuspendThread();
+}
+
+bool EmuApplication::netplayConnected()
+{
+    return core->netplayConnected();
+}
+
+bool EmuApplication::netplayIsServer()
+{
+    return core->netplayIsServer();
+}
+
+void EmuApplication::netplayResyncClients()
+{
+    core->netplayResyncClients();
+}
+
+void EmuApplication::netplaySendRomToClients()
+{
+    core->netplaySendRomToClients();
+}
+
+void EmuApplication::netplaySendJoypadSwap()
+{
+    core->netplaySendJoypadSwap();
+}
+
+void EmuApplication::netplaySetSendRomOnConnect(bool enabled)
+{
+    core->netplaySetSendRomOnConnect(enabled);
+}
+
+void EmuApplication::netplaySetSyncByReset(bool enabled)
+{
+    core->netplaySetSyncByReset(enabled);
+}
+
+void EmuApplication::netplaySetMaxFrameLoss(int frames)
+{
+    core->netplaySetMaxFrameLoss(frames);
+}
+
+std::string EmuApplication::netplayLastError()
+{
+    return core->netplayLastError();
 }
 
 void EmuThread::runOnThread(const std::function<void()> &func, bool blocking)

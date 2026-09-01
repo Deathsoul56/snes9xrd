@@ -33,6 +33,7 @@
 #include "EmuSettingsWindow.hpp"
 #include "LibraryPage.hpp"
 #include "MultiCartDialog.hpp"
+#include "NetplayDialog.hpp"
 #include "StatePreviewDialog.hpp"
 #include "snes9x.h"
 
@@ -520,25 +521,70 @@ QMenu *EmuMainWindow::createCheatMenu()
 QMenu *EmuMainWindow::createNetplayMenu()
 {
     auto netplay_menu = new QMenu(tr("&Netplay"));
-    const auto unavailable = tr("Netplay is not available in the Qt frontend.");
-    auto add_item = [&](const QString &text, bool checkable = false, bool checked = false) {
-        auto *item = netplay_menu->addAction(text);
-        item->setCheckable(checkable);
-        item->setChecked(checked);
-        item->setEnabled(false);
-        item->setToolTip(unavailable);
-    };
 
-    add_item(tr("&Connect to Server…"));
-    add_item(tr("&Disconnect from Server"));
+    auto connect_item = netplay_menu->addAction(tr("&Connect to Server…"));
+    connect(connect_item, &QAction::triggered, this, [&] {
+        NetplayDialog dialog(this, app, false);
+        dialog.exec();
+    });
+    running_actions_.push_back(connect_item);
+
+    auto disconnect_item = netplay_menu->addAction(tr("&Disconnect from Server"));
+    connect(disconnect_item, &QAction::triggered, this, [&] {
+        app->netplayDisconnect();
+    });
+    running_actions_.push_back(disconnect_item);
+
     netplay_menu->addSeparator();
-    add_item(tr("&Act as Server"));
-    add_item(tr("&Re-sync all Clients Using Freeze File Now"));
-    add_item(tr("&Send ROM Image to Clients Now"));
-    add_item(tr("S&end ROM Image to Clients"), true);
-    add_item(tr("S&ync Using Reset Game"), true, true);
-    netplay_menu->addSeparator();
-    add_item(tr("&Options…"));
+
+    auto host_item = netplay_menu->addAction(tr("&Act as Server…"));
+    connect(host_item, &QAction::triggered, this, [&] {
+        NetplayDialog dialog(this, app, true);
+        dialog.exec();
+    });
+    running_actions_.push_back(host_item);
+
+    auto resync_item = netplay_menu->addAction(tr("&Re-sync all Clients Using Freeze File Now"));
+    connect(resync_item, &QAction::triggered, this, [&] {
+        app->netplayResyncClients();
+    });
+    running_actions_.push_back(resync_item);
+
+    auto send_rom_now_item = netplay_menu->addAction(tr("&Send ROM Image to Clients Now"));
+    connect(send_rom_now_item, &QAction::triggered, this, [&] {
+        app->netplaySendRomToClients();
+    });
+    running_actions_.push_back(send_rom_now_item);
+
+    auto send_rom_item = netplay_menu->addAction(tr("S&end ROM Image to Clients on Connect"));
+    send_rom_item->setCheckable(true);
+    connect(send_rom_item, &QAction::toggled, this, [&](bool checked) {
+        app->config->netplay_send_rom = checked;
+        app->netplaySetSendRomOnConnect(checked);
+    });
+    connect(netplay_menu, &QMenu::aboutToShow, this, [&, send_rom_item] {
+        send_rom_item->setChecked(app->config->netplay_send_rom);
+    });
+
+    auto sync_reset_item = netplay_menu->addAction(tr("S&ync Using Reset Game"));
+    sync_reset_item->setCheckable(true);
+    connect(sync_reset_item, &QAction::toggled, this, [&](bool checked) {
+        app->config->netplay_sync_reset = checked;
+        app->netplaySetSyncByReset(checked);
+    });
+    connect(netplay_menu, &QMenu::aboutToShow, this, [&, sync_reset_item] {
+        sync_reset_item->setChecked(app->config->netplay_sync_reset);
+    });
+
+    connect(netplay_menu, &QMenu::aboutToShow, this, [&, connect_item, disconnect_item, host_item, resync_item, send_rom_now_item] {
+        bool connected = app->netplayConnected();
+        bool is_server = app->netplayIsServer();
+        connect_item->setEnabled(!connected);
+        host_item->setEnabled(!connected);
+        disconnect_item->setEnabled(connected);
+        resync_item->setEnabled(connected && is_server);
+        send_rom_now_item->setEnabled(connected && is_server);
+    });
 
     return netplay_menu;
 }

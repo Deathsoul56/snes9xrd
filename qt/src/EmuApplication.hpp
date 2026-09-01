@@ -129,6 +129,19 @@ struct EmuApplication
     QString iconPrefix();
     std::string getContentFolder();
 
+    bool netplayConnect(const std::string &host, int port);
+    bool netplayStartServer(int port);
+    void netplayDisconnect();
+    bool netplayConnected();
+    bool netplayIsServer();
+    void netplayResyncClients();
+    void netplaySendRomToClients();
+    void netplaySendJoypadSwap();
+    void netplaySetSendRomOnConnect(bool enabled);
+    void netplaySetSyncByReset(bool enabled);
+    void netplaySetMaxFrameLoss(int frames);
+    std::string netplayLastError();
+
     std::vector<std::tuple<bool, std::string, std::string>> getCheatList();
     bool cheatsEnabled();
     void setCheatsEnabled(bool enabled);

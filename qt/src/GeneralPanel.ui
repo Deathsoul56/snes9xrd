@@ -56,6 +56,13 @@
        </widget>
       </item>
       <item>
+       <widget class="QCheckBox" name="checkBox_save_state_on_close">
+        <property name="text">
+         <string>Save State On Game Close (automatically loaded next time)</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QCheckBox" name="checkBox_add_to_registry">
         <property name="text">
          <string>Add Snes9x to the "Open with" list for supported file types (Windows only)</string>

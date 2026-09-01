@@ -79,6 +79,11 @@ QTableView#gameTable::item:hover {
     background-color: #23252c;
 }
 
+QTableView#gameTable::item:selected:hover {
+    background-color: #3a4d6e;
+    color: #ffffff;
+}
+
 QHeaderView#gameHeader {
     background-color: #16171c;
     border: none;
