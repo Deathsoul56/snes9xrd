@@ -19,6 +19,8 @@ struct GameListEntry
     qint64 mtime_ms = 0;  // last-modified time, used to invalidate the scan cache.
     uint32_t crc32 = 0;
     bool valid = false;   // false if the file couldn't be read/decompressed.
+    qint64 playtime_ms = 0;
+    qint64 last_played_ms = 0; // 0 = never played
 };
 
 class EmuGameList : public QAbstractTableModel
@@ -33,6 +35,8 @@ public:
         Column_Region,
         Column_Size,
         Column_Company,
+        Column_TimePlayed,
+        Column_LastPlayed,
         Column_Serial,
         Column_Count,
     };
@@ -57,6 +61,11 @@ public:
     int entryCount() const { return static_cast<int>(entries_.size()); }
     const GameListEntry *entryAt(int row) const;
     QModelIndex indexForPath(const QString &path) const;
+
+    // Adds duration_ms to the matching entry's playtime and stamps it as
+    // just-played. No-ops if path isn't in the library. Persists immediately
+    // so playtime survives a crash, not just a clean exit.
+    void recordPlaySession(const QString &path, qint64 duration_ms);
 
     void clear();
 

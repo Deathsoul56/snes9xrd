@@ -36,6 +36,7 @@
 #include "NetplayDialog.hpp"
 #include "StatePreviewDialog.hpp"
 #include "snes9x.h"
+#include "memmap.h"
 
 #undef KeyPress
 
@@ -681,9 +682,24 @@ void EmuMainWindow::showRunningPage()
     if (isFullScreen()) menuBar()->setVisible(false);
 }
 
+void EmuMainWindow::flushPlaytime()
+{
+    if (play_session_path_.isEmpty())
+        return;
+
+    qint64 ms = play_session_timer_.elapsed();
+    QString path = play_session_path_;
+    play_session_path_.clear();
+
+    if (ms > 0 && game_list_)
+        game_list_->recordPlaySession(path, ms);
+}
+
 void EmuMainWindow::closeCurrentGame()
 {
     if (mouse_grabbed) toggleMouseGrab();
+
+    flushPlaytime();
 
     app->suspendThread();
     app->pause();
@@ -774,6 +790,10 @@ bool EmuMainWindow::openFile(const std::string &filename)
 
 bool EmuMainWindow::startRunningGame()
 {
+    flushPlaytime();
+    play_session_path_ = QString::fromStdString(Memory.ROMFilename);
+    play_session_timer_.start();
+
     setRunningActionsEnabled(true);
 
     if (!canvas)
@@ -835,6 +855,7 @@ bool EmuMainWindow::event(QEvent *event)
     switch (event->type())
     {
     case QEvent::Close:
+        flushPlaytime();
         app->suspendThread();
         if (isFullScreen()) toggleFullscreen();
         QGuiApplication::processEvents();

@@ -4,6 +4,7 @@
 #include <QTableView>
 #include <QString>
 #include <QElapsedTimer>
+#include <QHash>
 #include <QWidget>
 
 class EmuGameList;
@@ -40,10 +41,17 @@ protected:
     // multi-letter typeahead (e.g. "SUPER") and instant cycling on repeated
     // identical letters are both reimplemented here from scratch.
     void keyboardSearch(const QString &search) override;
+    void resizeEvent(QResizeEvent *event) override;
 
 private:
+    // Grows/shrinks visible columns (evenly) relative to their default_column_widths_
+    // baseline so leftover viewport space is shared out, recomputed fresh each
+    // time -- toggling a column's visibility can't compound into overflow.
+    void redistributeColumnSpace();
+
     EmuGameList      *model_;
     GameListProxyModel *proxy_;
     QString          keyboard_search_buffer_;
     QElapsedTimer    keyboard_search_timer_;
+    QHash<int, int>  default_column_widths_;
 };

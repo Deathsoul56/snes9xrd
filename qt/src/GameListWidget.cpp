@@ -7,6 +7,8 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QStyleOptionHeader>
+#include <algorithm>
+#include <vector>
 
 namespace {
 
@@ -129,19 +131,23 @@ GameListWidget::GameListWidget(EmuGameList *model, QWidget *parent)
     verticalHeader()->setVisible(false);
     verticalHeader()->setDefaultSectionSize(36);
     horizontalHeader()->setObjectName("gameHeader");
-    horizontalHeader()->setStretchLastSection(true);
     horizontalHeader()->setHighlightSections(true);
     horizontalHeader()->setSectionsClickable(true);
     horizontalHeader()->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(horizontalHeader(), &QHeaderView::customContextMenuRequested,
             this, &GameListWidget::onHeaderContextMenuRequested);
 
-    setColumnWidth(EmuGameList::Column_FileTitle, 450);
-    setColumnWidth(EmuGameList::Column_Title, 250);
+    setColumnWidth(EmuGameList::Column_FileTitle, 500);
+    setColumnWidth(EmuGameList::Column_Title, 350);
     setColumnWidth(EmuGameList::Column_Region, 90);
     setColumnWidth(EmuGameList::Column_Size, 80);
     setColumnWidth(EmuGameList::Column_Company, 140);
+    setColumnWidth(EmuGameList::Column_TimePlayed, 110);
+    setColumnWidth(EmuGameList::Column_LastPlayed, 110);
     setColumnWidth(EmuGameList::Column_Serial, 100);
+
+    for (int col = 0; col < model_->columnCount(); ++col)
+        default_column_widths_[col] = columnWidth(col);
 
     sortByColumn(EmuGameList::Column_FileTitle, Qt::AscendingOrder);
     setFocusPolicy(Qt::StrongFocus);
@@ -178,10 +184,46 @@ void GameListWidget::onHeaderContextMenuRequested(const QPoint &pos)
         action->setChecked(!isColumnHidden(col));
         connect(action, &QAction::toggled, this, [this, col](bool checked) {
             setColumnHidden(col, !checked);
+            redistributeColumnSpace();
         });
     }
 
     menu.exec(horizontalHeader()->mapToGlobal(pos));
+}
+
+void GameListWidget::resizeEvent(QResizeEvent *event)
+{
+    QTableView::resizeEvent(event);
+    redistributeColumnSpace();
+}
+
+void GameListWidget::redistributeColumnSpace()
+{
+    std::vector<int> visible_cols;
+    int total_default = 0;
+    for (int col = 0; col < model()->columnCount(); ++col)
+    {
+        if (isColumnHidden(col)) continue;
+        visible_cols.push_back(col);
+        total_default += default_column_widths_.value(col);
+    }
+    if (visible_cols.empty()) return;
+
+    // Always computed from the fixed default_column_widths_ baseline, never
+    // from the current (already-redistributed) width -- otherwise hiding a
+    // column grows the rest, and re-showing it stacks its width back on top
+    // of that growth, overflowing past the viewport.
+    int extra = viewport()->width() - total_default;
+    int share = extra / static_cast<int>(visible_cols.size());
+    int remainder = extra % static_cast<int>(visible_cols.size());
+
+    for (size_t i = 0; i < visible_cols.size(); ++i)
+    {
+        int col = visible_cols[i];
+        int add = share + (i == visible_cols.size() - 1 ? remainder : 0);
+        int width = default_column_widths_.value(col) + add;
+        setColumnWidth(col, std::max(width, horizontalHeader()->minimumSectionSize()));
+    }
 }
 
 void GameListWidget::keyboardSearch(const QString &search)

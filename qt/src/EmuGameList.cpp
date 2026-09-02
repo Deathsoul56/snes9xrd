@@ -21,7 +21,7 @@ constexpr int SNES_HEADER_HI = 0xFFC0;
 // Identifies the on-disk scan cache format/version so a future field change
 // doesn't get misread as a previous layout.
 constexpr quint32 kCacheMagic = 0x53394758; // "S9GX"
-constexpr quint32 kCacheVersion = 2; // bumped for title/company fields
+constexpr quint32 kCacheVersion = 3; // bumped for playtime/last-played fields
 
 QString cacheFilePath()
 {
@@ -144,6 +144,31 @@ int scoreLoRom(const uint8_t *rom, int rom_size, int header_offset)
 }
 
 
+QString formatPlaytime(qint64 ms)
+{
+    if (ms <= 0) return QStringLiteral("Never");
+
+    qint64 total_seconds = ms / 1000;
+    if (total_seconds < 60)
+        return QCoreApplication::translate("EmuGameList", "%n second(s)", nullptr, static_cast<int>(total_seconds));
+
+    qint64 total_minutes = total_seconds / 60;
+    if (total_minutes < 60)
+        return QCoreApplication::translate("EmuGameList", "%n minute(s)", nullptr, static_cast<int>(total_minutes));
+
+    qint64 hours = total_minutes / 60;
+    qint64 minutes = total_minutes % 60;
+    return QCoreApplication::translate("EmuGameList", "%n hour(s)", nullptr, static_cast<int>(hours))
+           + QStringLiteral(" ")
+           + QCoreApplication::translate("EmuGameList", "%n minute(s)", nullptr, static_cast<int>(minutes));
+}
+
+QString formatLastPlayed(qint64 epoch_ms)
+{
+    if (epoch_ms <= 0) return QStringLiteral("Never");
+    return QDateTime::fromMSecsSinceEpoch(epoch_ms).toString(QStringLiteral("dd-MM-yyyy"));
+}
+
 uint32_t crc32_calculate(const uint8_t *data, size_t size)
 {
     static uint32_t table[256];
@@ -204,6 +229,8 @@ QVariant EmuGameList::data(const QModelIndex &index, int role) const
             if (e.file_size < 1024 * 1024) return QString::number(e.file_size / 1024.0, 'f', 1) + " KB";
             return QString::number(e.file_size / (1024.0 * 1024.0), 'f', 2) + " MB";
         case Column_Company: return e.company;
+        case Column_TimePlayed: return formatPlaytime(e.playtime_ms);
+        case Column_LastPlayed: return formatLastPlayed(e.last_played_ms);
         case Column_Serial: return e.serial;
         }
     }
@@ -230,6 +257,8 @@ QVariant EmuGameList::headerData(int section, Qt::Orientation orientation, int r
     case Column_Region:    return tr("Region");
     case Column_Size:      return tr("Size");
     case Column_Company: return tr("Company");
+    case Column_TimePlayed: return tr("Time Played");
+    case Column_LastPlayed: return tr("Last Played");
     case Column_Serial: return tr("Serial");
     }
     return {};
@@ -259,6 +288,23 @@ QModelIndex EmuGameList::indexForPath(const QString &path) const
             return index(static_cast<int>(i), 0);
     }
     return {};
+}
+
+void EmuGameList::recordPlaySession(const QString &path, qint64 duration_ms)
+{
+    for (size_t i = 0; i < entries_.size(); ++i)
+    {
+        if (entries_[i].path != path)
+            continue;
+
+        entries_[i].playtime_ms += duration_ms;
+        entries_[i].last_played_ms = QDateTime::currentMSecsSinceEpoch();
+        saveCache(entries_);
+
+        emit dataChanged(index(static_cast<int>(i), Column_TimePlayed),
+                         index(static_cast<int>(i), Column_LastPlayed));
+        return;
+    }
 }
 
 QString EmuGameList::regionForCode(uint8_t code)
@@ -414,7 +460,7 @@ QHash<QString, GameListEntry> EmuGameList::loadCache()
         GameListEntry e;
         quint64 size = 0;
         in >> e.path >> e.title >> e.region >> e.serial >> e.company >> e.file_type
-           >> size >> e.mtime_ms >> e.crc32 >> e.valid;
+           >> size >> e.mtime_ms >> e.crc32 >> e.valid >> e.playtime_ms >> e.last_played_ms;
         e.file_size = size;
         cache.insert(e.path, e);
     }
@@ -432,7 +478,8 @@ void EmuGameList::saveCache(const std::vector<GameListEntry> &entries)
     for (const auto &e : entries)
     {
         out << e.path << e.title << e.region << e.serial << e.company << e.file_type
-            << static_cast<quint64>(e.file_size) << e.mtime_ms << e.crc32 << e.valid;
+            << static_cast<quint64>(e.file_size) << e.mtime_ms << e.crc32 << e.valid
+            << e.playtime_ms << e.last_played_ms;
     }
 }
 
@@ -484,6 +531,16 @@ void EmuGameList::refresh()
             entry = *cached;
         else
             entry = parseRom(path);
+
+        // Playtime/last-played tracks the file's path, not its content, so
+        // it must survive even when the ROM itself changed and got
+        // re-parsed above (e.g. a headered dump was replaced by a
+        // headerless one of the same game).
+        if (cached != cache.constEnd())
+        {
+            entry.playtime_ms = cached->playtime_ms;
+            entry.last_played_ms = cached->last_played_ms;
+        }
 
         if (entry.valid) scanned.push_back(std::move(entry));
 

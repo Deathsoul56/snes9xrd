@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QPointer>
 #include <QTimer>
+#include <QElapsedTimer>
 #include "EmuCanvas.hpp"
 
 class EmuApplication;
@@ -92,6 +93,14 @@ class EmuMainWindow : public QMainWindow
     // other -- MultiCart used to skip all of this and just silently load
     // the core without ever showing it.
     bool startRunningGame();
+
+    // Accumulates wall-clock time for the Library's Time Played/Last Played
+    // columns. Flushed (and restarted) whenever the running game changes or
+    // stops, so playtime is never lost even if the game is switched without
+    // an explicit Close Game in between.
+    void flushPlaytime();
+    QElapsedTimer play_session_timer_;
+    QString       play_session_path_;
 
     QPointer<CheatsDialog> cheats_dialog;
     QPointer<CheatSearchDialog> cheat_search_dialog;
