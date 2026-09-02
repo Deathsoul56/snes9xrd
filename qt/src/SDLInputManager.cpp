@@ -93,6 +93,15 @@ SDLInputManager::discretizeHatEvent(SDL_Event &event)
     return events;
 }
 
+int SDLInputManager::axisDirection(int value, int center, int threshold_percent)
+{
+    if (value > center + (32767 - center) * threshold_percent / 100)
+        return 1;
+    if (value < center - (center + 32768) * threshold_percent / 100)
+        return -1;
+    return 0;
+}
+
 std::vector<SDLInputManager::DiscreteAxisEvent>
 SDLInputManager::discretizeJoyAxisEvent(SDL_Event &event, int threshold_percent)
 {
@@ -102,16 +111,8 @@ SDLInputManager::discretizeJoyAxisEvent(SDL_Event &event, int threshold_percent)
     auto &then = device.axes[axis].last;
     auto center = device.axes[axis].initial;
 
-    auto get_direction = [&](int pos) -> int {
-        if (pos > (center + (32767 - center) * threshold_percent / 100))
-            return 1;
-        if (pos < (center - (center + 32768) * threshold_percent / 100))
-            return -1;
-        return 0;
-    };
-
-    auto previous_direction = get_direction(then);
-    auto current_direction  = get_direction(now);
+    auto previous_direction = axisDirection(then, center, threshold_percent);
+    auto current_direction  = axisDirection(now, center, threshold_percent);
 
     if (previous_direction == current_direction)
     {
@@ -341,11 +342,7 @@ QSet<QString> SDLInputManager::pressedSnesNames(const EmuBinding *bindings, int 
             {
                 Sint16 value = SDL_GetJoystickAxis(device.joystick, axis);
                 Sint16 center = device.axes[axis].initial;
-                int direction = 0;
-                if (value > center + (32767 - center) * 33 / 100)
-                    direction = 1;
-                else if (value < center - (center + 32768) * 33 / 100)
-                    direction = -1;
+                int direction = axisDirection(value, center);
                 if (direction == 0) continue;
 
                 int key = axis * 2 + (direction > 0 ? 1 : 0);

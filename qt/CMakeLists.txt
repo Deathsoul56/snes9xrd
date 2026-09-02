@@ -97,6 +97,8 @@ set(SNES9X_CORE_SOURCES
 add_library(snes9x-core ${SNES9X_CORE_SOURCES})
 target_include_directories(snes9x-core PRIVATE ../ ../unzip)
 target_compile_definitions(snes9x-core PRIVATE ${DEFINES} ZLIB HAVE_STDINT_H HAVE_LIBPNG ALLOW_CPU_OVERCLOCK UNZIP_SUPPORT JMA_SUPPORT NETPLAY_SUPPORT)
+# Lets the final link's --gc-sections drop unreferenced core functions (e.g. per-coprocessor code paths never hit by a given ROM).
+target_compile_options(snes9x-core PRIVATE -ffunction-sections -fdata-sections)
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
     set(PREBUILT_QT "${PROJECT_SOURCE_DIR}/../external/qt6-mingw-clang-bin")
@@ -377,7 +379,11 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
 endif()
 target_link_libraries(snes9x-qt PRIVATE snes9x-core ${LIBS})
 target_compile_definitions(snes9x-qt PRIVATE ${DEFINES})
-target_compile_options(snes9x-qt PRIVATE ${FLAGS})
+target_compile_options(snes9x-qt PRIVATE ${FLAGS} -ffunction-sections -fdata-sections)
+# Statically-linked Qt/glslang/SPIRV-Cross libs keep their full symbol table in a
+# Release build otherwise -- stripping cuts the exe by roughly a quarter with no
+# behavior change (Debug/RelWithDebInfo keep symbols since those configs opt into -g).
+target_link_options(snes9x-qt PRIVATE $<$<CONFIG:Release>:-s> -Wl,--gc-sections)
 target_include_directories(snes9x-qt PRIVATE "../" ${INCLUDES})
 
 install(TARGETS snes9x-qt)

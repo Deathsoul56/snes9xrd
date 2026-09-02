@@ -1,7 +1,21 @@
 #include "EmuCanvas.hpp"
 #include "EmuConfig.hpp"
+#include "EmuMainWindow.hpp"
+#include "snes9x.h"
 #include <qnamespace.h>
 #include <qwidget.h>
+
+bool EmuCanvas::mainWindowIsActivelyDrawing() const
+{
+    return static_cast<EmuMainWindow *>(main_window)->isActivelyDrawing();
+}
+
+void EmuCanvas::reportShaderLoadFailure(const std::string &path) const
+{
+    auto msg = "Couldn't load shader preset: " + path;
+    printf("%s\n", msg.c_str());
+    S9xMessage(S9X_ERROR, 0, msg.c_str());
+}
 
 EmuCanvas::EmuCanvas(EmuConfig *config, QWidget *main_window)
     : output_data{}, main_window(main_window), config(config)

@@ -30,6 +30,9 @@ class EmuCanvas : public QWidget
         return output_data.ready;
     }
 
+    bool mainWindowIsActivelyDrawing() const;
+    void reportShaderLoadFailure(const std::string &path) const;
+
     QRect applyAspect(const QRect &viewport);
 
     struct Parameter

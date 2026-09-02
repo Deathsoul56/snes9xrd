@@ -83,6 +83,13 @@ struct SDLInputManager
     };
     std::vector<DiscreteAxisEvent> discretizeJoyAxisEvent(SDL_Event &event, int threshold_percent = 33);
 
+    // Shared centered-deadzone direction test (-1/0/+1) used both when an
+    // axis binding is captured (discretizeJoyAxisEvent) and when polling for
+    // the live keyboard/gamepad highlight (pressedSnesNames) -- keep both
+    // call sites going through this so the deadzone math can never drift
+    // apart between capture and playback.
+    static int axisDirection(int value, int center, int threshold_percent = 33);
+
     struct DiscreteHatEvent
     {
         std::string hw_guid;

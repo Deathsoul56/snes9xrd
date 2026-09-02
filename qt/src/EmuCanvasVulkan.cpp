@@ -2,7 +2,6 @@
 #include <QtEvents>
 #include <QMessageBox>
 #include "EmuCanvasVulkan.hpp"
-#include "EmuMainWindow.hpp"
 
 #include "snes9x.h"
 #include "snes9x_imgui.h"
@@ -160,9 +159,7 @@ void EmuCanvasVulkan::tryLoadShader()
         current_shader = config->shader;
         if (!shader_chain->load_shader_preset(config->shader))
         {
-            auto msg = "Couldn't load shader preset: " + config->shader;
-            printf("%s\n", msg.c_str());
-            S9xMessage(S9X_ERROR, 0, msg.c_str());
+            reportShaderLoadFailure(config->shader);
             shader_chain.reset();
         }
         setlocale(LC_NUMERIC, previous_locale);
@@ -267,10 +264,9 @@ void EmuCanvasVulkan::paintEvent(QPaintEvent *event)
     if (!context || !isVisible())
         return;
 
-    auto window = (EmuMainWindow *)main_window;
     if (output_data.ready)
     {
-        if (!window->isActivelyDrawing())
+        if (!mainWindowIsActivelyDrawing())
         {
             draw();
         }

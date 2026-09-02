@@ -12,7 +12,6 @@ using namespace QNativeInterface;
 #include "common/video/opengl/wgl_context.hpp"
 #endif
 #include "common/video/opengl/shaders/glsl.h"
-#include "EmuMainWindow.hpp"
 #include "snes9x.h"
 #include "snes9x_imgui.h"
 #include "imgui_impl_opengl3.h"
@@ -233,9 +232,7 @@ void EmuCanvasOpenGL::loadShaders()
         shader = std::make_unique<GLSLShader>();
         if (!shader->load_shader(config->shader.c_str()))
         {
-            auto msg = "Couldn't load shader preset: " + config->shader;
-            printf("%s\n", msg.c_str());
-            S9xMessage(S9X_ERROR, 0, msg.c_str());
+            reportShaderLoadFailure(config->shader);
             shader.reset();
             using_shader = false;
             createStockShaders();
@@ -340,7 +337,7 @@ void EmuCanvasOpenGL::paintEvent(QPaintEvent *event)
 
     if (output_data.ready)
     {
-        if (!dynamic_cast<EmuMainWindow *>(main_window)->isActivelyDrawing())
+        if (!mainWindowIsActivelyDrawing())
             draw();
         return;
     }
