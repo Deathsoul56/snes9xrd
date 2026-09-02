@@ -315,6 +315,44 @@ QSet<QString> SDLInputManager::pressedSnesNames(const EmuBinding *bindings, int 
                 fire(SDL_HAT_RIGHT, 3);
             }
         }
+
+        // Same idea for an analog stick axis bound directly to a SNES button
+        // (EmuBinding::joystick_axis stores the captured direction, -1/+1, in
+        // `threshold`). Poll the raw axis with the exact same centered/33%
+        // deadzone math discretizeJoyAxisEvent used when the binding was
+        // captured, so a still-held stick keeps highlighting the button.
+        if (device.joystick && bindings && binding_stride > 0)
+        {
+            QHash<int, QString> axis_to_snes;
+            for (int row = 0; row < 12; ++row)
+            {
+                for (int col = 0; col < binding_stride; ++col)
+                {
+                    const EmuBinding &b = bindings[row * binding_stride + col];
+                    if (b.type != EmuBinding::Joystick) continue;
+                    if (b.input_type != EmuBinding::Axis) continue;
+                    if (b.hw_guid != device.hw_guid) continue;
+                    if (b.axis < 0 || b.axis >= (int)device.axes.size()) continue;
+                    axis_to_snes.insert(b.axis * 2 + (b.threshold > 0 ? 1 : 0), snes_names[row]);
+                }
+            }
+
+            for (int axis = 0; axis < (int)device.axes.size(); ++axis)
+            {
+                Sint16 value = SDL_GetJoystickAxis(device.joystick, axis);
+                Sint16 center = device.axes[axis].initial;
+                int direction = 0;
+                if (value > center + (32767 - center) * 33 / 100)
+                    direction = 1;
+                else if (value < center - (center + 32768) * 33 / 100)
+                    direction = -1;
+                if (direction == 0) continue;
+
+                int key = axis * 2 + (direction > 0 ? 1 : 0);
+                if (axis_to_snes.contains(key))
+                    out.insert(axis_to_snes.value(key));
+            }
+        }
     }
     return out;
 }

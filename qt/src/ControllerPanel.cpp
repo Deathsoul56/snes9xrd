@@ -61,12 +61,17 @@ ControllerPanel::ControllerPanel(EmuApplication *app_)
             // up the button being (turbo-)assigned.
             int base_row = (cell_row < 12) ? cell_row : (cell_row - 12 + 4);
             controller_image_->setPressedNames({ snes_name_for_row(base_row) });
+            // Stale keyboard state can't be captured while a bind is being
+            // assigned (eventFilter() ignores keys during that window), so
+            // it's dropped here too to avoid it leaking into the next tick.
+            pressed_keyboard_names_.clear();
             return;
         }
 
         if (!app_->input_manager) return;
         QSet<QString> names = app_->input_manager->pressedSnesNames(
             BindingPanel::binding, EmuConfig::allowed_bindings);
+        names |= pressed_keyboard_names_;
         controller_image_->setPressedNames(names);
         controller_image_->setDebugRawState(app_->input_manager->debugRawState());
     });
@@ -379,4 +384,68 @@ void ControllerPanel::showEvent(QShowEvent *event)
         controllerComboBox->setCurrentIndex(1);
 
     updateBindingView(controllerComboBox->currentIndex());
+
+    // Installed application-wide (like EmuMainWindow's own filter) since
+    // Settings' panelList/spinboxes/etc. -- not this panel -- normally hold
+    // keyboard focus, so a filter scoped to just this widget would never see
+    // the key events we need to intercept.
+    app->qtapp->installEventFilter(this);
+}
+
+void ControllerPanel::hideEvent(QHideEvent *event)
+{
+    app->qtapp->removeEventFilter(this);
+    pressed_keyboard_names_.clear();
+    controller_image_->setPressedNames({});
+
+    BindingPanel::hideEvent(event);
+}
+
+bool ControllerPanel::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event->type() != QEvent::KeyPress && event->type() != QEvent::KeyRelease)
+        return false;
+
+    // Mid-capture, let EmuMainWindow's own application-wide filter finalize
+    // the new binding as usual -- this filter only drives the live preview.
+    if (awaiting_binding)
+        return false;
+
+    auto *key_event = static_cast<QKeyEvent *>(event);
+    bool pressed = event->type() == QEvent::KeyPress;
+
+    // Only the 12-button controller table has hotspots on the image (see
+    // SnesControllerWidget::setMode) -- same guard as the joystick preview
+    // in the live_input_timer_ tick above.
+    if (!key_event->isAutoRepeat() &&
+        binding == app->config->binding.controller[controllerComboBox->currentIndex()].buttons)
+    {
+        EmuBinding b = EmuBinding::keyboard(key_event->key(),
+                                            key_event->modifiers().testFlag(Qt::ShiftModifier),
+                                            key_event->modifiers().testFlag(Qt::AltModifier),
+                                            key_event->modifiers().testFlag(Qt::ControlModifier),
+                                            key_event->modifiers().testFlag(Qt::MetaModifier));
+
+        for (int row = 0; row < table_height; row++)
+        {
+            for (int col = 0; col < table_width; col++)
+            {
+                if (binding[row * table_width + col].hash() != b.hash())
+                    continue;
+
+                // Rows 12-17 are the Turbo variants of A/B/X/Y/L/R (4-9).
+                int base_row = (row < 12) ? row : (row - 12 + 4);
+                QString name = snes_name_for_row(base_row);
+                if (pressed)
+                    pressed_keyboard_names_.insert(name);
+                else
+                    pressed_keyboard_names_.remove(name);
+            }
+        }
+    }
+
+    // Consumed unconditionally (matched or not): while this panel is shown,
+    // keys are for testing controller bindings, not for driving the Settings
+    // window itself (e.g. Up/Down switching panelList's selected page).
+    return true;
 }

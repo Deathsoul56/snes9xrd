@@ -2,6 +2,8 @@
 #include "ui_ControllerPanel.h"
 #include "BindingPanel.hpp"
 #include <QMenu>
+#include <QSet>
+#include <QString>
 #include <QTimer>
 
 class EmuApplication;
@@ -14,6 +16,8 @@ class ControllerPanel :
   public:
     explicit ControllerPanel(EmuApplication *app);
     void showEvent(QShowEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
     void clearAllControllers();
     void clearCurrentController();
     void autoPopulateWithKeyboard(int slot);
@@ -31,4 +35,7 @@ class ControllerPanel :
 
     SnesControllerWidget *controller_image_ = nullptr;
     QTimer live_input_timer_;
+    // SNES button names currently held down on the keyboard, mirroring
+    // SDLInputManager::pressedSnesNames() for gamepads (see eventFilter()).
+    QSet<QString> pressed_keyboard_names_;
 };
