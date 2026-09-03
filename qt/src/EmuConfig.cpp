@@ -26,6 +26,7 @@ static const char *shortcut_names[] =
     "SaveSPC",
     "SaveState",
     "LoadState",
+    "UndoState",
     "IncreaseSlot",
     "DecreaseSlot",
     "QuickSave000",
@@ -94,6 +95,7 @@ static const char *default_controller_keys[] =
     "", //    eSaveSPC
     "Keyboard Ctrl+s", //    eSaveState
     "Keyboard Ctrl+l", //    eLoadState
+    "Keyboard Ctrl+u", //    eUndoState
     "Keyboard Ctrl++", //    eIncreaseSlot
     "Keyboard Ctrl+-", //    eDecreaseSlot
     "Keyboard Shift+F1", //    eSaveState0
@@ -125,15 +127,15 @@ static const char *default_controller_keys[] =
     "", //    eToggleBG3
     "", //    eToggleSprites
     "", //    eChangeBackdrop
-    "", //    eToggleSoundChannel1
-    "", //    eToggleSoundChannel2
-    "", //    eToggleSoundChannel3
-    "", //    eToggleSoundChannel4
-    "", //    eToggleSoundChannel5
-    "", //    eToggleSoundChannel6
-    "", //    eToggleSoundChannel7
-    "", //    eToggleSoundChannel8
-    "", //    eToggleAllSoundChannels
+    "Keyboard Alt+1", //    eToggleSoundChannel1
+    "Keyboard Alt+2", //    eToggleSoundChannel2
+    "Keyboard Alt+3", //    eToggleSoundChannel3
+    "Keyboard Alt+4", //    eToggleSoundChannel4
+    "Keyboard Alt+5", //    eToggleSoundChannel5
+    "Keyboard Alt+6", //    eToggleSoundChannel6
+    "Keyboard Alt+7", //    eToggleSoundChannel7
+    "Keyboard Alt+8", //    eToggleSoundChannel8
+    "Keyboard Alt+0", //    eToggleAllSoundChannels
     "Keyboard Ctrl+Alt+r", //    eStartRecording
     "Keyboard Ctrl+Alt+p", //    eStopRecording
     "", //    eSeekToFrame
@@ -240,6 +242,7 @@ bool EmuConfig::setDefaults(int section)
         confirm_save_load = false;
         add_to_registry = false;
         save_state_on_close = false;
+        theme = 0;
 
         show_frame_rate = false;
         show_indicators = true;
@@ -534,6 +537,9 @@ void EmuConfig::config(const std::string &filename, bool write)
     Bool("ShowIndicators", show_indicators);
     Bool("ShowPressedKeys", show_pressed_keys);
     Bool("ShowTime", show_time);
+    Enum("Theme", theme, { "System", "Light", "DarkBlue", "DarkPurple", "DarkGreen", "DarkRed", "DarkTeal", "DarkOrange",
+                           "DarkFusionGray", "GreyMatter", "UntouchedLagoon", "BabyPastel", "PizzaTime", "PCSX2Light",
+                           "ScarletDevil", "VioletAngel", "CobaltSky", "AMOLED", "Ruby", "Sapphire", "Emerald" });
     EndSection();
 
     BeginSection("Display");

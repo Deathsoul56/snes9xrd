@@ -27,6 +27,9 @@ class BindingPanel : public QWidget
     void clearRow(int row);
     void resetRowToDefault(int row);
     void updateConflictHighlights();
+    // Recomputes keyboard/joypad/mouse device-type icons for the active
+    // theme and reapplies them to the table (called after a theme switch).
+    virtual void refreshIcons();
 
     bool awaiting_binding;
     bool accept_return;

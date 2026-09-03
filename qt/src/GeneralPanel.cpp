@@ -1,6 +1,8 @@
 #include "GeneralPanel.hpp"
 #include "EmuApplication.hpp"
 #include "EmuConfig.hpp"
+#include "EmuMainWindow.hpp"
+#include "EmuTheme.hpp"
 #include "PanelConnectHelpers.hpp"
 #include "SDLInputManager.hpp"
 #include "WinFileAssociation.hpp"
@@ -9,6 +11,14 @@ GeneralPanel::GeneralPanel(EmuApplication *app_)
     : app(app_)
 {
     setupUi(this);
+
+    for (const auto &theme : EmuTheme::list())
+        comboBox_theme->addItem(QString::fromStdString(theme.second));
+    connectComboBox(comboBox_theme, &app->config->theme, app);
+    connect(comboBox_theme, &QComboBox::activated, this, [app_](int index) {
+        EmuTheme::apply(EmuTheme::list()[index].first);
+        app_->window->refreshIcons();
+    });
 
     connectCheckbox(checkBox_fullscreen_on_open, &app->config->fullscreen_on_open, app);
     connectCheckbox(checkBox_disable_screensaver, &app->config->disable_screensaver, app);
@@ -37,6 +47,7 @@ GeneralPanel::GeneralPanel(EmuApplication *app_)
 void GeneralPanel::showEvent(QShowEvent *event)
 {
     auto &config = app->config;
+    comboBox_theme->setCurrentIndex(config->theme);
     checkBox_fullscreen_on_open->setChecked(config->fullscreen_on_open);
     checkBox_disable_screensaver->setChecked(config->disable_screensaver);
     checkBox_disable_screensaver->setVisible(false);

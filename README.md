@@ -29,6 +29,89 @@ See [docs/changes-snes9xrd.txt](docs/changes-snes9xrd.txt) for the full version-
 
 For the full breakdown of the fork's layout, build systems, and conventions, see [AGENTS.md](AGENTS.md).
 
+## Features
+
+- **Save states**: 10 quick-save slots plus a separate "current slot" counter (Increase/Decrease Slot) that can go all the way to 999, and an **Undo State** shortcut that reverts the last Load State/Quick Load if it turns out to be a mistake.
+- **Rewind**: hold the Rewind shortcut to play backwards through a rolling buffer, independent of save states.
+- **Multiple input bindings**: every shortcut, controller button, and mouse/Super Scope action can have up to **4 simultaneous bindings** (Settings → Shortcuts/Controllers, the "Binding #1"–"Binding #4" columns), freely mixing keyboard keys, gamepad buttons/axes/hats, and mouse buttons.
+- **Per-channel sound control**: each of the 8 SPC700 sound channels can be toggled independently, with a shortcut to turn them all back on at once.
+- **Movie recording**: start/stop recording input movies, with frame-seek support during playback.
+- **Cheats**: enable/disable the active cheat list, open the Cheats editor, or open the Cheat Search tool from a shortcut.
+- **Speed control**: fast-forward (hold or toggle-lock), incremental speed up/down, frame skip up/down, and single-frame advance.
+
+## Default Keyboard Shortcuts
+
+All of these are rebindable (and clearable) from Settings → Shortcuts, unless noted otherwise. Entries marked *(fixed default only)* have a working default key but aren't yet exposed as a row in that dialog.
+
+### General
+| Action | Default key |
+|---|---|
+| Open ROM | `Ctrl+O` |
+| Pause/Continue | `P` |
+| Reset | `Ctrl+R` |
+| Power Cycle Console | *(unbound)* |
+| Quit | `Ctrl+Q` |
+| Toggle Fullscreen | `F11` |
+| Save Screenshot | `F12` |
+| Save SPC | *(unbound)* |
+
+### Save states
+| Action | Default key |
+|---|---|
+| Save State to Current Slot | `Ctrl+S` |
+| Load State from Current Slot | `Ctrl+L` |
+| Undo State | `Ctrl+U` |
+| Increase Current Save Slot | `Ctrl++` |
+| Decrease Current Save Slot | `Ctrl+-` |
+| Quick Save Slot 0–9 | `Shift+F1`–`Shift+F10` |
+| Quick Load Slot 0–9 | `F1`–`F10` |
+
+### Speed & playback
+| Action | Default key |
+|---|---|
+| Enable Fast-Forward (hold) | `Tab` |
+| Toggle Fast-Forward (lock) | `` ` `` |
+| Rewind (hold) | `Y` |
+| Speed Up *(fixed default only)* | `=` |
+| Speed Down *(fixed default only)* | `-` |
+| Increase Frame Skip *(fixed default only)* | `Shift+=` |
+| Decrease Frame Skip *(fixed default only)* | `Shift+-` |
+| Frame Advance *(fixed default only)* | `\` |
+
+### Video
+| Action | Default key |
+|---|---|
+| Toggle BG Layer 0–3 | *(unbound)* |
+| Toggle Sprites | *(unbound)* |
+| Change Backdrop Color | *(unbound)* |
+
+### Sound
+| Action | Default key |
+|---|---|
+| Toggle Sound Channel 1–8 | `Alt+1`–`Alt+8` |
+| Toggle All Sound Channels | `Alt+0` |
+| Mute Audio *(fixed default only)* | *(unbound)* |
+
+### Movies
+| Action | Default key |
+|---|---|
+| Start Recording | `Ctrl+Alt+R` |
+| Stop Recording | `Ctrl+Alt+P` |
+| Seek to Frame | *(unbound)* |
+
+### Cheats
+| Action | Default key |
+|---|---|
+| Toggle Cheats *(fixed default only)* | *(unbound)* |
+| Cheats Editor *(fixed default only)* | `Alt+G` |
+| Cheat Search *(fixed default only)* | `Alt+A` |
+
+### Input devices
+| Action | Default key |
+|---|---|
+| Grab Mouse | `Ctrl+G` |
+| Swap Controllers 1 and 2 | `6` |
+
 ## Building
 
 `git submodule update --init --recursive` is required before building anything (see [AGENTS.md](AGENTS.md#submodules) for the exact list of submodules).

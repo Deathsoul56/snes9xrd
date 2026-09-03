@@ -48,6 +48,7 @@ struct EmuConfig
     bool confirm_save_load;
     bool add_to_registry;
     bool save_state_on_close;
+    int theme;
 
     bool show_frame_rate;
     bool show_indicators;
@@ -230,7 +231,7 @@ struct EmuConfig
 
     static const int allowed_bindings = 4;
     static const int num_controller_bindings = 18;
-    static const int num_shortcuts = 64;
+    static const int num_shortcuts = 65;
     static const int num_mouse_buttons = 2; // Click L, Click R
     static const int num_superscope_buttons = 5; // Fire, Pause, Auto Fire, Cursor, Aim Offscreen
 
@@ -280,6 +281,7 @@ struct EmuConfig
         eSaveSPC,
         eSaveState,
         eLoadState,
+        eUndoState,
         eIncreaseSlot,
         eDecreaseSlot,
         eSaveState0,

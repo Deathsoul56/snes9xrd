@@ -65,6 +65,11 @@ class EmuMainWindow : public QMainWindow
     void showCheatsDialog();
     void showCheatSearchDialog();
 
+    // Re-applies every menu-bar/settings-sidebar icon using the icon set
+    // (white/black) matching the currently active theme. Called after a
+    // live theme switch so already-built menus don't keep stale icons.
+    void refreshIcons();
+
     // Called by FoldersPanel after adding/removing a ROM library folder, so
     // the Library page picks up the change without requiring a restart.
     void refreshLibrary();
@@ -127,6 +132,11 @@ class EmuMainWindow : public QMainWindow
     QLabel       *status_label_ = nullptr;
 
     std::vector<QAction *> running_actions_;
+
+    // (action, icon filename e.g. "open.svg") pairs recorded whenever an
+    // icon is set on a menu action, so refreshIcons() can redo them all
+    // with the new theme's icon set.
+    std::vector<std::pair<QAction *, QString>> icon_actions_;
 };
 
 #endif

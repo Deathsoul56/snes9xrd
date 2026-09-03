@@ -19,6 +19,9 @@ class EmuSettingsWindow
     EmuSettingsWindow(QWidget *parent, EmuApplication *app);
     void show(int page);
     void reject() override;
+    // Re-applies the sidebar icons (and the panels' own icons) using the
+    // icon set matching the currently active theme.
+    void refreshIcons();
 
     EmuApplication *app;
     GeneralPanel *general_panel;

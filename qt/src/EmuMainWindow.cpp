@@ -43,12 +43,13 @@
 // Single source of truth for the fork's own version, shown in the window
 // title and the About dialog. Separate from the upstream Snes9x core's
 // VERSION (snes9x.h), which tracks the emulator core, not this frontend fork.
-static const char *const kSnes9xrdVersion = "0.4";
+static const char *const kSnes9xrdVersion = "0.5";
 
 
 EmuMainWindow::EmuMainWindow(EmuApplication *app)
     : app(app)
 {
+    setAttribute(Qt::WA_StyledBackground, true);
     createWidgets();
 
     app->qtapp->installEventFilter(this);
@@ -148,6 +149,15 @@ void EmuMainWindow::setRunningActionsEnabled(bool enable)
         a->setEnabled(enable);
 }
 
+void EmuMainWindow::refreshIcons()
+{
+    auto iconset = app->iconPrefix();
+    for (auto &[action, name] : icon_actions_)
+        action->setIcon(QIcon(iconset + name));
+    if (settings_window)
+        settings_window->refreshIcons();
+}
+
 void EmuMainWindow::createWidgets()
 {
     setWindowTitle(QStringLiteral("snes9xrd v%1").arg(kSnes9xrdVersion));
@@ -199,6 +209,7 @@ QMenu *EmuMainWindow::createFileMenu()
     // ──────── Menu bar ────────
     auto file_menu = new QMenu(tr("&File"));
     auto open_item = file_menu->addAction(QIcon(iconset + "open.svg"), tr("&Open File…"));
+    icon_actions_.push_back({ open_item, "open.svg" });
     connect(open_item, &QAction::triggered, this, [&] { openFile(); });
 
     recent_menu = new QMenu("Recent Files");
@@ -211,6 +222,7 @@ QMenu *EmuMainWindow::createFileMenu()
     // BIOS (STBIOS.bin) is resolved from the configured BIOS folder by the
     // core itself, same as the GTK and macOS front-ends.
     auto multicart_item = file_menu->addAction(QIcon(iconset + "open.svg"), tr("Load &MultiCart…"));
+    icon_actions_.push_back({ multicart_item, "open.svg" });
     connect(multicart_item, &QAction::triggered, this, [&] {
         MultiCartDialog dlg(app->config.get(), this);
         dlg.setWindowTitle(tr("Open MultiCart"));
@@ -393,16 +405,19 @@ QMenu *EmuMainWindow::createFileMenu()
     file_menu->addSeparator();
 
     auto file_reset_item = file_menu->addAction(QIcon(iconset + "refresh.svg"), tr("&Reset Game"));
+    icon_actions_.push_back({ file_reset_item, "refresh.svg" });
     connect(file_reset_item, &QAction::triggered, this, [&] {
         app->reset();
         if (manual_pause) { manual_pause = false; app->unpause(); }
     });
 
     auto close_game_item = file_menu->addAction(QIcon(iconset + "exit.svg"), tr("&Close Game"));
+    icon_actions_.push_back({ close_game_item, "exit.svg" });
     connect(close_game_item, &QAction::triggered, this, [&] { closeCurrentGame(); });
     running_actions_.push_back(close_game_item);
 
     auto exit_item = new QAction(QIcon(iconset + "exit.svg"), tr("E&xit"));
+    icon_actions_.push_back({ exit_item, "exit.svg" });
     connect(exit_item, &QAction::triggered, this, [&](bool) { close(); });
     file_menu->addAction(exit_item);
 
@@ -415,6 +430,7 @@ QMenu *EmuMainWindow::createEmulationMenu()
 
     auto emulation_menu = new QMenu(tr("&Emulation"));
     pause_item_ = emulation_menu->addAction(QIcon(iconset + "pause.svg"), tr("&Pause"));
+    icon_actions_.push_back({ pause_item_, "pause.svg" });
     connect(pause_item_, &QAction::triggered, this, [&] { pauseContinue(); });
     running_actions_.push_back(pause_item_);
 
@@ -455,6 +471,7 @@ QMenu *EmuMainWindow::createEmulationMenu()
     emulation_menu->addSeparator();
 
     auto reset_item = emulation_menu->addAction(QIcon(iconset + "refresh.svg"), tr("Rese&t"));
+    icon_actions_.push_back({ reset_item, "refresh.svg" });
     connect(reset_item, &QAction::triggered, [&] {
         app->reset();
         if (manual_pause) { manual_pause = false; app->unpause(); }
@@ -462,6 +479,7 @@ QMenu *EmuMainWindow::createEmulationMenu()
     running_actions_.push_back(reset_item);
 
     auto hard_reset_item = emulation_menu->addAction(QIcon(iconset + "reset.svg"), tr("&Hard Reset"));
+    icon_actions_.push_back({ hard_reset_item, "reset.svg" });
     connect(hard_reset_item, &QAction::triggered, [&] {
         app->powerCycle();
         if (manual_pause) { manual_pause = false; app->unpause(); }
@@ -487,6 +505,7 @@ QMenu *EmuMainWindow::createViewMenu()
     view_menu->addSeparator();
 
     auto fullscreen_item = new QAction(QIcon(iconset + "fullscreen.svg"), tr("&Fullscreen"));
+    icon_actions_.push_back({ fullscreen_item, "fullscreen.svg" });
     view_menu->addAction(fullscreen_item);
     connect(fullscreen_item, &QAction::triggered, [&](bool) { toggleFullscreen(); });
     running_actions_.push_back(fullscreen_item);
@@ -608,6 +627,7 @@ QMenu *EmuMainWindow::createOptionsMenu()
     for (size_t i = 0; i < setting_panels.size(); i++)
     {
         auto action = options_menu->addAction(QIcon(iconset + setting_icons[i]), setting_panels[i]);
+        icon_actions_.push_back({ action, QString::fromLatin1(setting_icons[i]) });
         QObject::connect(action, &QAction::triggered, [&, i] {
             if (!settings_window)
                 settings_window = new EmuSettingsWindow(this, app);
@@ -652,8 +672,10 @@ void EmuMainWindow::createCenterStack()
 {
     // ──────── Center stack ────────
     center_stack_ = new QStackedWidget(this);
+    center_stack_->setAttribute(Qt::WA_StyledBackground, true);
     game_list_ = new EmuGameList(this);
     library_page_ = new LibraryPage(app, game_list_, center_stack_);
+    library_page_->setAttribute(Qt::WA_StyledBackground, true);
     center_stack_->addWidget(library_page_);
 
     setCentralWidget(center_stack_);

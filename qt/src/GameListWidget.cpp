@@ -1,6 +1,7 @@
 #include "GameListWidget.hpp"
 
 #include "EmuGameList.hpp"
+#include "EmuTheme.hpp"
 
 #include <QHeaderView>
 #include <QMenu>
@@ -45,8 +46,8 @@ protected:
         }
 
         painter->save();
-        painter->fillRect(rect, QColor("#23252c"));
-        painter->setPen(QColor("#2a2c33"));
+        painter->fillRect(rect, EmuTheme::colors().bg_elevated);
+        painter->setPen(EmuTheme::colors().border);
         painter->drawLine(rect.bottomLeft(), rect.bottomRight());
 
         QStyleOptionHeader opt;
@@ -71,7 +72,7 @@ protected:
         f.setWeight(QFont::DemiBold);
         f.setPointSize(9);
         painter->setFont(f);
-        painter->setPen(QColor("#4a90ff"));
+        painter->setPen(EmuTheme::colors().accent);
         QString text = model() ? model()->headerData(logicalIndex, Qt::Horizontal).toString() : QString();
         painter->drawText(label_rect, defaultAlignment(), text);
         painter->restore();

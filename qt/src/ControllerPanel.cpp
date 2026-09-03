@@ -149,6 +149,27 @@ ControllerPanel::ControllerPanel(EmuApplication *app_)
     });
 }
 
+void ControllerPanel::refreshIcons()
+{
+    BindingPanel::refreshIcons();
+
+    QString iconset = app->iconPrefix();
+    const char *icons[] = {
+        "up", "down", "left", "right", "a", "b", "x", "y", "l", "r", "start", "select", "a", "b", "x", "y", "l", "r"
+    };
+    for (int i = 0; i < 18; i++)
+        tableWidget_controller->verticalHeaderItem(i)->setIcon(QIcon(iconset + icons[i] + ".svg"));
+
+    tableWidget_mouse->verticalHeaderItem(0)->setIcon(QIcon(iconset + "mouseclickl.svg"));
+    tableWidget_mouse->verticalHeaderItem(1)->setIcon(QIcon(iconset + "mouseclickr.svg"));
+
+    tableWidget_superscope->verticalHeaderItem(EmuConfig::eSuperscopeFire)->setIcon(QIcon(iconset + "scopefire.svg"));
+    tableWidget_superscope->verticalHeaderItem(EmuConfig::eSuperscopePause)->setIcon(QIcon(iconset + "pause.svg"));
+    tableWidget_superscope->verticalHeaderItem(EmuConfig::eSuperscopeAutoFire)->setIcon(QIcon(iconset + "scopeautofire.svg"));
+    tableWidget_superscope->verticalHeaderItem(EmuConfig::eSuperscopeCursor)->setIcon(QIcon(iconset + "scopecursor.svg"));
+    tableWidget_superscope->verticalHeaderItem(EmuConfig::eSuperscopeAimOffscreen)->setIcon(QIcon(iconset + "scopeoffscreen.svg"));
+}
+
 void ControllerPanel::recreateAutoAssignMenu()
 {
     auto_assign_menu.clear();

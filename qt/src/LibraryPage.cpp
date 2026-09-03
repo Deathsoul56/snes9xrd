@@ -27,6 +27,7 @@ LibraryPage::LibraryPage(EmuApplication *app, EmuGameList *game_list, QWidget *p
 
     auto *header = new QWidget(this);
     header->setObjectName("libraryHeader");
+    header->setAttribute(Qt::WA_StyledBackground, true);
     auto *header_layout = new QHBoxLayout(header);
     header_layout->setContentsMargins(16, 8, 16, 8);
 
@@ -47,13 +48,16 @@ LibraryPage::LibraryPage(EmuApplication *app, EmuGameList *game_list, QWidget *p
 
     stack_ = new QStackedWidget(this);
     stack_->setObjectName("libraryStack");
+    stack_->setAttribute(Qt::WA_StyledBackground, true);
 
     auto *empty = new QWidget(stack_);
+    empty->setAttribute(Qt::WA_StyledBackground, true);
     auto *empty_layout = new QVBoxLayout(empty);
     empty_layout->setAlignment(Qt::AlignCenter);
 
     auto *drop = new QWidget(empty);
     drop->setObjectName("libraryDropZone");
+    drop->setAttribute(Qt::WA_StyledBackground, true);
     drop->setFixedSize(420, 220);
     auto *drop_layout = new QVBoxLayout(drop);
     drop_layout->setContentsMargins(24, 24, 24, 24);

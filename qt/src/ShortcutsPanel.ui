@@ -118,6 +118,11 @@
      </row>
      <row>
       <property name="text">
+       <string>Undo State</string>
+      </property>
+     </row>
+     <row>
+      <property name="text">
        <string>Increase Current Save Slot</string>
       </property>
      </row>

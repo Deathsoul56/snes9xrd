@@ -40,6 +40,7 @@
     <file>snes9x.svg</file>
     <file>snes9x.png</file>
     <file>blackicons/settings.svg</file>
+    <file>blackicons/check.svg</file>
     <file>blackicons/folders.svg</file>
     <file>blackicons/emulation.svg</file>
     <file>blackicons/sound.svg</file>
@@ -82,6 +83,6 @@
     <file alias="snes_superscope.png">controllers/snes_superscope.png</file>
   </qresource>
   <qresource prefix="/">
-    <file>duckstation.qss</file>
+    <file>theme.qss</file>
   </qresource>
 </RCC>

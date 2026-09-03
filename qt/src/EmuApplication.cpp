@@ -625,6 +625,10 @@ void EmuApplication::handleBinding(const std::string &name, bool pressed)
             {
                 loadState(save_slot);
             }
+            else if (name == "UndoState")
+            {
+                loadUndoState();
+            }
             else if (name.rfind("QuickSave", 0) == 0)
             {
                 saveState(std::stoi(name.substr(9)));

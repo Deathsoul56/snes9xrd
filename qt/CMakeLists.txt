@@ -239,6 +239,7 @@ list(APPEND QT_GUI_SOURCES
     src/EmulationPanel.cpp
     src/ShortcutsPanel.cpp
     src/GeneralPanel.cpp
+    src/EmuTheme.cpp
     src/FoldersPanel.cpp
     src/SDLInputManager.cpp
     src/ShaderParametersDialog.cpp

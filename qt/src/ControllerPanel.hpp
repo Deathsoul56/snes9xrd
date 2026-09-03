@@ -25,6 +25,7 @@ class ControllerPanel :
     void recreateAutoAssignMenu();
     void onImageButtonClicked(const QString &snes_name);
     static QString snes_name_for_row(int row);
+    void refreshIcons() override;
 
     QMenu edit_menu;
     QMenu auto_assign_menu;

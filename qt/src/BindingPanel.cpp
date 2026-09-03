@@ -177,6 +177,20 @@ void BindingPanel::fillTable()
     updateConflictHighlights();
 }
 
+void BindingPanel::refreshIcons()
+{
+    QString iconset = app->iconPrefix();
+    keyboard_icon = QIcon();
+    joypad_icon = QIcon();
+    mouse_icon = QIcon();
+    keyboard_icon.addFile(iconset + "key.svg");
+    joypad_icon.addFile(iconset + "joypad.svg");
+    mouse_icon.addFile(iconset + "mouse.svg");
+    if (binding_table_widget)
+        fillTable();
+}
+
+
 void BindingPanel::updateConflictHighlights()
 {
     std::unordered_map<uint32_t, int> counts;

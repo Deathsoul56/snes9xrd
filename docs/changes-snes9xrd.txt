@@ -3,6 +3,30 @@ snes9xrd changelog
 This file tracks changes specific to the snes9xrd fork, on top of upstream
 Snes9x (see changes.txt for the upstream changelog).
 
+snes9xrd v0.5
+Qt:
+- Fixed a persistent black-rectangle rendering bug in the Settings dialog
+  and main window: a CSS cascade-order bug in theme.qss let a generic
+  transparent-background rule silently win over QMainWindow/QDialog
+  backgrounds, compounded by several plain QWidget subclasses missing
+  Qt::WA_StyledBackground.
+- Fixed the Settings dialog's Cancel button not reverting the Theme,
+  "Allow gamepad input while window is not focused", and the Windows
+  registry file association, which are applied as immediate side effects
+  outside the saved config snapshot.
+- Renamed the "Blue Cloud" theme to "Blue Cloud (White/Blue)".
+- Added a new "AMOLED (Black/Purple)" theme.
+- Added an Undo State shortcut (default Ctrl+U) for the existing undo-load
+  core feature, placed under Settings > Shortcuts right after "Load State
+  from Current Slot".
+- Added default shortcuts for the existing per-channel sound toggles:
+  Toggle Sound Channel 1-8 (Alt+1..Alt+8) and Toggle All Sound Channels
+  (Alt+0).
+- Widened the Settings dialog's default size.
+- README overhaul: documented every default keyboard shortcut and the
+  fork's feature set (rewind, save states/undo, multi-binding inputs,
+  per-channel sound, movies, cheats, speed control).
+
 snes9xrd v0.4
 Qt:
 - Save State / Load State failures are now surfaced via the on-screen message
