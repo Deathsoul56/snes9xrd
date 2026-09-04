@@ -257,6 +257,7 @@ struct SSettings
 	bool	DisplayIndicators;
 	bool8	AutoDisplayMessages;
 	uint32	InitialInfoStringTimeout;
+	int		InfoStringLocation; // 0 = bottom-left, 1 = bottom-right, 2 = top-left, 3 = top-right
 	uint16	DisplayColor;
 	bool8	BilinearFilter;
 	bool	ShowOverscan;

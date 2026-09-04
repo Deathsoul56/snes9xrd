@@ -13,7 +13,16 @@ void S9xUsage (void);
 char * S9xParseArgs (char **, int);
 void S9xParseArgsForCheats (char **, int);
 void S9xLoadConfigFiles (char **, int);
-void S9xSetInfoString (const char *);
+// timeout_frames == 0 means "use Settings.InitialInfoStringTimeout".
+void S9xSetInfoString (const char *, uint32 timeout_frames = 0);
+void S9xClearInfoString (void);
+// Clamps every currently-queued info message's remaining time to at most
+// max_frames (e.g. so messages don't linger for real-world minutes while
+// single-stepping frames).
+void S9xCapInfoStringTimeout (uint32 max_frames);
+// RGBA8888 icon shown beside the InfoString (e.g. an achievement badge).
+void S9xSetInfoImage (const uint8 *rgba, int width, int height);
+void S9xClearInfoImage (void);
 
 // Routines the port has to implement even if it doesn't use them
 

@@ -10,6 +10,7 @@
 #include "ControllerPanel.hpp"
 #include "FoldersPanel.hpp"
 #include "ShortcutsPanel.hpp"
+#include "AchievementsPanel.hpp"
 
 class EmuSettingsWindow
   : public QDialog,
@@ -31,6 +32,7 @@ class EmuSettingsWindow
     ControllerPanel *controller_panel;
     ShortcutsPanel *shortcuts_panel;
     FoldersPanel *folders_panel;
+    AchievementsPanel *achievements_panel;
 
   private:
     EmuConfig original_config_;

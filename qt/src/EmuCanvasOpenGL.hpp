@@ -33,6 +33,8 @@ class EmuCanvasOpenGL : public EmuCanvas
     unsigned int stock_program;
     unsigned int texture;
     unsigned stock_coord_buffer;
+    unsigned int achievement_badge_texture = 0;
+    unsigned int last_seen_badge_generation = 0;
     std::unique_ptr<OpenGLContext> context;
     bool using_shader;
     std::unique_ptr<GLSLShader> shader;

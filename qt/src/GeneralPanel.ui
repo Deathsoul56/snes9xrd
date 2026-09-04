@@ -138,6 +138,13 @@
         </property>
        </widget>
       </item>
+      <item>
+       <widget class="QCheckBox" name="checkBox_show_rom_info">
+        <property name="text">
+         <string>Show ROM info when a game loads</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>

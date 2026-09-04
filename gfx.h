@@ -9,6 +9,8 @@
 
 #include "port.h"
 #include <vector>
+#include <deque>
+#include <string>
 
 struct SGFX
 {
@@ -64,9 +66,24 @@ struct SGFX
 	void	(*DrawMode7BG2Math) (uint32, uint32, int);
 	void	(*DrawMode7BG2Nomath) (uint32, uint32, int);
 
-	std::string InfoString;
-	uint32	InfoStringTimeout;
+	// Stacked info messages (oldest first), so a new one doesn't instantly
+	// wipe out one the user hasn't finished reading yet -- each has its own
+	// countdown and they're drawn one above the other.
+	struct SInfoMessage
+	{
+		std::string text;
+		uint32 timeout;
+	};
+	std::deque<SInfoMessage> InfoMessages;
 	char	FrameDisplayString[256];
+
+	// Optional icon shown beside the newest InfoMessage (e.g. an achievement
+	// badge). Empty InfoImage means no icon. RGBA8888, InfoImageGeneration
+	// bumps every time the pixel data changes so renderers know to re-upload.
+	std::vector<uint8> InfoImage;
+	int		InfoImageWidth;
+	int		InfoImageHeight;
+	uint32	InfoImageGeneration;
 };
 
 struct SBG

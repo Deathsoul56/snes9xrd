@@ -96,6 +96,15 @@
           <normaloff>:/icons/blackicons/folders.svg</normaloff>:/icons/blackicons/folders.svg</iconset>
         </property>
        </item>
+       <item>
+        <property name="text">
+         <string>Achievements</string>
+        </property>
+        <property name="icon">
+         <iconset resource="resources/snes9x.qrc">
+          <normaloff>:/icons/blackicons/achievements.svg</normaloff>:/icons/blackicons/achievements.svg</iconset>
+        </property>
+       </item>
       </widget>
      </item>
      <item>

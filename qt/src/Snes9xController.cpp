@@ -27,6 +27,7 @@ namespace fs = std::filesystem;
 #include "conffile.h"
 #include "statemanager.h"
 #include "netplay.h"
+#include "Achievements/AchievementsClient.hpp"
 
 #include <chrono>
 #include <thread>
@@ -113,6 +114,8 @@ void Snes9xController::init()
     S9xUnmapAllControls();
     S9xCheatsEnable();
 
+    achievements = std::make_unique<AchievementsClient>();
+
     active = false;
 }
 
@@ -120,6 +123,7 @@ void Snes9xController::deinit()
 {
     if (active)
         S9xAutoSaveSRAM();
+    achievements.reset();
     S9xGraphicsDeinit();
     S9xDeinitAPU();
 }
@@ -127,6 +131,29 @@ void Snes9xController::deinit()
 void Snes9xController::updateSettings(const EmuConfig * const config)
 {
     setCheatsEnabled(config->apply_cheats);
+
+    if (config->achievements_enabled != achievements_enabled)
+    {
+        achievements_enabled = config->achievements_enabled;
+        if (active)
+        {
+            if (achievements_enabled)
+                achievements->beginLoadGame(Memory.ROM, Memory.CalculatedSize);
+            else
+                achievements->unloadGame();
+        }
+    }
+
+    achievements->setSpectatorModeEnabled(config->achievements_spectator_mode);
+    achievements->setEncoreModeEnabled(config->achievements_encore_mode);
+    achievements->setUnofficialEnabled(config->achievements_track_unofficial);
+    achievements->setNotificationsEnabled(config->achievements_notifications);
+    achievements->setLeaderboardNotificationsEnabled(config->achievements_leaderboard_notifications);
+    achievements->setLeaderboardTrackersEnabled(config->achievements_leaderboard_trackers);
+    achievements->setProgressIndicatorsEnabled(config->achievements_progress_indicators);
+    achievements->setChallengeIndicatorsEnabled(config->achievements_challenge_indicators);
+    achievements->setNotificationDurationSeconds(config->achievements_notification_duration);
+    Settings.InfoStringLocation = config->achievements_notification_location;
 
     NetPlay.MaxBehindFrameCount = config->netplay_max_frame_loss;
     NPServer.SyncByReset = config->netplay_sync_reset;
@@ -251,6 +278,12 @@ bool Snes9xController::openFile(const std::string &filename)
     {
         active = true;
         Memory.LoadSRAM(S9xGetFilename(".srm", SRAM_DIR).c_str());
+        if (achievements_enabled)
+            achievements->beginLoadGame(Memory.ROM, Memory.CalculatedSize);
+    }
+    else
+    {
+        achievements->unloadGame();
     }
 
     // server.cpp's netplay heartbeat pacer refuses to send heartbeats while
@@ -351,6 +384,9 @@ void Snes9xController::mainLoop()
     }
 
     S9xMainLoop();
+
+    if (achievements_enabled)
+        achievements->doFrame();
 
     netplayPop();
 }
@@ -669,7 +705,11 @@ void Snes9xController::clearSoundBuffer()
 void S9xMessage(int message_class, int type, const char *message)
 {
     if (type == S9X_ROM_INFO)
-        S9xSetInfoString(Memory.GetMultilineROMInfo().c_str());
+    {
+        auto *app = EmuApplication::get_unwrapped();
+        if (!app || app->config->show_rom_info_on_load)
+            S9xSetInfoString(Memory.GetMultilineROMInfo().c_str());
+    }
 
     fprintf(stderr, "[snes9x] %s\n", message);
     fflush(stderr);
@@ -1615,6 +1655,67 @@ void Snes9xController::netplaySetMaxFrameLoss(int frames)
 std::string Snes9xController::netplayLastError()
 {
     return std::string(NetPlay.ErrorMsg);
+}
+
+void Snes9xController::achievementsLoginWithPassword(const std::string &username, const std::string &password)
+{
+    achievements->beginLoginWithPassword(username, password);
+}
+
+void Snes9xController::achievementsLoginWithToken(const std::string &username, const std::string &token)
+{
+    achievements->beginLoginWithToken(username, token);
+}
+
+void Snes9xController::achievementsLogout()
+{
+    achievements->logout();
+}
+
+void Snes9xController::achievementsUnloadGame()
+{
+    achievements->unloadGame();
+}
+
+bool Snes9xController::achievementsLoginPending() const
+{
+    return achievements->isLoginPending();
+}
+
+bool Snes9xController::achievementsIsLoggedIn() const
+{
+    return achievements->isLoggedIn();
+}
+
+Achievements::UserInfo Snes9xController::achievementsUserInfo() const
+{
+    return achievements->userInfo();
+}
+
+std::string Snes9xController::achievementsLastError() const
+{
+    return achievements->lastError();
+}
+
+bool Snes9xController::achievementsIsGameLoaded() const
+{
+    return achievements->isGameLoaded();
+}
+
+void Snes9xController::achievementsIdle()
+{
+    if (achievements_enabled)
+        achievements->idle();
+}
+
+Achievements::GameSummary Snes9xController::achievementsGameSummary() const
+{
+    return achievements->gameSummary();
+}
+
+std::vector<Achievements::AchievementEntry> Snes9xController::achievementsList() const
+{
+    return achievements->achievementList();
 }
 
 int Snes9xController::netplaySyncSpeed()

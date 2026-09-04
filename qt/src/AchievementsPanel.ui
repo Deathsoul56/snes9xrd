@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>AchievementsPanel</class>
+ <widget class="QWidget" name="AchievementsPanel">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>862</width>
+    <height>763</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QGroupBox" name="groupBox_account">
+     <property name="title">
+      <string>Account</string>
+     </property>
+     <layout class="QHBoxLayout" name="horizontalLayout_account">
+      <item>
+       <widget class="QLabel" name="label_account_status">
+        <property name="text">
+         <string>Not logged in.</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_account">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_view_profile">
+        <property name="text">
+         <string>View Profile…</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_login_logout">
+        <property name="text">
+         <string>Login…</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="groupBox_settings">
+     <property name="title">
+      <string>Settings</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_settings">
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="checkBox_enable_achievements">
+        <property name="text">
+         <string>Enable Achievements</string>
+        </property>
+        <property name="whatsThis">
+         <string>Enables RetroAchievements tracking for the running game. When off, no achievement data is sent or tracked.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QCheckBox" name="checkBox_enable_hardcore">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Enable Hardcore Mode</string>
+        </property>
+        <property name="whatsThis">
+         <string>Not yet available -- hardcore mode requires disabling rewind, cheats, save states, and netplay resync while active, which hasn't been implemented yet.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="checkBox_enable_spectator">
+        <property name="text">
+         <string>Enable Spectator Mode</string>
+        </property>
+        <property name="whatsThis">
+         <string>Achievement unlocks and leaderboard submissions are tracked locally but never sent to the server.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QCheckBox" name="checkBox_enable_encore">
+        <property name="text">
+         <string>Enable Encore Mode</string>
+        </property>
+        <property name="whatsThis">
+         <string>Re-awards already-unlocked achievements when their conditions are met again. Takes effect the next time a game is loaded.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QCheckBox" name="checkBox_track_unofficial">
+        <property name="text">
+         <string>Track Unofficial Achievements</string>
+        </property>
+        <property name="whatsThis">
+         <string>Includes unofficial/in-development achievements. Takes effect the next time a game is loaded.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QCheckBox" name="checkBox_safe_mode">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Safe Mode</string>
+        </property>
+        <property name="whatsThis">
+         <string>Not yet available -- Safe Mode only matters once Hardcore Mode is implemented (it forces hardcore-safe settings without disabling achievements entirely).</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="groupBox_notifications">
+     <property name="title">
+      <string>Notifications</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_notifications">
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="checkBox_show_notifications">
+        <property name="text">
+         <string>Show Achievement Unlock Notifications</string>
+        </property>
+        <property name="whatsThis">
+         <string>Shows an on-screen message when an achievement unlocks or a game is completed.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QCheckBox" name="checkBox_show_leaderboard_notifications">
+        <property name="text">
+         <string>Show Leaderboard Notifications</string>
+        </property>
+        <property name="whatsThis">
+         <string>Shows an on-screen message when a leaderboard attempt starts, fails, or is submitted.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="checkBox_show_leaderboard_trackers">
+        <property name="text">
+         <string>Show Leaderboard Trackers</string>
+        </property>
+        <property name="whatsThis">
+         <string>Shows an on-screen message with the live value (e.g. a running time) of the current leaderboard attempt.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_notification_duration">
+        <property name="text">
+         <string>Notification Duration:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QSpinBox" name="spinBox_notification_duration">
+        <property name="minimum">
+         <number>1</number>
+        </property>
+        <property name="maximum">
+         <number>30</number>
+        </property>
+        <property name="suffix">
+         <string> seconds</string>
+        </property>
+        <property name="whatsThis">
+         <string>How long achievement/leaderboard notifications and progress/challenge indicators stay on screen.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_notification_location">
+        <property name="text">
+         <string>Notification Location:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QComboBox" name="comboBox_notification_location">
+        <property name="whatsThis">
+         <string>Where achievement/leaderboard notifications and progress/challenge indicators appear on screen. Snes9x has a single notification line, shared by all of these, unlike DuckStation's separate overlays -- so this one setting controls all of them.</string>
+        </property>
+        <item>
+         <property name="text">
+          <string>Bottom Left</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Bottom Right</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Top Left</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Top Right</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="groupBox_progress_tracking">
+     <property name="title">
+      <string>Progress Tracking</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_progress_tracking">
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="checkBox_show_progress_indicators">
+        <property name="text">
+         <string>Show Achievement Progress Indicators</string>
+        </property>
+        <property name="whatsThis">
+         <string>Shows an on-screen message with the current progress (e.g. "4/10") toward achievements that track a measured value.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QCheckBox" name="checkBox_show_challenge_indicators">
+        <property name="text">
+         <string>Show Challenge Indicators</string>
+        </property>
+        <property name="whatsThis">
+         <string>Shows an on-screen message when an active challenge (an achievement being attempted right now) starts.</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="label_info_banner">
+     <property name="text">
+      <string>Snes9xrd uses RetroAchievements as an achievement database and for tracking progress. To use achievements, sign up for an account at &lt;a href="https://retroachievements.org/"&gt;retroachievements.org&lt;/a&gt;.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+     <property name="openExternalLinks">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="groupBox_game">
+     <property name="title">
+      <string>Current Game</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_game">
+      <item>
+       <widget class="QLabel" name="label_game_summary">
+        <property name="text">
+         <string>No game loaded.</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_view_list">
+        <property name="text">
+         <string>View Achievement List…</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

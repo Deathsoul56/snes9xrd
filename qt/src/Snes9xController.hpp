@@ -3,10 +3,14 @@
 #include <functional>
 #include <vector>
 #include <cstdint>
+#include <memory>
 #include <mutex>
 #include <string>
 
 #include "EmuConfig.hpp"
+#include "Achievements/AchievementsTypes.hpp"
+
+class AchievementsClient;
 
 class Snes9xController
 {
@@ -16,6 +20,22 @@ class Snes9xController
     void init();
     void deinit();
     void mainLoop();
+
+    // RetroAchievements. See AchievementsClient's class comment for the
+    // threading contract these all assume (called only while the emu
+    // thread is suspended or is itself the caller).
+    void achievementsLoginWithPassword(const std::string &username, const std::string &password);
+    void achievementsLoginWithToken(const std::string &username, const std::string &token);
+    void achievementsLogout();
+    void achievementsUnloadGame();
+    bool achievementsLoginPending() const;
+    bool achievementsIsLoggedIn() const;
+    Achievements::UserInfo achievementsUserInfo() const;
+    std::string achievementsLastError() const;
+    bool achievementsIsGameLoaded() const;
+    Achievements::GameSummary achievementsGameSummary() const;
+    std::vector<Achievements::AchievementEntry> achievementsList() const;
+    void achievementsIdle();
     bool netplayConnect(const std::string &host, int port);
     bool netplayStartServer(int port);
     void netplayDisconnect();
@@ -141,6 +161,9 @@ class Snes9xController
   private:
     void SamplesAvailable();
     bool netplayConnectInternal(const std::string &host, int port);
+
+    std::unique_ptr<AchievementsClient> achievements;
+    bool achievements_enabled = true;
 
     uint32_t netplay_local_joypads[8] = {};
     uint32_t netplay_joypads[8] = {};

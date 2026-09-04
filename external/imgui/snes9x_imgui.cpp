@@ -3,8 +3,11 @@
 #include "imgui.h"
 
 #include <cstdint>
+#include <cstring>
+#include <cfloat>
 #include <string>
 #include <array>
+#include <algorithm>
 
 #include "snes9x.h"
 #include "port.h"
@@ -17,7 +20,21 @@
 namespace
 {
     S9xImGuiInitInfo settings;
+
+    struct
+    {
+        void *texture_id = nullptr;
+        int width = 0;
+        int height = 0;
+    } achievement_badge;
 } // anonymous
+
+void S9xImGuiSetAchievementBadgeTexture(void *texture_id, int width, int height)
+{
+    achievement_badge.texture_id = texture_id;
+    achievement_badge.width = width;
+    achievement_badge.height = height;
+}
 
 static void ImGui_DrawPressedKeys(int spacing)
 {
@@ -152,15 +169,34 @@ static void ImGui_GetWatchesText(std::string& osd_text)
     }
 }
 
-static void ImGui_DrawTextOverlay(const char *text,
+static ImVec2 ImGui_DrawTextOverlay(const char *text,
                                   int x, int y,
                                   int padding,
                                   ImGui::DrawTextAlignment halign = ImGui::DrawTextAlignment::BEGIN,
                                   ImGui::DrawTextAlignment valign = ImGui::DrawTextAlignment::BEGIN,
-                                  int wrap_at = 0)
+                                  int wrap_at = 0,
+                                  ImTextureID icon = nullptr,
+                                  int icon_size = 0,
+                                  bool bigger_title = false)
 {
-    auto text_size = ImGui::CalcTextSize(text, nullptr, false, wrap_at);
-    auto box_size = ImVec2(text_size.x + padding * 2, text_size.y + padding * 2);
+    ImFont *font = ImGui::GetFont();
+    float title_font_size = font->FontSize * 1.2f;
+
+    // DuckStation-style toast: first line (the game title) rendered bigger,
+    // the rest of the message at the normal size.
+    const char *title_end = bigger_title ? strchr(text, '\n') : nullptr;
+    const char *body_begin = title_end ? title_end + 1 : text;
+
+    int icon_extra = icon ? icon_size + padding : 0;
+    float wrap_width = wrap_at ? (float)(wrap_at - icon_extra) : 0.0f;
+
+    ImVec2 title_size(0.0f, 0.0f);
+    if (title_end)
+        title_size = font->CalcTextSizeA(title_font_size, FLT_MAX, wrap_width, text, title_end);
+    ImVec2 body_size = font->CalcTextSizeA(font->FontSize, FLT_MAX, wrap_width, body_begin);
+
+    auto text_size = ImVec2(std::max(title_size.x, body_size.x), title_size.y + body_size.y);
+    auto box_size = ImVec2(text_size.x + icon_extra + padding * 2, std::max(text_size.y, (float)icon_size) + padding * 2);
     auto draw_list = ImGui::GetForegroundDrawList();
     if (halign == ImGui::DrawTextAlignment::END)
         x = x - box_size.x;
@@ -174,7 +210,28 @@ static void ImGui_DrawTextOverlay(const char *text,
                              settings.box_color,
                              settings.spacing / 2.0f);
 
-    draw_list->AddText(nullptr, 0.0f, ImVec2(x + padding, y + padding), settings.text_color, text, nullptr, wrap_at);
+    float text_x = x + padding;
+    if (icon)
+    {
+        // Icon on the left edge of the box for left-anchored boxes, right
+        // edge for right-anchored ones -- so it stays on the "outside" of
+        // the message regardless of which screen corner it's drawn in.
+        float icon_x = (halign == ImGui::DrawTextAlignment::END) ? x + box_size.x - padding - icon_size : x + padding;
+        float icon_y = y + (box_size.y - icon_size) / 2.0f;
+        draw_list->AddImage(icon, ImVec2(icon_x, icon_y), ImVec2(icon_x + icon_size, icon_y + icon_size));
+        if (halign != ImGui::DrawTextAlignment::END)
+            text_x += icon_extra;
+    }
+
+    float text_y = y + padding;
+    if (title_end)
+    {
+        draw_list->AddText(font, title_font_size, ImVec2(text_x, text_y), settings.text_color, text, title_end, wrap_width);
+        text_y += title_size.y;
+    }
+    draw_list->AddText(font, font->FontSize, ImVec2(text_x, text_y), settings.text_color, body_begin, nullptr, wrap_width);
+
+    return box_size;
 }
 
 static std::string sjis_to_utf8(std::string in)
@@ -289,14 +346,8 @@ bool S9xImGuiDraw(int width, int height)
         ImGui_GetWatchesText(utf8_message);
     }
 
-    if (!GFX.InfoString.empty())
-    {
-        utf8_message += sjis_to_utf8(GFX.InfoString);
-    }
-
     if (Settings.DisplayMovieFrame && S9xMovieActive())
     {
-        // move movie frame count into its own line if info message is active and not already a newline at end
         if (!utf8_message.empty() && utf8_message.back() != '\n')
         {
             utf8_message += '\n';
@@ -313,6 +364,43 @@ bool S9xImGuiDraw(int width, int height)
                               ImGui::DrawTextAlignment::BEGIN,
                               ImGui::DrawTextAlignment::END,
                               width - settings.spacing * 4);
+    }
+
+    if (!GFX.InfoMessages.empty())
+    {
+        // Same four corners as the "Inscreen" bitmap-font renderer
+        // (Settings.InfoStringLocation, see gfx.cpp's S9xDisplayMessages).
+        bool right = (Settings.InfoStringLocation == 1 || Settings.InfoStringLocation == 3);
+        bool top = (Settings.InfoStringLocation == 2 || Settings.InfoStringLocation == 3);
+
+        int x = right ? width - settings.spacing : settings.spacing;
+        int y = top ? settings.spacing : height - settings.spacing;
+        int gap = settings.spacing / 2;
+
+        // Newest message nearest the anchor corner (where a single message
+        // used to sit); older ones stacked further away and pushed along as
+        // new messages arrive, instead of being wiped out instantly.
+        for (auto it = GFX.InfoMessages.rbegin(); it != GFX.InfoMessages.rend(); ++it)
+        {
+            ImTextureID icon = nullptr;
+            int icon_size = 0;
+            if (it == GFX.InfoMessages.rbegin() && achievement_badge.texture_id && GFX.InfoImageWidth > 0)
+            {
+                icon = achievement_badge.texture_id;
+                icon_size = settings.font_size * 2;
+            }
+
+            ImVec2 box_size = ImGui_DrawTextOverlay(sjis_to_utf8(it->text).c_str(),
+                                  x, y,
+                                  settings.spacing,
+                                  right ? ImGui::DrawTextAlignment::END : ImGui::DrawTextAlignment::BEGIN,
+                                  top ? ImGui::DrawTextAlignment::BEGIN : ImGui::DrawTextAlignment::END,
+                                  width - settings.spacing * 4,
+                                  icon, icon_size,
+                                  /*bigger_title=*/true);
+
+            y += top ? (box_size.y + gap) : -(box_size.y + gap);
+        }
     }
 
     ImGui::Render();

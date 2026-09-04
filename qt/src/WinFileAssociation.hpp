@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-// Registers/unregisters snes9x-qt.exe as an "Open with" handler (and lets the
+// Registers/unregisters snes9xrd-qt.exe as an "Open with" handler (and lets the
 // user set it as default via Explorer) for the given ROM extensions, scoped
 // to HKEY_CURRENT_USER so no elevation is required. extensions are given
 // without the leading dot (e.g. "smc", "sfc").

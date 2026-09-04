@@ -777,8 +777,7 @@ static bool8 NPClientEndOpenROMImage (void)
 	Settings.ForcePAL            = (videoDetect      == kPALForce         );
 	Settings.ForceNTSC           = (videoDetect      == kNTSCForce        );
 
-	GFX.InfoString = NULL;
-	GFX.InfoStringTimeout = 0;
+	S9xClearInfoString();
 
 	S9xResetSaveTimer(true);
 

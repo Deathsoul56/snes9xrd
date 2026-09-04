@@ -5,6 +5,7 @@
 
 #include "snes9x.h"
 #include "snes9x_imgui.h"
+#include "gfx.h"
 #include "imgui_impl_vulkan.h"
 
 EmuCanvasVulkan::EmuCanvasVulkan(EmuConfig *config, QWidget *main_window)
@@ -192,6 +193,28 @@ void EmuCanvasVulkan::draw()
 
     context->swapchain->set_vsync(config->enable_vsync);
 
+    if (GFX.InfoImageGeneration != last_seen_badge_generation)
+    {
+        last_seen_badge_generation = GFX.InfoImageGeneration;
+        destroyAchievementBadge();
+
+        if (GFX.InfoImageWidth > 0 && GFX.InfoImageHeight > 0)
+        {
+            achievement_badge_texture = std::make_unique<Vulkan::Texture>();
+            achievement_badge_texture->init(context.get());
+            achievement_badge_texture->create(GFX.InfoImageWidth, GFX.InfoImageHeight,
+                                               vk::Format::eR8G8B8A8Unorm, vk::SamplerAddressMode::eClampToEdge,
+                                               true, false);
+            achievement_badge_texture->from_buffer(GFX.InfoImage.data(), GFX.InfoImageWidth, GFX.InfoImageHeight);
+            achievement_badge_descriptor = ImGui_ImplVulkan_AddTexture(achievement_badge_texture->sampler,
+                                                                        achievement_badge_texture->image_view,
+                                                                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        }
+
+        S9xImGuiSetAchievementBadgeTexture(achievement_badge_descriptor ? (void *)achievement_badge_descriptor : nullptr,
+                                            GFX.InfoImageWidth, GFX.InfoImageHeight);
+    }
+
     if (S9xImGuiDraw(width() * devicePixelRatioF(), height() * devicePixelRatioF()))
     {
         auto draw_data = ImGui::GetDrawData();
@@ -227,6 +250,16 @@ void EmuCanvasVulkan::draw()
 }
 
 
+
+void EmuCanvasVulkan::destroyAchievementBadge()
+{
+    if (achievement_badge_descriptor)
+    {
+        ImGui_ImplVulkan_RemoveTexture(achievement_badge_descriptor);
+        achievement_badge_descriptor = VK_NULL_HANDLE;
+    }
+    achievement_badge_texture.reset();
+}
 
 void EmuCanvasVulkan::resizeEvent(QResizeEvent *event)
 {
@@ -282,9 +315,16 @@ void EmuCanvasVulkan::deinit()
     {
         if (context)
             context->wait_idle();
+        destroyAchievementBadge();
+        last_seen_badge_generation = 0;
         imgui_descriptor_pool.reset();
         ImGui_ImplVulkan_Shutdown();
         ImGui::DestroyContext();
+    }
+    else
+    {
+        destroyAchievementBadge();
+        last_seen_badge_generation = 0;
     }
 
     simple_output.reset();

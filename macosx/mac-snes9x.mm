@@ -87,8 +87,7 @@ bool8 SNES9X_OpenCart (NSURL *inRef)
 	Settings.ForcePAL            = (videoDetect      == kPALForce         );
 	Settings.ForceNTSC           = (videoDetect      == kNTSCForce        );
 
-	GFX.InfoString = "";
-	GFX.InfoStringTimeout = 0;
+	S9xClearInfoString();
 
 	S9xResetSaveTimer(true);
 
@@ -135,8 +134,7 @@ bool8 SNES9X_OpenMultiCart (NSURL *cart1FileURL, NSURL *cart2FileURL)
 	Settings.ForcePAL      = (videoDetect      == kPALForce     );
 	Settings.ForceNTSC     = (videoDetect      == kNTSCForce    );
 
-	GFX.InfoString = "";
-	GFX.InfoStringTimeout = 0;
+	S9xClearInfoString();
 
 	S9xResetSaveTimer(true);
 

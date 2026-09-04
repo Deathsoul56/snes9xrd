@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package a built snes9x-qt.exe into a release-ready zip for snes9xrd.
+"""Package a built snes9xrd-qt.exe into a release-ready zip for snes9xrd.
 
 Usage (from repo root, after building with CMake+Ninja into ./build):
     python qt/scripts/package_release.py
@@ -29,12 +29,12 @@ def detect_version() -> str:
 
 
 def find_exe(build_dir: Path) -> Path:
-    for name in ("snes9x-qt.exe", "snes9x-qt"):
+    for name in ("snes9xrd-qt.exe", "snes9xrd-qt"):
         candidate = build_dir / name
         if candidate.is_file():
             return candidate
     raise SystemExit(
-        f"Could not find snes9x-qt(.exe) in {build_dir}. Build it first with:\n"
+        f"Could not find snes9xrd-qt(.exe) in {build_dir}. Build it first with:\n"
         f"  cmake -G Ninja -B {build_dir} -S qt -DCMAKE_BUILD_TYPE=Release\n"
         f"  ninja -C {build_dir}"
     )
@@ -59,7 +59,7 @@ def main() -> None:
         except PermissionError as exc:
             raise SystemExit(
                 f"Could not remove {staging_dir} ({exc}).\n"
-                "Close snes9x-qt.exe and any Explorer/zip window with that "
+                "Close snes9xrd-qt.exe and any Explorer/zip window with that "
                 "folder open, then try again."
             ) from exc
     staging_dir.mkdir(parents=True)

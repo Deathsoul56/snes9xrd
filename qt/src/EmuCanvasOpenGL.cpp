@@ -14,8 +14,10 @@ using namespace QNativeInterface;
 #include "common/video/opengl/shaders/glsl.h"
 #include "snes9x.h"
 #include "snes9x_imgui.h"
+#include "gfx.h"
 #include "imgui_impl_opengl3.h"
 #include <clocale>
+#include <cstdint>
 
 static const char *stock_vertex_shader_140 = R"(
 #version 140
@@ -296,6 +298,36 @@ void EmuCanvasOpenGL::draw()
             context->width = width() * devicePixelRatioF();
         if (context->height <= 0)
             context->height = height() * devicePixelRatioF();
+
+        if (GFX.InfoImageGeneration != last_seen_badge_generation)
+        {
+            last_seen_badge_generation = GFX.InfoImageGeneration;
+
+            if (achievement_badge_texture)
+            {
+                glDeleteTextures(1, &achievement_badge_texture);
+                achievement_badge_texture = 0;
+            }
+
+            if (GFX.InfoImageWidth > 0 && GFX.InfoImageHeight > 0)
+            {
+                glGenTextures(1, &achievement_badge_texture);
+                glBindTexture(GL_TEXTURE_2D, achievement_badge_texture);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+                glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, GFX.InfoImageWidth, GFX.InfoImageHeight, 0,
+                             GL_RGBA, GL_UNSIGNED_BYTE, GFX.InfoImage.data());
+                glBindTexture(GL_TEXTURE_2D, 0);
+            }
+
+            S9xImGuiSetAchievementBadgeTexture(achievement_badge_texture ? (void *)(uintptr_t)achievement_badge_texture : nullptr,
+                                                GFX.InfoImageWidth, GFX.InfoImageHeight);
+        }
+
         if (S9xImGuiDraw(context->width, context->height))
         {
             auto *draw_data = ImGui::GetDrawData();
@@ -359,6 +391,8 @@ void EmuCanvasOpenGL::deinit()
     }
 
     context.reset();
+    achievement_badge_texture = 0;
+    last_seen_badge_generation = 0;
 }
 
 void EmuCanvasOpenGL::shaderChanged()

@@ -125,7 +125,7 @@ void LibraryPage::refresh()
 void LibraryPage::setShowingEmpty(bool empty)
 {
     stack_->setCurrentIndex(empty ? 0 : 1);
-    header_label_->setText(empty ? tr("Welcome to snes9x-sex-edition") : tr("Library"));
+    header_label_->setText(empty ? tr("Welcome to snes9xrd") : tr("Library"));
 }
 
 void LibraryPage::onSearchTextChanged(const QString &text)

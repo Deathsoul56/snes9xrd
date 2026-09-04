@@ -165,7 +165,7 @@ std::string EmuConfig::findConfigDir()
     char *dir;
     fs::path path;
 
-    // Portable by default: keep snes9x-qt.conf (and the game list scan
+    // Portable by default: keep snes9xrd-qt.conf (and the game list scan
     // cache, which reuses this same directory) next to the executable, so a
     // fresh copy of the app doesn't scatter files into the user's profile.
     // Only fall back to the per-user config dir below if the exe's own
@@ -214,7 +214,7 @@ std::string EmuConfig::findConfigDir()
 std::string EmuConfig::findConfigFile()
 {
     fs::path path(findConfigDir());
-    path /= "snes9x-qt.conf";
+    path /= "snes9xrd-qt.conf";
     return path.string();
 }
 
@@ -248,6 +248,7 @@ bool EmuConfig::setDefaults(int section)
         show_indicators = true;
         show_pressed_keys = false;
         show_time = false;
+        show_rom_info_on_load = true;
         sram_save_interval = 30;
     }
 
@@ -387,6 +388,22 @@ bool EmuConfig::setDefaults(int section)
         bios_location = eConfigDirectory;
     }
 
+    if (section == -1 || section == 7)
+    {
+        // Achievements
+        achievements_enabled = true;
+        achievements_spectator_mode = false;
+        achievements_encore_mode = false;
+        achievements_track_unofficial = false;
+        achievements_notifications = true;
+        achievements_leaderboard_notifications = true;
+        achievements_leaderboard_trackers = true;
+        achievements_progress_indicators = false;
+        achievements_challenge_indicators = false;
+        achievements_notification_duration = 5;
+        achievements_notification_location = 0;
+    }
+
     if (section == -1)
     {
         // Netplay (no dedicated settings page, only reset on a full reset)
@@ -398,6 +415,9 @@ bool EmuConfig::setDefaults(int section)
         netplay_send_rom = false;
         netplay_max_frame_loss = 15;
         netplay_is_server = false;
+
+        ra_username = {};
+        ra_api_token = {};
     }
 
     return restart;
@@ -537,6 +557,7 @@ void EmuConfig::config(const std::string &filename, bool write)
     Bool("ShowIndicators", show_indicators);
     Bool("ShowPressedKeys", show_pressed_keys);
     Bool("ShowTime", show_time);
+    Bool("ShowRomInfoOnLoad", show_rom_info_on_load);
     Enum("Theme", theme, { "System", "Light", "DarkBlue", "DarkPurple", "DarkGreen", "DarkRed", "DarkTeal", "DarkOrange",
                            "DarkFusionGray", "GreyMatter", "UntouchedLagoon", "BabyPastel", "PizzaTime", "PCSX2Light",
                            "ScarletDevil", "VioletAngel", "CobaltSky", "AMOLED", "Ruby", "Sapphire", "Emerald" });
@@ -698,6 +719,22 @@ void EmuConfig::config(const std::string &filename, bool write)
     Bool("SendROM", netplay_send_rom);
     Int("MaxFrameLoss", netplay_max_frame_loss);
     Bool("IsServer", netplay_is_server);
+    EndSection();
+
+    BeginSection("RetroAchievements");
+    Bool("Enabled", achievements_enabled);
+    Bool("SpectatorMode", achievements_spectator_mode);
+    Bool("EncoreMode", achievements_encore_mode);
+    Bool("TrackUnofficial", achievements_track_unofficial);
+    Bool("Notifications", achievements_notifications);
+    Bool("LeaderboardNotifications", achievements_leaderboard_notifications);
+    Bool("LeaderboardTrackers", achievements_leaderboard_trackers);
+    Bool("ProgressIndicators", achievements_progress_indicators);
+    Bool("ChallengeIndicators", achievements_challenge_indicators);
+    Int("NotificationDuration", achievements_notification_duration);
+    Int("NotificationLocation", achievements_notification_location);
+    String("Username", ra_username);
+    String("ApiToken", ra_api_token);
     EndSection();
 }
 

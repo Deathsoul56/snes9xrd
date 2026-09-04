@@ -614,16 +614,17 @@ QMenu *EmuMainWindow::createOptionsMenu()
     auto iconset = app->iconPrefix();
 
     auto options_menu = new QMenu(tr("&Options"));
-    std::array<QString, 7> setting_panels = { tr("&General…"),
+    std::array<QString, 8> setting_panels = { tr("&General…"),
                                               tr("&Display…"),
                                               tr("&Sound…"),
                                               tr("&Emulation…"),
                                               tr("&Controllers…"),
                                               tr("Shortcu&ts…"),
-                                              tr("&Files…") };
+                                              tr("&Files…"),
+                                              tr("Achie&vements…") };
     const char *setting_icons[] = { "settings.svg", "display.svg", "sound.svg",
                                     "emulation.svg", "joypad.svg",
-                                    "keyboard.svg", "folders.svg" };
+                                    "keyboard.svg", "folders.svg", "achievements.svg" };
     for (size_t i = 0; i < setting_panels.size(); i++)
     {
         auto action = options_menu->addAction(QIcon(iconset + setting_icons[i]), setting_panels[i]);

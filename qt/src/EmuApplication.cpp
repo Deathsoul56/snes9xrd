@@ -349,6 +349,7 @@ void EmuApplication::closeCurrentGame()
     if (config->save_state_on_close && core->active)
         core->saveState(core->resumeStatePath());
 
+    achievementsUnloadGame();
     core->active = false;
     unsuspendThread();
 }
@@ -475,6 +476,9 @@ void EmuApplication::mainLoop()
 {
     if (!core->active)
     {
+        // No game running -- doFrame() (which drains pending RetroAchievements
+        // HTTP responses, e.g. login) never runs, so pump idle() here instead.
+        core->achievementsIdle();
         std::this_thread::yield();
         return;
     }
@@ -1153,6 +1157,80 @@ void EmuApplication::netplaySetMaxFrameLoss(int frames)
 std::string EmuApplication::netplayLastError()
 {
     return core->netplayLastError();
+}
+
+void EmuApplication::achievementsLoginWithPassword(const std::string &username, const std::string &password)
+{
+    suspendThread();
+    core->achievementsLoginWithPassword(username, password);
+    unsuspendThread();
+}
+
+void EmuApplication::achievementsLoginWithToken(const std::string &username, const std::string &token)
+{
+    suspendThread();
+    core->achievementsLoginWithToken(username, token);
+    unsuspendThread();
+}
+
+void EmuApplication::achievementsLogout()
+{
+    suspendThread();
+    core->achievementsLogout();
+    unsuspendThread();
+}
+
+void EmuApplication::achievementsUnloadGame()
+{
+    suspendThread();
+    core->achievementsUnloadGame();
+    unsuspendThread();
+}
+
+bool EmuApplication::achievementsLoginPending()
+{
+    return core->achievementsLoginPending();
+}
+
+bool EmuApplication::achievementsIsLoggedIn()
+{
+    return core->achievementsIsLoggedIn();
+}
+
+Achievements::UserInfo EmuApplication::achievementsUserInfo()
+{
+    return core->achievementsUserInfo();
+}
+
+std::string EmuApplication::achievementsLastError()
+{
+    return core->achievementsLastError();
+}
+
+bool EmuApplication::achievementsIsGameLoaded()
+{
+    return core->achievementsIsGameLoaded();
+}
+
+Achievements::GameSummary EmuApplication::achievementsGameSummary()
+{
+    return core->achievementsGameSummary();
+}
+
+std::vector<Achievements::AchievementEntry> EmuApplication::achievementsList()
+{
+    return core->achievementsList();
+}
+
+void EmuApplication::achievementsIdle()
+{
+    // Called from the GUI thread (e.g. the login dialog's poll timer), so
+    // this needs the same suspend/unsuspend wrapping as the other mutating
+    // achievements calls above -- unlike mainLoop()'s direct call to
+    // core->achievementsIdle(), which already runs on the emu thread.
+    suspendThread();
+    core->achievementsIdle();
+    unsuspendThread();
 }
 
 void EmuThread::runOnThread(const std::function<void()> &func, bool blocking)

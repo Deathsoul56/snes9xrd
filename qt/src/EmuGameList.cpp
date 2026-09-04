@@ -13,6 +13,7 @@
 #include <QFileInfo>
 #include <QElapsedTimer>
 #include <cctype>
+#include <memory>
 
 namespace {
 constexpr int SNES_HEADER_LO = 0x7FC0;
@@ -336,30 +337,35 @@ GameListEntry EmuGameList::parseRom(const QString &path)
 
     // For ZIPs we round-trip through the core's LoadZip, which selects the
     // largest file inside the archive and returns the raw ROM bytes.
-    std::vector<uint8_t> bytes_owned;
+    // `zip_buffer`/`file_bytes` are the actual owners (kept alive for the
+    // rest of this function); `rom` just points into whichever one is used.
+    // Plain `new[]` (not make_unique, which value-initializes) and reusing
+    // QByteArray's own buffer instead of copying it both avoid touching all
+    // of MAX_ROM_SIZE (12MB) per file scanned across a whole library.
+    std::unique_ptr<uint8_t[]> zip_buffer;
+    QByteArray file_bytes;
     const uint8_t *rom = nullptr;
     int rom_size = 0;
 
     if (entry.file_type.compare("zip", Qt::CaseInsensitive) == 0)
     {
-        bytes_owned.resize(CMemory::MAX_ROM_SIZE);
+        zip_buffer.reset(new uint8_t[CMemory::MAX_ROM_SIZE]);
         uint32_t total = 0;
         std::string path_str = path.toStdString();
-        if (!LoadZip(path_str.c_str(), &total, bytes_owned.data()))
+        if (!LoadZip(path_str.c_str(), &total, zip_buffer.get()))
             return entry;
-        rom = bytes_owned.data();
+        rom = zip_buffer.get();
         rom_size = static_cast<int>(total);
     }
     else
     {
         QFile file(path);
         if (!file.open(QIODevice::ReadOnly)) return entry;
-        QByteArray file_bytes = file.readAll();
+        file_bytes = file.readAll();
         file.close();
         if (file_bytes.isEmpty()) return entry;
-        bytes_owned.assign(file_bytes.cbegin(), file_bytes.cend());
-        rom = bytes_owned.data();
-        rom_size = static_cast<int>(bytes_owned.size());
+        rom = reinterpret_cast<const uint8_t *>(file_bytes.constData());
+        rom_size = static_cast<int>(file_bytes.size());
     }
 
     if (!rom || rom_size <= 0) return entry;
@@ -371,11 +377,11 @@ GameListEntry EmuGameList::parseRom(const QString &path)
     // Same tie-break rule as CMemory::InitROM(): LoROM wins ties.
     int hi_score = scoreHiRom(rom, rom_size, header_offset);
     int lo_score = scoreLoRom(rom, rom_size, header_offset);
-    QString rom_map = (lo_score >= hi_score) ? QStringLiteral("LoROM") : QStringLiteral("HiROM");
+    bool is_hirom = lo_score < hi_score;
 
     // Title: 21 bytes at +0x00 of the SNES header (CMemory::ParseSNESHeader).
     {
-        int header_base = (rom_map == QStringLiteral("HiROM")) ? SNES_HEADER_HI : SNES_HEADER_LO;
+        int header_base = is_hirom ? SNES_HEADER_HI : SNES_HEADER_LO;
         if (rom_size - header_offset >= header_base + 21)
         {
             const uint8_t *title = rom + header_offset + header_base;
@@ -387,12 +393,12 @@ GameListEntry EmuGameList::parseRom(const QString &path)
     }
 
     // Region at +0x19 of the SNES header.
-    if (rom_map == QStringLiteral("HiROM")
+    if (is_hirom
         && rom_size - header_offset >= SNES_HEADER_HI + 0x19)
     {
         entry.region = regionForCode(rom[header_offset + SNES_HEADER_HI + 0x19]);
     }
-    else if (rom_map == QStringLiteral("LoROM")
+    else if (!is_hirom
              && rom_size - header_offset >= SNES_HEADER_LO + 0x19)
     {
         entry.region = regionForCode(rom[header_offset + SNES_HEADER_LO + 0x19]);
@@ -401,7 +407,7 @@ GameListEntry EmuGameList::parseRom(const QString &path)
     // Serial: 4 bytes at +0x02 of the SNES header (often the publisher code).
     if (rom_size - header_offset >= SNES_HEADER_LO + 0x06)
     {
-        const uint8_t *serial = (rom_map == QStringLiteral("HiROM"))
+        const uint8_t *serial = is_hirom
                                 ? (rom + header_offset + SNES_HEADER_HI + 0x02)
                                 : (rom + header_offset + SNES_HEADER_LO + 0x02);
         char serial_buf[5] = {};
@@ -415,7 +421,7 @@ GameListEntry EmuGameList::parseRom(const QString &path)
     // 0x10): old license code at +0x2A, falling back to the new-style
     // 2-char alnum code at +0x00/+0x01 when the old code is 0x33.
     {
-        int header_base = ((rom_map == QStringLiteral("HiROM")) ? SNES_HEADER_HI : SNES_HEADER_LO) - 0x10;
+        int header_base = (is_hirom ? SNES_HEADER_HI : SNES_HEADER_LO) - 0x10;
         if (rom_size - header_offset >= header_base + 0x2B)
         {
             const uint8_t *base = rom + header_offset + header_base;

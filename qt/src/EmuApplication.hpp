@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "Achievements/AchievementsTypes.hpp"
+
 class EmuMainWindow;
 class EmuConfig;
 class EmuBinding;
@@ -141,6 +143,23 @@ struct EmuApplication
     void netplaySetSyncByReset(bool enabled);
     void netplaySetMaxFrameLoss(int frames);
     std::string netplayLastError();
+
+    // RetroAchievements. Mirrors the netplay wrappers above: actions that
+    // mutate state briefly suspend the emu thread (see closeCurrentGame,
+    // openFile in the .cpp); read-only queries call straight through.
+    void achievementsLoginWithPassword(const std::string &username, const std::string &password);
+    void achievementsLoginWithToken(const std::string &username, const std::string &token);
+    void achievementsLogout();
+    void achievementsUnloadGame();
+    bool achievementsLoginPending();
+    bool achievementsIsLoggedIn();
+    Achievements::UserInfo achievementsUserInfo();
+    std::string achievementsLastError();
+    bool achievementsIsGameLoaded();
+    Achievements::GameSummary achievementsGameSummary();
+    std::vector<Achievements::AchievementEntry> achievementsList();
+    void achievementsIdle();
+
 
     std::vector<std::tuple<bool, std::string, std::string>> getCheatList();
     bool cheatsEnabled();

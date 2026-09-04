@@ -115,8 +115,8 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
         set(CMAKE_PREFIX_PATH ${qt6-mingw-clang-bin_SOURCE_DIR})
     endif()
 endif()
-find_package(Qt6 REQUIRED COMPONENTS Widgets Gui)
-list(APPEND LIBS Qt6::Widgets Qt6::Gui)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Gui Network)
+list(APPEND LIBS Qt6::Widgets Qt6::Gui Qt6::Network)
 list(APPEND INCLUDES ${Qt6Gui_PRIVATE_INCLUDE_DIRS})
 
 find_package(PkgConfig REQUIRED)
@@ -214,7 +214,53 @@ list(APPEND DEFINES SDL_MAIN_HANDLED)
 list(APPEND PLATFORM_SOURCES ../external/fmt/src/format.cc)
 list(PREPEND INCLUDES ../external/fmt/include)
 
+# rcheevos (RetroAchievements client runtime + hash + rapi) -- vendored as plain
+# sources like fmt/imgui/glad since upstream ships no CMakeLists of its own.
+# rc_client_raintegration.c/rc_client_external.c (achievement-editor toolkit,
+# Windows-only) and rc_libretro.c (libretro-specific memory map hacks) are
+# deliberately excluded -- this is a player-facing runtime, not an editor or
+# a libretro core.
+list(APPEND PLATFORM_SOURCES
+    ../external/rcheevos/src/rc_client.c
+    ../external/rcheevos/src/rc_compat.c
+    ../external/rcheevos/src/rc_util.c
+    ../external/rcheevos/src/rc_version.c
+    ../external/rcheevos/src/rapi/rc_api_common.c
+    ../external/rcheevos/src/rapi/rc_api_info.c
+    ../external/rcheevos/src/rapi/rc_api_runtime.c
+    ../external/rcheevos/src/rapi/rc_api_user.c
+    ../external/rcheevos/src/rcheevos/alloc.c
+    ../external/rcheevos/src/rcheevos/condition.c
+    ../external/rcheevos/src/rcheevos/condset.c
+    ../external/rcheevos/src/rcheevos/consoleinfo.c
+    ../external/rcheevos/src/rcheevos/format.c
+    ../external/rcheevos/src/rcheevos/lboard.c
+    ../external/rcheevos/src/rcheevos/memref.c
+    ../external/rcheevos/src/rcheevos/operand.c
+    ../external/rcheevos/src/rcheevos/richpresence.c
+    ../external/rcheevos/src/rcheevos/runtime.c
+    ../external/rcheevos/src/rcheevos/runtime_progress.c
+    ../external/rcheevos/src/rcheevos/trigger.c
+    ../external/rcheevos/src/rcheevos/value.c
+    ../external/rcheevos/src/rhash/aes.c
+    ../external/rcheevos/src/rhash/cdreader.c
+    ../external/rcheevos/src/rhash/hash.c
+    ../external/rcheevos/src/rhash/hash_disc.c
+    ../external/rcheevos/src/rhash/hash_encrypted.c
+    ../external/rcheevos/src/rhash/hash_rom.c
+    ../external/rcheevos/src/rhash/hash_zip.c
+    ../external/rcheevos/src/rhash/md5.c)
+list(APPEND INCLUDES ../external/rcheevos/include ../external/rcheevos/src)
+# Enables rc_client_begin_identify_and_load_game()/rc_client_set_hash_callbacks(),
+# which let us identify a loaded ROM straight from its bytes instead of having
+# to drive the lower-level rc_hash API by hand.
+list(APPEND DEFINES RC_CLIENT_SUPPORTS_HASH)
+
 list(APPEND QT_GUI_SOURCES
+    src/Achievements/AchievementsClient.cpp
+    src/Achievements/AchievementsNetwork.cpp
+    src/Achievements/AchievementsLoginDialog.cpp
+    src/Achievements/AchievementsListDialog.cpp
     src/main.cpp
     src/EmuApplication.cpp
     src/EmuMainWindow.cpp
@@ -241,6 +287,7 @@ list(APPEND QT_GUI_SOURCES
     src/GeneralPanel.cpp
     src/EmuTheme.cpp
     src/FoldersPanel.cpp
+    src/AchievementsPanel.cpp
     src/SDLInputManager.cpp
     src/ShaderParametersDialog.cpp
     src/CheatsDialog.cpp
@@ -373,19 +420,33 @@ list(APPEND SOURCES ../external/imgui/imgui.cpp
     ../external/imgui/snes9x_imgui.cpp)
 list(APPEND INCLUDES ../external/imgui)
 
-add_executable(snes9x-qt ${QT_GUI_SOURCES} ${SOURCES} ${PLATFORM_SOURCES} src/resources/snes9x.qrc)
+add_executable(snes9xrd-qt ${QT_GUI_SOURCES} ${SOURCES} ${PLATFORM_SOURCES} src/resources/snes9x.qrc)
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
-    set_target_properties(snes9x-qt PROPERTIES WIN32_EXECUTABLE True)
+    set_target_properties(snes9xrd-qt PROPERTIES WIN32_EXECUTABLE True)
 endif()
-target_link_libraries(snes9x-qt PRIVATE snes9x-core ${LIBS})
-target_compile_definitions(snes9x-qt PRIVATE ${DEFINES})
-target_compile_options(snes9x-qt PRIVATE ${FLAGS} -ffunction-sections -fdata-sections)
+target_link_libraries(snes9xrd-qt PRIVATE snes9x-core ${LIBS})
+target_compile_definitions(snes9xrd-qt PRIVATE ${DEFINES})
+target_compile_options(snes9xrd-qt PRIVATE ${FLAGS} -ffunction-sections -fdata-sections)
 # Statically-linked Qt/glslang/SPIRV-Cross libs keep their full symbol table in a
 # Release build otherwise -- stripping cuts the exe by roughly a quarter with no
 # behavior change (Debug/RelWithDebInfo keep symbols since those configs opt into -g).
-target_link_options(snes9x-qt PRIVATE $<$<CONFIG:Release>:-s> -Wl,--gc-sections)
-target_include_directories(snes9x-qt PRIVATE "../" ${INCLUDES})
+target_link_options(snes9xrd-qt PRIVATE $<$<CONFIG:Release>:-s> -Wl,--gc-sections -static)
+target_include_directories(snes9xrd-qt PRIVATE "../" ${INCLUDES})
 
-install(TARGETS snes9x-qt)
+# rcheevos' rc_compat.c uses real pthread_mutex_* (via <pthread.h>) for its internal
+# allocator lock; the prebuilt qt6-mingw-clang-bin static libs already depend on
+# libwinpthread-1.dll dynamically too, so -static above can't fully absorb it -- ship
+# the one DLL this otherwise self-contained exe needs, next to the binary.
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    get_filename_component(MINGW_BIN_DIR ${CMAKE_CXX_COMPILER} DIRECTORY)
+    find_file(WINPTHREAD_DLL NAMES libwinpthread-1.dll PATHS ${MINGW_BIN_DIR})
+    if(WINPTHREAD_DLL)
+        add_custom_command(TARGET snes9xrd-qt POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${WINPTHREAD_DLL} $<TARGET_FILE_DIR:snes9xrd-qt>)
+        install(FILES ${WINPTHREAD_DLL} DESTINATION ${CMAKE_INSTALL_BINDIR})
+    endif()
+endif()
+
+install(TARGETS snes9xrd-qt)
 install(FILES ../data/cheats.bml DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/snes9x)

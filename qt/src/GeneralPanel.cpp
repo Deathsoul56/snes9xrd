@@ -41,6 +41,7 @@ GeneralPanel::GeneralPanel(EmuApplication *app_)
     connectCheckbox(checkBox_show_indicators, &app->config->show_indicators, app);
     connectCheckbox(checkBox_show_pressed_keys, &app->config->show_pressed_keys, app);
     connectCheckbox(checkBox_show_time, &app->config->show_time, app);
+    connectCheckbox(checkBox_show_rom_info, &app->config->show_rom_info_on_load, app);
     connectSpinBox(spinBox_sram_interval, &app->config->sram_save_interval, app);
 }
 
@@ -62,6 +63,7 @@ void GeneralPanel::showEvent(QShowEvent *event)
     checkBox_show_indicators->setChecked(config->show_indicators);
     checkBox_show_pressed_keys->setChecked(config->show_pressed_keys);
     checkBox_show_time->setChecked(config->show_time);
+    checkBox_show_rom_info->setChecked(config->show_rom_info_on_load);
     spinBox_sram_interval->setValue(config->sram_save_interval);
 
     QWidget::showEvent(event);

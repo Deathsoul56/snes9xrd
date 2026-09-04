@@ -4,6 +4,7 @@
 #include "EmuTheme.hpp"
 
 #include <QHeaderView>
+#include <QKeyEvent>
 #include <QMenu>
 #include <QMouseEvent>
 #include <QPainter>
@@ -154,13 +155,26 @@ GameListWidget::GameListWidget(EmuGameList *model, QWidget *parent)
     setFocusPolicy(Qt::StrongFocus);
 
     connect(this, &QTableView::doubleClicked, this, [this](const QModelIndex &idx) {
-        if (!idx.isValid()) return;
-        QModelIndex source = proxy_->mapToSource(idx);
-        if (auto *entry = model_->entryAt(source.row()))
-        {
-            emit entryActivated(entry->path);
-        }
+        activateIndex(idx);
     });
+}
+
+void GameListWidget::activateIndex(const QModelIndex &proxy_index)
+{
+    if (!proxy_index.isValid()) return;
+    QModelIndex source = proxy_->mapToSource(proxy_index);
+    if (auto *entry = model_->entryAt(source.row()))
+        emit entryActivated(entry->path);
+}
+
+void GameListWidget::keyPressEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter)
+    {
+        activateIndex(currentIndex());
+        return;
+    }
+    QTableView::keyPressEvent(event);
 }
 
 void GameListWidget::setFilter(const QString &text)

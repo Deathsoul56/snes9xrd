@@ -3481,8 +3481,7 @@ int WINAPI WinMain(
 
 			if(Settings.FrameAdvance)
 			{
-				if(GFX.InfoStringTimeout > 4)
-					GFX.InfoStringTimeout = 4;
+				S9xCapInfoStringTimeout(4);
 
 				if(!GUI.FASkipsNonInput)
 					Settings.FrameAdvance = false;
@@ -7749,9 +7748,8 @@ INT_PTR CALLBACK DlgFunky(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			Settings.AutoDisplayMessages = (bool)(IsDlgButtonChecked(hDlg,IDC_MESSAGES_IN_IMAGE)==BST_CHECKED);
 			if(Settings.AutoDisplayMessages)
 			{
-				if(GFX.InfoString.empty()) {
-					GFX.InfoString = "Test message!";
-					GFX.InfoStringTimeout = 1;
+				if(GFX.InfoMessages.empty()) {
+					S9xSetInfoString("Test message!", 1);
 				}
 				S9xDisplayMessages(GFX.Screen, GFX.RealPPL, IPPU.RenderedScreenWidth, IPPU.RenderedScreenHeight, 1);
 				EnableWindow(GetDlgItem(hDlg, IDC_MESSAGES_SCALE), FALSE);

@@ -13,6 +13,7 @@
 #include "movie.h"
 #include "screenshot.h"
 #include "display.h"
+#include <algorithm>
 
 extern struct SCheatData		Cheat;
 extern struct SLineData			LineData[240];
@@ -187,8 +188,15 @@ void S9xStartScreenRefresh (void)
 		IPPU.FrameCount = 0;
 	}
 
-	if (GFX.InfoStringTimeout > 0 && --GFX.InfoStringTimeout == 0)
-		GFX.InfoString.clear();
+	for (auto it = GFX.InfoMessages.begin(); it != GFX.InfoMessages.end(); )
+	{
+		if (--it->timeout == 0)
+			it = GFX.InfoMessages.erase(it);
+		else
+			++it;
+	}
+	if (GFX.InfoMessages.empty())
+		S9xClearInfoImage();
 
 	IPPU.TotalEmulatedFrames++;
 }
@@ -1721,14 +1729,51 @@ void S9xReRefresh (void)
 		S9xDeinitUpdate(IPPU.RenderedScreenWidth, IPPU.RenderedScreenHeight);
 }
 
-void S9xSetInfoString (const char *string)
+// Bounded so a burst of messages can't grow this without limit.
+static const size_t kMaxInfoMessages = 4;
+
+void S9xSetInfoString (const char *string, uint32 timeout_frames)
 {
-	if (Settings.InitialInfoStringTimeout > 0)
+	if (timeout_frames == 0)
+		timeout_frames = Settings.InitialInfoStringTimeout;
+	if (timeout_frames == 0)
+		return;
+
+	if (GFX.InfoMessages.size() >= kMaxInfoMessages)
+		GFX.InfoMessages.pop_front();
+	GFX.InfoMessages.push_back({ string, timeout_frames });
+	S9xReRefresh();
+}
+
+void S9xClearInfoString (void)
+{
+	GFX.InfoMessages.clear();
+	S9xClearInfoImage();
+}
+
+void S9xCapInfoStringTimeout (uint32 max_frames)
+{
+	for (auto &message : GFX.InfoMessages)
 	{
-		GFX.InfoString = string;
-		GFX.InfoStringTimeout = Settings.InitialInfoStringTimeout;
-		S9xReRefresh();
+		if (message.timeout > max_frames)
+			message.timeout = max_frames;
 	}
+}
+
+void S9xSetInfoImage (const uint8 *rgba, int width, int height)
+{
+	GFX.InfoImage.assign(rgba, rgba + (size_t) width * height * 4);
+	GFX.InfoImageWidth = width;
+	GFX.InfoImageHeight = height;
+	GFX.InfoImageGeneration++;
+}
+
+void S9xClearInfoImage (void)
+{
+	GFX.InfoImage.clear();
+	GFX.InfoImageWidth = 0;
+	GFX.InfoImageHeight = 0;
+	GFX.InfoImageGeneration++;
 }
 
 #include "var8x10font.h"
@@ -2104,8 +2149,29 @@ void S9xDisplayMessages (uint16 *screen, int ppl, int width, int height, int sca
 	if (Settings.DisplayMovieFrame && S9xMovieActive())
 		S9xDisplayString(GFX.FrameDisplayString, 1, 1, false);
 
-	if (!GFX.InfoString.empty())
-		S9xDisplayString(GFX.InfoString.c_str(), 5, 1, true);
+	if (!GFX.InfoMessages.empty())
+	{
+		// Bottom-left is the original, always-supported placement (linesFromBottom=5,
+		// pixelsFromLeft=1). The other 3 corners reuse S9xVariableDisplayString's
+		// existing auto-right-align (pixelsFromLeft > 128) and from-bottom math --
+		// no new rendering path needed.
+		int pixels_from_left = 1;
+		if (Settings.InfoStringLocation == 1 || Settings.InfoStringLocation == 3)
+			pixels_from_left = SNES_WIDTH;
+
+		// Newest message nearest the anchor edge (where a single message used
+		// to sit); older ones stacked further away so they aren't wiped out
+		// the instant a new message arrives.
+		bool anchor_top = (Settings.InfoStringLocation == 2 || Settings.InfoStringLocation == 3);
+		int line = anchor_top ? IPPU.RenderedScreenHeight / font_height : 5;
+
+		for (auto it = GFX.InfoMessages.rbegin(); it != GFX.InfoMessages.rend(); ++it)
+		{
+			S9xDisplayString(it->text.c_str(), line, pixels_from_left, true);
+			int lines_used = (int) std::count(it->text.begin(), it->text.end(), '\n') + 1;
+			line += anchor_top ? -lines_used : lines_used;
+		}
+	}
 }
 
 static uint16 get_crosshair_color (uint8 color)

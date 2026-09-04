@@ -55,6 +55,10 @@ EmuSettingsWindow::EmuSettingsWindow(QWidget *parent, EmuApplication *app_)
     styleBackground(folders_panel);
     stackedWidget->addWidget(folders_panel);
 
+    achievements_panel = new AchievementsPanel(app);
+    styleBackground(achievements_panel);
+    stackedWidget->addWidget(achievements_panel);
+
     stackedWidget->setCurrentIndex(0);
 
     connect(buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
@@ -112,6 +116,7 @@ void EmuSettingsWindow::refreshIcons()
     panelList->item(4)->setIcon(icon("joypad.svg"));
     panelList->item(5)->setIcon(icon("keyboard.svg"));
     panelList->item(6)->setIcon(icon("folders.svg"));
+    panelList->item(7)->setIcon(icon("achievements.svg"));
 
     controller_panel->refreshIcons();
     shortcuts_panel->refreshIcons();

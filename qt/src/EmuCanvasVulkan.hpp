@@ -5,6 +5,7 @@
 #include "ShaderParametersDialog.hpp"
 #include "common/video/vulkan/vulkan_simple_output.hpp"
 #include "common/video/vulkan/vulkan_shader_chain.hpp"
+#include "common/video/vulkan/vulkan_texture.hpp"
 
 #ifndef _WIN32
 #include "common/video/wayland/wayland_surface.hpp"
@@ -39,10 +40,15 @@ class EmuCanvasVulkan : public EmuCanvas
 
   private:
     void tryLoadShader();
+    void destroyAchievementBadge();
     std::string current_shader;
     QWindow *window = nullptr;
     std::unique_ptr<ShaderParametersDialog> shader_parameters_dialog = nullptr;
     QString platform;
+
+    std::unique_ptr<Vulkan::Texture> achievement_badge_texture;
+    VkDescriptorSet achievement_badge_descriptor = VK_NULL_HANDLE;
+    uint32_t last_seen_badge_generation = 0;
 
 #ifndef _WIN32
     std::unique_ptr<WaylandSurface> wayland_surface;

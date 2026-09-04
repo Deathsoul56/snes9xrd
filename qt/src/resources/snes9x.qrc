@@ -6,6 +6,7 @@
     <file>whiteicons/down.svg</file>
     <file>whiteicons/emulation.svg</file>
     <file>whiteicons/folders.svg</file>
+    <file>whiteicons/achievements.svg</file>
     <file>whiteicons/joypad.svg</file>
     <file>whiteicons/key.svg</file>
     <file>whiteicons/keyboard.svg</file>
@@ -42,6 +43,7 @@
     <file>blackicons/settings.svg</file>
     <file>blackicons/check.svg</file>
     <file>blackicons/folders.svg</file>
+    <file>blackicons/achievements.svg</file>
     <file>blackicons/emulation.svg</file>
     <file>blackicons/sound.svg</file>
     <file>blackicons/keyboard.svg</file>

@@ -54,6 +54,7 @@ struct EmuConfig
     bool show_indicators;
     bool show_pressed_keys;
     bool show_time;
+    bool show_rom_info_on_load;
 
     // Display
     std::string display_driver;
@@ -228,6 +229,21 @@ struct EmuConfig
     bool netplay_send_rom;
     int netplay_max_frame_loss;
     bool netplay_is_server;
+
+    bool achievements_enabled;
+    bool achievements_spectator_mode;
+    bool achievements_encore_mode;
+    bool achievements_track_unofficial;
+    bool achievements_notifications;
+    bool achievements_leaderboard_notifications;
+    bool achievements_leaderboard_trackers;
+    bool achievements_progress_indicators;
+    bool achievements_challenge_indicators;
+    int achievements_notification_duration; // seconds
+    int achievements_notification_location; // 0 = bottom-left, 1 = bottom-right, 2 = top-left, 3 = top-right
+    // Only the login token is persisted -- never the password.
+    std::string ra_username;
+    std::string ra_api_token;
 
     static const int allowed_bindings = 4;
     static const int num_controller_bindings = 18;

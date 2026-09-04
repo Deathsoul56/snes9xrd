@@ -223,8 +223,7 @@ static void change_slot(int difference)
         exists = "used";
 
     auto info_string = "State Slot: " + std::to_string(gui_config->current_save_slot) + " [" + exists + "]";
-    S9xSetInfoString(info_string.c_str());
-    GFX.InfoStringTimeout = 60;
+    S9xSetInfoString(info_string.c_str(), 60);
 }
 
 void S9xHandlePortCommand(s9xcommand_t cmd, int16 data1, int16 data2)
