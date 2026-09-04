@@ -1,5 +1,6 @@
 #include "AchievementsLoginDialog.hpp"
 
+#include "AchievementsClient.hpp"
 #include "../EmuApplication.hpp"
 #include "../EmuConfig.hpp"
 
@@ -119,7 +120,13 @@ void AchievementsLoginDialog::pollLoginResult()
     {
         Achievements::UserInfo info = app->achievementsUserInfo();
         app->config->ra_username = info.username;
-        app->config->ra_api_token = info.token;
+        // Never persist the password or raw token -- only an encrypted copy
+        // that only decrypts on this machine, for this account (see
+        // AchievementsClient::encryptToken()).
+        app->config->ra_api_token = AchievementsClient::encryptToken(info.username, info.token);
+        // A ROM opened before logging in never got attached (beginLoadGame()
+        // requires a logged-in rc_client), so attach it now.
+        app->achievementsRetryLoadGame();
         accept();
         return;
     }

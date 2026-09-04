@@ -151,6 +151,7 @@ struct EmuApplication
     void achievementsLoginWithToken(const std::string &username, const std::string &token);
     void achievementsLogout();
     void achievementsUnloadGame();
+    void achievementsRetryLoadGame();
     bool achievementsLoginPending();
     bool achievementsIsLoggedIn();
     Achievements::UserInfo achievementsUserInfo();

@@ -28,6 +28,10 @@ class Snes9xController
     void achievementsLoginWithToken(const std::string &username, const std::string &token);
     void achievementsLogout();
     void achievementsUnloadGame();
+    // Re-attaches the currently running ROM to the achievements client --
+    // needed after a successful login, since a ROM opened while logged out
+    // never got attached (beginLoadGame() requires a logged-in rc_client).
+    void achievementsRetryLoadGame();
     bool achievementsLoginPending() const;
     bool achievementsIsLoggedIn() const;
     Achievements::UserInfo achievementsUserInfo() const;
@@ -161,9 +165,17 @@ class Snes9xController
   private:
     void SamplesAvailable();
     bool netplayConnectInternal(const std::string &host, int port);
+    // Resolves the pending auto-login started by updateSettings() -- checks
+    // whether beginLoginWithToken() has finished and, if it succeeded while
+    // a ROM was already running, attaches achievements to it.
+    void pollAchievementsAutoLogin();
 
     std::unique_ptr<AchievementsClient> achievements;
     bool achievements_enabled = true;
+    // One-shot: only try the saved-token auto-login once per process, not
+    // on every settings-apply (Options dialog OK, etc.).
+    bool achievements_auto_login_attempted = false;
+    bool achievements_auto_login_pending = false;
 
     uint32_t netplay_local_joypads[8] = {};
     uint32_t netplay_joypads[8] = {};

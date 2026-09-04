@@ -43,6 +43,16 @@ class AchievementsClient
     AchievementsClient(const AchievementsClient &) = delete;
     AchievementsClient &operator=(const AchievementsClient &) = delete;
 
+    // Encrypts/decrypts the RA session token for on-disk persistence (never
+    // the password) -- AES-128-CTR keyed by SHA-256(machine ID + username)
+    // stretched 100 rounds, with a fresh random IV per encryption so the
+    // keystream is never reused. The result only decrypts on the same
+    // machine for the same account. decryptToken() returns an empty string
+    // if the data can't be recovered (wrong machine/account, corruption),
+    // which callers should treat the same as "no saved session".
+    static std::string encryptToken(const std::string &username, const std::string &token);
+    static std::string decryptToken(const std::string &username, const std::string &encrypted);
+
     // Called once per emulated frame from the emulation thread.
     void doFrame();
     // Called instead of doFrame() while no game is running/emulation is idle.

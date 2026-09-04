@@ -2,21 +2,76 @@
 #include "AchievementsNetwork.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 
+#include <QByteArray>
 #include <QMetaObject>
+#include <QRandomGenerator>
 #include <QSysInfo>
 
 #include "display.h"
 #include "memmap.h"
 #include "rc_api_runtime.h"
 #include "rc_consoles.h"
+#include "sha256.h"
 #include "snes9x.h"
+
+#include "rhash/aes.h"
 
 #ifdef _WIN32
 #include <windows.h>
 #include <mmsystem.h>
+#else
+#include <fstream>
 #endif
+
+namespace
+{
+
+// A per-machine, non-secret identifier -- folded into the token-encryption
+// key so the saved token only decrypts on the machine it was written on.
+// Absence (registry/file missing) just falls back to a username-only key
+// rather than failing outright.
+std::string getMachineId()
+{
+#ifdef _WIN32
+    char buffer[64] = {};
+    DWORD size = sizeof(buffer);
+    if (RegGetValueA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Cryptography", "MachineGuid", RRF_RT_REG_SZ,
+                      nullptr, buffer, &size) == ERROR_SUCCESS)
+    {
+        return std::string(buffer);
+    }
+    return std::string();
+#else
+    std::ifstream file("/etc/machine-id");
+    std::string id;
+    if (file && std::getline(file, id))
+        return id;
+    return std::string();
+#endif
+}
+
+// SHA-256(machine ID + username), stretched with 100 extra rounds of
+// SHA-256 so brute-forcing the key from a leaked machine ID is slower.
+std::array<uint8_t, 32> deriveTokenKey(const std::string &username)
+{
+    std::string seed = getMachineId() + username;
+    std::array<uint8_t, 32> digest{};
+    sha256sum(reinterpret_cast<unsigned char *>(seed.data()), static_cast<unsigned int>(seed.size()), digest.data());
+
+    for (int i = 0; i < 100; i++)
+    {
+        std::array<uint8_t, 32> next{};
+        sha256sum(digest.data(), static_cast<unsigned int>(digest.size()), next.data());
+        digest = next;
+    }
+
+    return digest;
+}
+
+} // namespace
 
 // Opaque token handed to AchievementsNetwork::dispatch() and returned
 // unchanged in enqueueCompletedResponse() -- see the class comment in
@@ -149,6 +204,52 @@ void AchievementsClient::logout()
 {
     if (client_)
         rc_client_logout(client_);
+}
+
+std::string AchievementsClient::encryptToken(const std::string &username, const std::string &token)
+{
+    if (username.empty() || token.empty())
+        return std::string();
+
+    std::array<uint8_t, 32> key = deriveTokenKey(username);
+
+    std::array<uint8_t, AES_BLOCKLEN> iv;
+    for (size_t i = 0; i < iv.size(); i += 4)
+    {
+        quint32 word = QRandomGenerator::system()->generate();
+        std::memcpy(&iv[i], &word, 4);
+    }
+
+    AES_ctx ctx;
+    AES_init_ctx_iv(&ctx, key.data(), iv.data());
+
+    std::vector<uint8_t> buffer(token.begin(), token.end());
+    AES_CTR_xcrypt_buffer(&ctx, buffer.data(), buffer.size());
+
+    QByteArray payload(reinterpret_cast<const char *>(iv.data()), static_cast<int>(iv.size()));
+    payload.append(reinterpret_cast<const char *>(buffer.data()), static_cast<int>(buffer.size()));
+    return payload.toBase64().toStdString();
+}
+
+std::string AchievementsClient::decryptToken(const std::string &username, const std::string &encrypted)
+{
+    if (username.empty() || encrypted.empty())
+        return std::string();
+
+    QByteArray payload = QByteArray::fromBase64(QByteArray::fromStdString(encrypted));
+    if (payload.size() <= static_cast<int>(AES_BLOCKLEN))
+        return std::string();
+
+    std::array<uint8_t, 32> key = deriveTokenKey(username);
+    const auto *bytes = reinterpret_cast<const uint8_t *>(payload.constData());
+
+    AES_ctx ctx;
+    AES_init_ctx_iv(&ctx, key.data(), bytes);
+
+    std::vector<uint8_t> buffer(bytes + AES_BLOCKLEN, bytes + payload.size());
+    AES_CTR_xcrypt_buffer(&ctx, buffer.data(), buffer.size());
+
+    return std::string(buffer.begin(), buffer.end());
 }
 
 void AchievementsClient::setSpectatorModeEnabled(bool enabled)
@@ -447,8 +548,7 @@ void AchievementsClient::eventHandler(const rc_client_event_t *event, rc_client_
         case RC_CLIENT_EVENT_ACHIEVEMENT_TRIGGERED:
             if (event->achievement && self->notifications_enabled_)
             {
-                self->showNotification(std::string("Achievement Unlocked: ") + event->achievement->title,
-                                        self->shortNotificationDurationSeconds());
+                self->showNotification(std::string("Achievement Unlocked: ") + event->achievement->title);
                 self->fetchBadgeImage(event->achievement->badge_name, event->achievement->badge_url, RC_IMAGE_TYPE_ACHIEVEMENT);
                 self->playAchievementSound();
             }

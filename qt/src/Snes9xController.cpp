@@ -144,6 +144,24 @@ void Snes9xController::updateSettings(const EmuConfig * const config)
         }
     }
 
+    // Auto re-login with the saved session token, once per process -- see
+    // AchievementsLoginDialog for where the (encrypted) token gets saved,
+    // and pollAchievementsAutoLogin() for how a ROM already running at
+    // startup gets attached once this resolves.
+    if (!achievements_auto_login_attempted)
+    {
+        achievements_auto_login_attempted = true;
+        if (achievements_enabled && !config->ra_username.empty() && !config->ra_api_token.empty())
+        {
+            std::string token = AchievementsClient::decryptToken(config->ra_username, config->ra_api_token);
+            if (!token.empty())
+            {
+                achievements->beginLoginWithToken(config->ra_username, token);
+                achievements_auto_login_pending = true;
+            }
+        }
+    }
+
     achievements->setSpectatorModeEnabled(config->achievements_spectator_mode);
     achievements->setEncoreModeEnabled(config->achievements_encore_mode);
     achievements->setUnofficialEnabled(config->achievements_track_unofficial);
@@ -386,7 +404,10 @@ void Snes9xController::mainLoop()
     S9xMainLoop();
 
     if (achievements_enabled)
+    {
         achievements->doFrame();
+        pollAchievementsAutoLogin();
+    }
 
     netplayPop();
 }
@@ -1677,6 +1698,12 @@ void Snes9xController::achievementsUnloadGame()
     achievements->unloadGame();
 }
 
+void Snes9xController::achievementsRetryLoadGame()
+{
+    if (achievements_enabled && active && !achievements->isGameLoaded())
+        achievements->beginLoadGame(Memory.ROM, Memory.CalculatedSize);
+}
+
 bool Snes9xController::achievementsLoginPending() const
 {
     return achievements->isLoginPending();
@@ -1705,7 +1732,19 @@ bool Snes9xController::achievementsIsGameLoaded() const
 void Snes9xController::achievementsIdle()
 {
     if (achievements_enabled)
+    {
         achievements->idle();
+        pollAchievementsAutoLogin();
+    }
+}
+
+void Snes9xController::pollAchievementsAutoLogin()
+{
+    if (!achievements_auto_login_pending || achievements->isLoginPending())
+        return;
+    achievements_auto_login_pending = false;
+    if (achievements_enabled && active && achievements->isLoggedIn() && !achievements->isGameLoaded())
+        achievements->beginLoadGame(Memory.ROM, Memory.CalculatedSize);
 }
 
 Achievements::GameSummary Snes9xController::achievementsGameSummary() const

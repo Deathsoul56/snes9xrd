@@ -62,6 +62,10 @@ int main(int argc, char *argv[])
     else
         emu.window->show();
 
+    // Applies the just-loaded config to the core immediately (achievements
+    // auto-login, cheats, folders, etc.) instead of leaving it lagging
+    // behind until the first game starts or the Settings dialog is used.
+    emu.updateSettings();
     emu.updateBindings();
     emu.startInputTimer();
     emu.qtapp->exec();

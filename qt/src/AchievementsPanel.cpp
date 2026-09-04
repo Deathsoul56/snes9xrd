@@ -6,12 +6,17 @@
 #include "Achievements/AchievementsListDialog.hpp"
 
 #include <QDesktopServices>
+#include <QTimer>
 #include <QUrl>
 
 AchievementsPanel::AchievementsPanel(EmuApplication *app_)
     : app(app_)
 {
     setupUi(this);
+
+    refresh_timer = new QTimer(this);
+    refresh_timer->setInterval(500);
+    connect(refresh_timer, &QTimer::timeout, this, &AchievementsPanel::refreshAccountState);
 
     connectCheckbox(checkBox_enable_achievements, &app->config->achievements_enabled, app);
     connectCheckbox(checkBox_enable_spectator, &app->config->achievements_spectator_mode, app);
@@ -29,6 +34,10 @@ AchievementsPanel::AchievementsPanel(EmuApplication *app_)
         if (app->achievementsIsLoggedIn())
         {
             app->achievementsLogout();
+            // Otherwise the saved token would silently log the user back in
+            // on next launch, defeating the point of an explicit logout.
+            app->config->ra_username.clear();
+            app->config->ra_api_token.clear();
         }
         else
         {
@@ -65,7 +74,14 @@ void AchievementsPanel::showEvent(QShowEvent *event)
     spinBox_notification_duration->setValue(app->config->achievements_notification_duration);
     comboBox_notification_location->setCurrentIndex(app->config->achievements_notification_location);
     refreshAccountState();
+    refresh_timer->start();
     QWidget::showEvent(event);
+}
+
+void AchievementsPanel::hideEvent(QHideEvent *event)
+{
+    refresh_timer->stop();
+    QWidget::hideEvent(event);
 }
 
 void AchievementsPanel::refreshAccountState()

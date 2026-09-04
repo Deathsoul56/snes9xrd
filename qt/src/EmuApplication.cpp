@@ -297,6 +297,14 @@ void EmuApplication::startThread()
         emu_thread->start();
         emu_thread->waitForStatusBit(EmuThread::ePaused);
         emu_thread->moveToThread(emu_thread.get());
+
+        // mainLoop()'s no-game branch drains achievements HTTP responses
+        // (login, etc.) via achievementsIdle() -- without this, the thread
+        // sits paused doing nothing until the first startGame() call, so a
+        // saved-token auto-login started before any game loads would never
+        // resolve (see Snes9xController::updateSettings()).
+        emu_thread->setMainLoop([&] { mainLoop(); });
+        unpause();
     }
 }
 
@@ -478,8 +486,12 @@ void EmuApplication::mainLoop()
     {
         // No game running -- doFrame() (which drains pending RetroAchievements
         // HTTP responses, e.g. login) never runs, so pump idle() here instead.
+        // This branch now runs continuously from app startup (see
+        // EmuApplication::startThread()), so sleep between pumps -- otherwise
+        // this becomes an unthrottled busy loop pegging a CPU core while no
+        // game is loaded.
         core->achievementsIdle();
-        std::this_thread::yield();
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
         return;
     }
 
@@ -1184,6 +1196,13 @@ void EmuApplication::achievementsUnloadGame()
 {
     suspendThread();
     core->achievementsUnloadGame();
+    unsuspendThread();
+}
+
+void EmuApplication::achievementsRetryLoadGame()
+{
+    suspendThread();
+    core->achievementsRetryLoadGame();
     unsuspendThread();
 }
 
