@@ -228,14 +228,21 @@ QMenu *EmuMainWindow::createFileMenu()
         dlg.setWindowTitle(tr("Open MultiCart"));
         if (dlg.exec() != QDialog::Accepted) return;
 
+        // Suspended across the load and startRunningGame()'s startGame() call --
+        // loadMultiCart()'s own suspend/unsuspend pair would otherwise resume the
+        // emu thread before screen_output_function is wired up, racing through
+        // frames unthrottled.
+        app->suspendThread();
         if (!app->loadMultiCart(dlg.slotA().toStdString(),
                                 dlg.slotB().toStdString()))
         {
+            app->unsuspendThread();
             QMessageBox::warning(this, tr("MultiCart"), tr("Failed to load the multicart."));
             return;
         }
 
         startRunningGame();
+        app->unsuspendThread();
     });
 
     file_menu->addSeparator();
@@ -798,7 +805,13 @@ void EmuMainWindow::openFile()
 
 bool EmuMainWindow::openFile(const std::string &filename)
 {
-    if (app->openFile(filename))
+    // Suspended across the load and startRunningGame()'s startGame() call --
+    // openFile()'s own suspend/unsuspend pair would otherwise resume the emu
+    // thread before screen_output_function is wired up, racing through frames
+    // unthrottled (visible as a sped-up intro on the session's first load).
+    app->suspendThread();
+    bool ok = app->openFile(filename);
+    if (ok)
     {
         auto &ru = app->config->recently_used;
         auto it = std::ranges::find(ru, filename);
@@ -806,9 +819,10 @@ bool EmuMainWindow::openFile(const std::string &filename)
         ru.insert(ru.begin(), filename);
         populateRecentlyUsed();
 
-        return startRunningGame();
+        ok = startRunningGame();
     }
-    return false;
+    app->unsuspendThread();
+    return ok;
 }
 
 bool EmuMainWindow::startRunningGame()

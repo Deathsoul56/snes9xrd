@@ -89,8 +89,8 @@ AchievementsClient::AchievementsClient()
     rc_client_set_event_handler(client_, &AchievementsClient::eventHandler);
     rc_client_enable_logging(client_, RC_CLIENT_LOG_LEVEL_WARN, &AchievementsClient::logMessage);
 
-    // MVP is softcore-only: hardcore mode requires gating rewind, cheats,
-    // save states, and netplay resync, which is out of scope for this pass.
+    // Safe default until Snes9xController::updateSettings() applies the
+    // configured value (rc_client_t itself defaults hardcore to on).
     rc_client_set_hardcore_enabled(client_, 0);
 
     network_ = std::make_unique<AchievementsNetwork>(this);
@@ -250,6 +250,30 @@ std::string AchievementsClient::decryptToken(const std::string &username, const 
     AES_CTR_xcrypt_buffer(&ctx, buffer.data(), buffer.size());
 
     return std::string(buffer.begin(), buffer.end());
+}
+
+void AchievementsClient::setHardcoreEnabled(bool enabled)
+{
+    if (client_)
+        rc_client_set_hardcore_enabled(client_, enabled);
+}
+
+bool AchievementsClient::isHardcoreEnabled() const
+{
+    return client_ && rc_client_get_hardcore_enabled(client_);
+}
+
+bool AchievementsClient::consumeResetRequest()
+{
+    bool requested = reset_requested_;
+    reset_requested_ = false;
+    return requested;
+}
+
+void AchievementsClient::resetGame()
+{
+    if (client_)
+        rc_client_reset(client_);
 }
 
 void AchievementsClient::setSpectatorModeEnabled(bool enabled)
@@ -606,10 +630,19 @@ void AchievementsClient::eventHandler(const rc_client_event_t *event, rc_client_
                 self->showNotification(std::string("Challenge: ") + event->achievement->title);
             break;
 
+        case RC_CLIENT_EVENT_RESET:
+            // Raised synchronously from setHardcoreEnabled(true) -- consumed
+            // by Snes9xController, which resets the emulated system and
+            // calls resetGame() to let processing resume.
+            self->reset_requested_ = true;
+            if (self->notifications_enabled_)
+                self->showNotification("Hardcore Mode enabled -- resetting game.");
+            break;
+
         default:
             /* Progress/challenge indicator hides, leaderboard scoreboards,
-             * rich presence, hardcore reset, subset completed, disconnect/
-             * reconnect, etc. are out of scope for the MVP. */
+             * rich presence, subset completed, disconnect/reconnect, etc.
+             * are out of scope for the MVP. */
             break;
     }
 }

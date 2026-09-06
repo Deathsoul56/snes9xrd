@@ -40,6 +40,10 @@ class Snes9xController
     Achievements::GameSummary achievementsGameSummary() const;
     std::vector<Achievements::AchievementEntry> achievementsList() const;
     void achievementsIdle();
+    bool achievementsHardcoreEnabled() const;
+    // Per RA hardcore compliance: a resumed session must drop to Casual mode
+    // rather than have the resume blocked outright. No-op if already Casual.
+    void achievementsDropHardcoreForResume();
     bool netplayConnect(const std::string &host, int port);
     bool netplayStartServer(int port);
     void netplayDisconnect();

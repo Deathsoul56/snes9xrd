@@ -76,6 +76,20 @@ NetplayDialog::NetplayDialog(QWidget *parent, EmuApplication *app_, bool host_mo
 
 void NetplayDialog::connectOrHost()
 {
+    // Netplay peers could apply/see different memory states (rewind, save
+    // states, cheats), which hardcore forbids entirely -- see
+    // Snes9xController::updateSettings() for the enforcement.
+    if (app->config->achievements_hardcore_mode)
+    {
+        if (QMessageBox::question(this, tr("Hardcore Mode"),
+                tr("Netplay is not compatible with Hardcore Mode. Continuing will "
+                   "disable Hardcore Mode. Do you want to continue?")) != QMessageBox::Yes)
+            return;
+
+        app->config->achievements_hardcore_mode = false;
+        app->updateSettings();
+    }
+
     app->config->netplay_last_host = host_edit->text().toStdString();
     app->config->netplay_last_port = port_edit->value();
     app->config->netplay_default_port = port_edit->value();

@@ -19,6 +19,7 @@ AchievementsPanel::AchievementsPanel(EmuApplication *app_)
     connect(refresh_timer, &QTimer::timeout, this, &AchievementsPanel::refreshAccountState);
 
     connectCheckbox(checkBox_enable_achievements, &app->config->achievements_enabled, app);
+    connectCheckbox(checkBox_enable_hardcore, &app->config->achievements_hardcore_mode, app);
     connectCheckbox(checkBox_enable_spectator, &app->config->achievements_spectator_mode, app);
     connectCheckbox(checkBox_enable_encore, &app->config->achievements_encore_mode, app);
     connectCheckbox(checkBox_track_unofficial, &app->config->achievements_track_unofficial, app);
@@ -63,6 +64,7 @@ AchievementsPanel::AchievementsPanel(EmuApplication *app_)
 void AchievementsPanel::showEvent(QShowEvent *event)
 {
     checkBox_enable_achievements->setChecked(app->config->achievements_enabled);
+    checkBox_enable_hardcore->setChecked(app->config->achievements_hardcore_mode);
     checkBox_enable_spectator->setChecked(app->config->achievements_spectator_mode);
     checkBox_enable_encore->setChecked(app->config->achievements_encore_mode);
     checkBox_track_unofficial->setChecked(app->config->achievements_track_unofficial);
@@ -100,6 +102,16 @@ void AchievementsPanel::refreshAccountState()
     }
     pushButton_view_profile->setEnabled(logged_in);
     checkBox_enable_achievements->setEnabled(logged_in);
+    // Hardcore mode is disabled for now, pending RA's hardcore-compliance
+    // approval (see docs.retroachievements.org's Hardcore Compliance
+    // Requirements page). Force it off in case it was left on from testing.
+    checkBox_enable_hardcore->setChecked(false);
+    checkBox_enable_hardcore->setEnabled(false);
+    if (app->config->achievements_hardcore_mode)
+    {
+        app->config->achievements_hardcore_mode = false;
+        app->updateSettings();
+    }
     checkBox_enable_spectator->setEnabled(logged_in);
     checkBox_enable_encore->setEnabled(logged_in);
     checkBox_track_unofficial->setEnabled(logged_in);

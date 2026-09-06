@@ -231,6 +231,7 @@ struct EmuConfig
     bool netplay_is_server;
 
     bool achievements_enabled;
+    bool achievements_hardcore_mode;
     bool achievements_spectator_mode;
     bool achievements_encore_mode;
     bool achievements_track_unofficial;

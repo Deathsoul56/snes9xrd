@@ -162,6 +162,19 @@ void Snes9xController::updateSettings(const EmuConfig * const config)
         }
     }
 
+    // Hardcore forbids rewind/cheats/save-state loading (enforced in
+    // mainLoop()/setCheatsEnabled()/loadState() below) and is fundamentally
+    // incompatible with netplay -- NetplayDialog warns the user and clears
+    // the config bit before connecting, but enforce it here too in case the
+    // config ever gets out of sync with an active netplay session.
+    bool hardcore = config->achievements_hardcore_mode && !Settings.NetPlay && !Settings.NetPlayServer;
+    if (hardcore != achievements->isHardcoreEnabled())
+    {
+        achievements->setHardcoreEnabled(hardcore);
+        if (achievements->consumeResetRequest())
+            reset(); // Re-baselines achievement tracking (see reset()).
+    }
+
     achievements->setSpectatorModeEnabled(config->achievements_spectator_mode);
     achievements->setEncoreModeEnabled(config->achievements_encore_mode);
     achievements->setUnofficialEnabled(config->achievements_track_unofficial);
@@ -378,8 +391,9 @@ void Snes9xController::mainLoop()
 
     // Rewinding pops local save-state history without telling the other
     // peers, which would desync them immediately -- block it while netplay
-    // is connected, same as fast-forward is already blocked above.
-    if (rewind_buffer_size > 0 && !Settings.NetPlay)
+    // is connected, same as fast-forward is already blocked above. Hardcore
+    // Mode forbids rewinding entirely.
+    if (rewind_buffer_size > 0 && !Settings.NetPlay && !achievements->isHardcoreEnabled())
     {
         if (rewinding)
         {
@@ -491,6 +505,23 @@ bool8 S9xContinueUpdate(int width, int height)
     return S9xDeinitUpdate(width, height);
 }
 
+// Shared by both frame-skip modes below: advances the skip counter and
+// commits the render/skip decision once `should_render` is known.
+static void applyFrameSkipDecision(bool should_render)
+{
+    if (should_render)
+    {
+        IPPU.FrameSkip = 0;
+        IPPU.SkippedFrames = 0;
+        IPPU.RenderThisFrame = true;
+    }
+    else
+    {
+        IPPU.SkippedFrames++;
+        IPPU.RenderThisFrame = false;
+    }
+}
+
 void S9xSyncSpeed()
 {
     if (Snes9xController::get()->netplaySyncSpeed())
@@ -499,18 +530,7 @@ void S9xSyncSpeed()
     if (Settings.TurboMode)
     {
         IPPU.FrameSkip++;
-        if ((IPPU.FrameSkip > Settings.TurboSkipFrames) && !Settings.HighSpeedSeek)
-        {
-            IPPU.FrameSkip = 0;
-            IPPU.SkippedFrames = 0;
-            IPPU.RenderThisFrame = true;
-        }
-        else
-        {
-            IPPU.SkippedFrames++;
-            IPPU.RenderThisFrame = false;
-        }
-
+        applyFrameSkipDecision((IPPU.FrameSkip > Settings.TurboSkipFrames) && !Settings.HighSpeedSeek);
         return;
     }
 
@@ -523,18 +543,7 @@ void S9xSyncSpeed()
     if (Settings.SkipFrames > 0)
     {
         IPPU.FrameSkip++;
-        if (IPPU.FrameSkip > Settings.SkipFrames)
-        {
-            IPPU.FrameSkip = 0;
-            IPPU.SkippedFrames = 0;
-            IPPU.RenderThisFrame = true;
-        }
-        else
-        {
-            IPPU.SkippedFrames++;
-            IPPU.RenderThisFrame = false;
-        }
-
+        applyFrameSkipDecision(IPPU.FrameSkip > Settings.SkipFrames);
         return;
     }
 
@@ -1016,6 +1025,11 @@ static fs::path save_slot_path(int slot)
 
 void Snes9xController::loadUndoState()
 {
+    if (achievements->isHardcoreEnabled())
+    {
+        S9xSetInfoString("Load State is disabled in Hardcore Mode.");
+        return;
+    }
     S9xUnfreezeGame(S9xGetFilename(".undo", SNAPSHOT_DIR).c_str());
 }
 
@@ -1077,6 +1091,12 @@ bool Snes9xController::loadState(const std::string &filename)
     if (!active)
         return false;
 
+    if (achievements->isHardcoreEnabled())
+    {
+        S9xSetInfoString("Load State is disabled in Hardcore Mode.");
+        return false;
+    }
+
     S9xFreezeGame(S9xGetFilename(".undo", SNAPSHOT_DIR).c_str());
 
     if (S9xUnfreezeGame(filename.c_str()))
@@ -1127,11 +1147,18 @@ bool Snes9xController::isAbnormalSpeed()
 void Snes9xController::reset()
 {
     S9xReset();
+    // Re-baselines achievement/leaderboard memory-delta tracking -- also
+    // what lets hardcore-toggle resets (see updateSettings()) resume
+    // achievement processing.
+    if (achievements_enabled)
+        achievements->resetGame();
 }
 
 void Snes9xController::softReset()
 {
     S9xSoftReset();
+    if (achievements_enabled)
+        achievements->resetGame();
 }
 
 bool Snes9xController::saveState(int slot)
@@ -1142,6 +1169,19 @@ bool Snes9xController::saveState(int slot)
 void Snes9xController::setMessage(const std::string &message)
 {
     S9xSetInfoString(message.c_str());
+}
+
+bool Snes9xController::achievementsHardcoreEnabled() const
+{
+    return achievements->isHardcoreEnabled();
+}
+
+void Snes9xController::achievementsDropHardcoreForResume()
+{
+    // Disabling hardcore never raises RC_CLIENT_EVENT_RESET (only enabling
+    // it does), so there's no reset request to consume here.
+    if (achievements->isHardcoreEnabled())
+        achievements->setHardcoreEnabled(false);
 }
 
 std::vector<std::tuple<bool, std::string, std::string>> Snes9xController::getCheatList()
@@ -1163,6 +1203,10 @@ bool Snes9xController::cheatsEnabled() const
 
 void Snes9xController::setCheatsEnabled(bool enabled)
 {
+    // Hardcore forbids cheats entirely.
+    if (enabled && achievements->isHardcoreEnabled())
+        enabled = false;
+
     Settings.ApplyCheats = enabled;
     if (enabled)
         S9xCheatsEnable();
@@ -1434,6 +1478,14 @@ bool Snes9xController::startMovieRecord(const std::string &filename)
 bool Snes9xController::openMovie(const std::string &filename)
 {
     if (!active) return false;
+
+    // Hardcore strictly prohibits recorded input playback (recording is fine).
+    if (achievements->isHardcoreEnabled())
+    {
+        S9xSetInfoString("Movie playback is disabled in Hardcore Mode.");
+        return false;
+    }
+
     suspend();
     int rc = S9xMovieOpen(filename.c_str(), FALSE);
     resume();

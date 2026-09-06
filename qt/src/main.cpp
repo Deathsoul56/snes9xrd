@@ -67,6 +67,16 @@ int main(int argc, char *argv[])
     // behind until the first game starts or the Settings dialog is used.
     emu.updateSettings();
     emu.updateBindings();
+
+    // Opens the sound device here instead of lazily on the first startGame()
+    // call -- the device needs a moment after opening before it actually
+    // starts draining samples, and until it does, writeSamples()'s throttle
+    // (which paces frames on space_free()) can't block, so the very first
+    // game loaded would run unthrottled for a moment (skipping/fast-forwarding
+    // through any intro). Warming it up here, before a ROM can be loaded,
+    // gives it time to settle no matter how quickly a game is launched.
+    emu.restartAudio();
+
     emu.startInputTimer();
     emu.qtapp->exec();
 

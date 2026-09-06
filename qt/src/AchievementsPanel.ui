@@ -75,14 +75,11 @@
       </item>
       <item row="0" column="1">
        <widget class="QCheckBox" name="checkBox_enable_hardcore">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
         <property name="text">
          <string>Enable Hardcore Mode</string>
         </property>
         <property name="whatsThis">
-         <string>Not yet available -- hardcore mode requires disabling rewind, cheats, save states, and netplay resync while active, which hasn't been implemented yet.</string>
+         <string>Disables rewind, cheats, and loading save states, and forces itself off if Netplay is used. Takes effect immediately; if a game is running, it will be reset. Note: this fork is not an officially recognized RetroAchievements client, so hardcore unlocks may not be honored by the server.</string>
         </property>
        </widget>
       </item>

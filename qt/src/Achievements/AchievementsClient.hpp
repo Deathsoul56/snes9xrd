@@ -31,9 +31,11 @@ class AchievementsNetwork;
 // small mutex-guarded queue that doFrame()/idle() drain before touching
 // rc_client_t again -- so rc_client_t itself never sees a concurrent call.
 //
-// MVP scope: softcore only. Hardcore mode requires gating rewind/cheats/
-// save-states/netplay, which is deliberately out of scope for this pass;
-// hardcore is left permanently disabled (see the constructor).
+// Hardcore mode is a plain rc_client_t knob (setHardcoreEnabled()), but is
+// only actually safe once the caller also disables rewind/cheats/save-state
+// loading and forces it off during netplay -- see
+// Snes9xController::updateSettings(), mainLoop(), setCheatsEnabled() and
+// loadState().
 class AchievementsClient
 {
   public:
@@ -65,8 +67,24 @@ class AchievementsClient
     bool isLoggedIn() const;
     Achievements::UserInfo userInfo() const;
 
-    // Spectator/Encore/unofficial-achievements are plain rc_client_t knobs;
-    // hardcore stays permanently off for now (see the class comment).
+    // Enabling hardcore with a game loaded raises RC_CLIENT_EVENT_RESET and
+    // suspends achievement processing until resetGame() is called -- see
+    // consumeResetRequest()/resetGame() below and Snes9xController::reset().
+    void setHardcoreEnabled(bool enabled);
+    bool isHardcoreEnabled() const;
+
+    // True once, after a hardcore toggle raises RC_CLIENT_EVENT_RESET. The
+    // caller must reset the emulated system and call resetGame() before
+    // achievement processing resumes.
+    bool consumeResetRequest();
+
+    // Re-baselines achievement/leaderboard memory-delta tracking after the
+    // emulated system resets (rc_client_reset()) -- required after every
+    // reset/power cycle, not just hardcore toggles, or condition checks can
+    // misread the discontinuity as an implausibly fast memory change.
+    void resetGame();
+
+    // Spectator/Encore/unofficial-achievements are plain rc_client_t knobs.
     void setSpectatorModeEnabled(bool enabled);
     bool isSpectatorModeEnabled() const;
     void setEncoreModeEnabled(bool enabled);
@@ -166,6 +184,7 @@ class AchievementsClient
     std::unique_ptr<AchievementsNetwork> network_;
     std::string last_error_;
     bool login_pending_ = false;
+    bool reset_requested_ = false;
     bool notifications_enabled_ = true;
     bool leaderboard_notifications_enabled_ = true;
     bool leaderboard_trackers_enabled_ = true;

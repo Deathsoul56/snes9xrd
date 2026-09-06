@@ -392,6 +392,7 @@ bool EmuConfig::setDefaults(int section)
     {
         // Achievements
         achievements_enabled = true;
+        achievements_hardcore_mode = false;
         achievements_spectator_mode = false;
         achievements_encore_mode = false;
         achievements_track_unofficial = false;
@@ -723,6 +724,7 @@ void EmuConfig::config(const std::string &filename, bool write)
 
     BeginSection("RetroAchievements");
     Bool("Enabled", achievements_enabled);
+    Bool("HardcoreMode", achievements_hardcore_mode);
     Bool("SpectatorMode", achievements_spectator_mode);
     Bool("EncoreMode", achievements_encore_mode);
     Bool("TrackUnofficial", achievements_track_unofficial);

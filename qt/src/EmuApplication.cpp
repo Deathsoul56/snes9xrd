@@ -318,7 +318,10 @@ bool EmuApplication::openFile(const std::string &filename)
     suspendThread();
     auto result = core->openFile(filename);
     if (result && config->save_state_on_close && core->resumeStateExists())
+    {
+        core->achievementsDropHardcoreForResume();
         core->loadState(core->resumeStatePath());
+    }
     unsuspendThread();
 
     return result;
@@ -507,6 +510,13 @@ void EmuApplication::advanceFrame()
 {
     if (!core->active || !emu_thread)
         return;
+
+    // Hardcore strictly prohibits slowdown/frame advance.
+    if (core->achievementsHardcoreEnabled())
+    {
+        core->setMessage("Frame Advance is disabled in Hardcore Mode.");
+        return;
+    }
 
     emu_thread->runOnThread([&] {
         core->setPaused(false);
