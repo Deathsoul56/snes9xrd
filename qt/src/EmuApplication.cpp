@@ -396,19 +396,27 @@ bool EmuApplication::loadGamePosition()
 bool EmuApplication::startMovieRecord(const std::string &filename)
 {
     if (!core) return false;
-    return core->startMovieRecord(filename);
+    suspendThread();
+    bool started = core->startMovieRecord(filename);
+    unsuspendThread();
+    return started;
 }
 
 bool EmuApplication::openMovie(const std::string &filename)
 {
     if (!core) return false;
-    return core->openMovie(filename);
+    suspendThread();
+    bool opened = core->openMovie(filename);
+    unsuspendThread();
+    return opened;
 }
 
 void EmuApplication::stopMovie()
 {
     if (!core) return;
+    suspendThread();
     core->stopMovie();
+    unsuspendThread();
 }
 
 bool EmuApplication::isMovieActive() const
@@ -454,7 +462,10 @@ std::string EmuApplication::coreInfo() const
 bool EmuApplication::dumpSpc()
 {
     if (!core) return false;
-    return core->dumpSpc();
+    suspendThread();
+    bool dumped = core->dumpSpc();
+    unsuspendThread();
+    return dumped;
 }
 
 bool EmuApplication::takeScreenshot()

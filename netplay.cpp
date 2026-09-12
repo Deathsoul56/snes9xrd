@@ -93,6 +93,7 @@ bool8 S9xNPClientSyncSpeed (uint32 my_joypad, uint32 client_joypads [NP_MAX_CLIE
     if (!NetPlay.Connected)
         return FALSE;
 
+    NetPlay.LastSendTime = S9xGetMilliTime ();
     S9xNPSendJoypadUpdate (my_joypad);
 
     for (int i = 0; i < NP_MAX_CLIENTS; i++)
@@ -175,6 +176,8 @@ bool8 S9xNPConnectToServer (const char *hostname, int port,
     NetPlay.ROMName = strdup (rom_name);
     NetPlay.Port = port;
     NetPlay.PendingWait4Sync = FALSE;
+    NetPlay.LastSendTime = 0;
+    NetPlay.PingMS = 0;
 
 #ifdef __WIN32__
     if (NP_CLIENT_SEMAPHORE == NULL)
@@ -431,6 +434,9 @@ void S9xNPClientLoop (void *)
         {
             if (S9xNPWaitForHeartBeat ())
             {
+                if (NetPlay.LastSendTime)
+                    NetPlay.PingMS = S9xGetMilliTime () - NetPlay.LastSendTime;
+
                 LONG prev;
                 if (!ReleaseSemaphore (NP_CLIENT_SEMAPHORE, 1, &prev))
                 {

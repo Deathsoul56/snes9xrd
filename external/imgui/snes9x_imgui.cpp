@@ -16,6 +16,7 @@
 #include "gfx.h"
 #include "ppu.h"
 #include "cheats.h"
+#include "netplay.h"
 
 namespace
 {
@@ -290,6 +291,8 @@ bool S9xImGuiDraw(int width, int height)
                               ImGui::DrawTextAlignment::END);
     }
 
+    int next_overlay_y = settings.spacing;
+
     if (Settings.DisplayFrameRate)
     {
         char string[256];
@@ -309,9 +312,23 @@ bool S9xImGuiDraw(int width, int height)
 
         sprintf(string, "%u fps\n%02d/%02d", calcFps, (int)IPPU.DisplayedRenderedFrameCount, (int)Memory.ROMFramesPerSecond);
 
+        ImVec2 box_size = ImGui_DrawTextOverlay(string,
+                              width - settings.spacing,
+                              next_overlay_y,
+                              settings.spacing,
+                              ImGui::DrawTextAlignment::END,
+                              ImGui::DrawTextAlignment::BEGIN);
+        next_overlay_y += box_size.y + settings.spacing;
+    }
+
+    if (Settings.DisplayPing && Settings.NetPlay)
+    {
+        char string[256];
+        sprintf(string, "%u ms", (unsigned int)NetPlay.PingMS);
+
         ImGui_DrawTextOverlay(string,
                               width - settings.spacing,
-                              settings.spacing,
+                              next_overlay_y,
                               settings.spacing,
                               ImGui::DrawTextAlignment::END,
                               ImGui::DrawTextAlignment::BEGIN);

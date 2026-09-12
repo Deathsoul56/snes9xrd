@@ -118,6 +118,13 @@
        </widget>
       </item>
       <item>
+       <widget class="QCheckBox" name="checkBox_show_ping">
+        <property name="text">
+         <string>Show Netplay ping</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QCheckBox" name="checkBox_show_indicators">
         <property name="text">
          <string>Show fast-forward and pause icons</string>

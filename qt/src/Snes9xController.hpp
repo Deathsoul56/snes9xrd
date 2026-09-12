@@ -98,11 +98,6 @@ class Snes9xController
     bool dumpSpc();
     void setPaused(bool paused);
 
-    // Briefly halt the emu thread while the GUI mutates core state. These
-    // exist as member functions so call sites look natural; the actual
-    // blocking goes through a shared mutex below.
-    void suspend();
-    void resume();
     void setMessage(const std::string &message);
     void clearSoundBuffer();
     std::vector<std::tuple<bool, std::string, std::string>> getCheatList();

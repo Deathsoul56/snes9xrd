@@ -13,6 +13,7 @@
 #include "movie.h"
 #include "screenshot.h"
 #include "display.h"
+#include "netplay.h"
 #include <algorithm>
 
 extern struct SCheatData		Cheat;
@@ -1949,27 +1950,37 @@ static void DisplayFrameRate (void)
 	static uint32 lastFrameCount = 0, calcFps = 0;
 	static time_t lastTime = time(NULL);
 
-	time_t currTime = time(NULL);
-	if (lastTime != currTime) {
-		if (lastFrameCount < IPPU.TotalEmulatedFrames) {
-			calcFps = (IPPU.TotalEmulatedFrames - lastFrameCount) / (uint32)(currTime - lastTime);
+	if (Settings.DisplayFrameRate)
+	{
+		time_t currTime = time(NULL);
+		if (lastTime != currTime) {
+			if (lastFrameCount < IPPU.TotalEmulatedFrames) {
+				calcFps = (IPPU.TotalEmulatedFrames - lastFrameCount) / (uint32)(currTime - lastTime);
+			}
+			lastTime = currTime;
+			lastFrameCount = IPPU.TotalEmulatedFrames;
 		}
-		lastTime = currTime;
-		lastFrameCount = IPPU.TotalEmulatedFrames;
-	}
-	sprintf(string, "%u fps", calcFps);
-	S9xDisplayString(string, 2, IPPU.RenderedScreenWidth - (font_width - 1) * strlen(string) - 1, false);
+		sprintf(string, "%u fps", calcFps);
+		S9xDisplayString(string, 2, IPPU.RenderedScreenWidth - (font_width - 1) * strlen(string) - 1, false);
 
 #ifdef DEBUGGER
-	const int	len = 8;
-	sprintf(string, "%02d/%02d %02d", (int) IPPU.DisplayedRenderedFrameCount, (int) Memory.ROMFramesPerSecond, (int) IPPU.FrameCount);
+		const int	len = 8;
+		sprintf(string, "%02d/%02d %02d", (int) IPPU.DisplayedRenderedFrameCount, (int) Memory.ROMFramesPerSecond, (int) IPPU.FrameCount);
 #else
-	const int	len = 5;
-	sprintf(string, "%02d/%02d",      (int) IPPU.DisplayedRenderedFrameCount, (int) Memory.ROMFramesPerSecond);
+		const int	len = 5;
+		sprintf(string, "%02d/%02d",      (int) IPPU.DisplayedRenderedFrameCount, (int) Memory.ROMFramesPerSecond);
 #endif
 
-	S9xDisplayString(string, 1, IPPU.RenderedScreenWidth - (font_width - 1) * len - 1, false);
+		S9xDisplayString(string, 1, IPPU.RenderedScreenWidth - (font_width - 1) * len - 1, false);
+	}
+
+	if (Settings.DisplayPing && Settings.NetPlay)
+	{
+		sprintf(string, "%u ms", (unsigned int) NetPlay.PingMS);
+		S9xDisplayString(string, 3, IPPU.RenderedScreenWidth - (font_width - 1) * strlen(string) - 1, false);
+	}
 }
+
 
 static void DisplayPressedKeys (void)
 {
@@ -2137,7 +2148,7 @@ void S9xDisplayMessages (uint16 *screen, int ppl, int width, int height, int sca
 	if (Settings.DisplayTime)
 		DisplayTime();
 
-	if (Settings.DisplayFrameRate)
+	if (Settings.DisplayFrameRate || (Settings.DisplayPing && Settings.NetPlay))
 		DisplayFrameRate();
 
 	if (Settings.DisplayWatchedAddresses)

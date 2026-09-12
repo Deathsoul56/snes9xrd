@@ -38,6 +38,7 @@ GeneralPanel::GeneralPanel(EmuApplication *app_)
     checkBox_add_to_registry->setVisible(false);
 #endif
     connectCheckbox(checkBox_show_frame_rate, &app->config->show_frame_rate, app);
+    connectCheckbox(checkBox_show_ping, &app->config->show_ping, app);
     connectCheckbox(checkBox_show_indicators, &app->config->show_indicators, app);
     connectCheckbox(checkBox_show_pressed_keys, &app->config->show_pressed_keys, app);
     connectCheckbox(checkBox_show_time, &app->config->show_time, app);
@@ -60,6 +61,7 @@ void GeneralPanel::showEvent(QShowEvent *event)
     checkBox_add_to_registry->setChecked(config->add_to_registry);
 #endif
     checkBox_show_frame_rate->setChecked(config->show_frame_rate);
+    checkBox_show_ping->setChecked(config->show_ping);
     checkBox_show_indicators->setChecked(config->show_indicators);
     checkBox_show_pressed_keys->setChecked(config->show_pressed_keys);
     checkBox_show_time->setChecked(config->show_time);

@@ -51,6 +51,7 @@ struct EmuConfig
     int theme;
 
     bool show_frame_rate;
+    bool show_ping;
     bool show_indicators;
     bool show_pressed_keys;
     bool show_time;

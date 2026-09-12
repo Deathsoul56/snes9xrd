@@ -245,6 +245,7 @@ bool EmuConfig::setDefaults(int section)
         theme = 0;
 
         show_frame_rate = false;
+        show_ping = false;
         show_indicators = true;
         show_pressed_keys = false;
         show_time = false;
@@ -555,6 +556,7 @@ void EmuConfig::config(const std::string &filename, bool write)
     Bool("SaveStateOnClose", save_state_on_close);
 
     Bool("ShowFrameRate", show_frame_rate);
+    Bool("ShowPing", show_ping);
     Bool("ShowIndicators", show_indicators);
     Bool("ShowPressedKeys", show_pressed_keys);
     Bool("ShowTime", show_time);

@@ -78,6 +78,7 @@ void Snes9xController::init()
     Settings.FrameTimeNTSC = 16639;
     Settings.FrameTimePAL = 20000;
     Settings.DisplayFrameRate = false;
+    Settings.DisplayPing = false;
     Settings.DisplayTime = false;
     Settings.DisplayPressedKeys = false;
     Settings.DisplayIndicators = true;
@@ -226,6 +227,7 @@ void Snes9xController::updateSettings(const EmuConfig * const config)
         Settings.AutoDisplayMessages = false;
 
     Settings.DisplayFrameRate = config->show_frame_rate;
+    Settings.DisplayPing = config->show_ping;
 
     Settings.DisplayPressedKeys = config->show_pressed_keys;
 
@@ -325,9 +327,6 @@ bool Snes9xController::openFile(const std::string &filename)
 
     return active;
 }
-
-void Snes9xController::suspend() { /* placeholder; EmuApplication gates the emu thread */ }
-void Snes9xController::resume()  { /* placeholder */ }
 
 void Snes9xController::mainLoop()
 {
@@ -1469,9 +1468,7 @@ bool Snes9xController::canSaveMemoryPack() const
 bool Snes9xController::startMovieRecord(const std::string &filename)
 {
     if (!active) return false;
-    suspend();
     int rc = S9xMovieCreate(filename.c_str(), 0xFF, MOVIE_OPT_FROM_RESET, nullptr, 0);
-    resume();
     return rc == 1;
 }
 
@@ -1486,18 +1483,14 @@ bool Snes9xController::openMovie(const std::string &filename)
         return false;
     }
 
-    suspend();
     int rc = S9xMovieOpen(filename.c_str(), FALSE);
-    resume();
     return rc == 1;
 }
 
 void Snes9xController::stopMovie()
 {
     if (!S9xMoviePlaying() && !S9xMovieRecording()) return;
-    suspend();
     S9xMovieStop(FALSE);
-    resume();
 }
 
 bool Snes9xController::isMovieActive() const
@@ -1508,10 +1501,8 @@ bool Snes9xController::isMovieActive() const
 bool Snes9xController::dumpSpc()
 {
     if (!active) return false;
-    suspend();
     auto filename = S9xGetFilenameInc(".spc", SPC_DIR);
     bool dumped = S9xSPCDump(filename.c_str()) != FALSE;
-    resume();
     if (!dumped)
         return false;
 
@@ -1567,7 +1558,6 @@ bool Snes9xController::netplayConnectInternal(const std::string &host, int port)
 
     S9xAutoSaveSRAM();
 
-    NetPlay.MaxBehindFrameCount = 15;
     NetPlay.Waiting4EmulationThread = false;
     NetPlay.ErrorMsg[0] = 0;
     NetPlay.WarningMsg[0] = 0;

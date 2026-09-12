@@ -251,6 +251,7 @@ struct SSettings
 
 	bool8	DisplayTime;
 	bool8	DisplayFrameRate;
+	bool8	DisplayPing;
 	bool8	DisplayWatchedAddresses;
 	bool8	DisplayPressedKeys;
 	bool8	DisplayMovieFrame;

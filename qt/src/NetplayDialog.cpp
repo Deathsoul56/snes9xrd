@@ -90,6 +90,21 @@ void NetplayDialog::connectOrHost()
         app->updateSettings();
     }
 
+    // Controller Ports is a local, per-machine setting Netplay never syncs --
+    // if this machine is still on "One Controller", Port 2 is CTL_NONE here,
+    // so a second player's input arrives over the network and is silently
+    // dropped locally even though every other peer applies it fine.
+    if (app->config->port_configuration == EmuConfig::eOneController)
+    {
+        QMessageBox::information(this, tr("Controller Ports"),
+            tr("This machine's Controller Ports are set to \"One Controller\", so a second "
+               "player's input would sync correctly on other peers but be ignored here.\n\n"
+               "Two Controllers will be enabled now."));
+
+        app->config->port_configuration = EmuConfig::eTwoControllers;
+        app->updateBindings();
+    }
+
     app->config->netplay_last_host = host_edit->text().toStdString();
     app->config->netplay_last_port = port_edit->value();
     app->config->netplay_default_port = port_edit->value();

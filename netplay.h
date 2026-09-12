@@ -145,6 +145,8 @@ struct SNetPlay
     char   ActionMsg [NP_MAX_ACTION_LEN];
     char   ErrorMsg [NP_MAX_ACTION_LEN];
     char   WarningMsg [NP_MAX_ACTION_LEN];
+    volatile uint32 LastSendTime;
+    volatile uint32 PingMS;
 };
 
 extern "C" struct SNetPlay NetPlay;
