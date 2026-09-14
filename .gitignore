@@ -2,17 +2,6 @@
 .opencode/
 
 # Files that can arise when using snes9x
-win32/snes9x.conf
-win32/Valid.Ext
-win32/stdout.txt
-win32/stderr.txt
-win32/Roms
-win32/Saves
-win32/Cheats
-win32/Screenshots
-win32/Movies
-win32/SPCs
-win32/BIOS
 *.smc
 *.sfc
 *.fig
@@ -34,10 +23,6 @@ win32/BIOS
 # Included libraries in OS X that should not be ignored.
 !macosx/libz_u.a
 !macosx/libHIDUtilities_u.a
-
-# Included libraries in windows that should not be ignored.
-!win32/ddraw/ddraw_x86.lib
-!win32/ddraw/ddraw_x64.lib
 
 # Created by https://www.gitignore.io/api/c,c++,xcode,visualstudio
 # Edit at https://www.gitignore.io/?templates=c,c++,xcode,visualstudio

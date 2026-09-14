@@ -23,7 +23,7 @@ private slots:
 
 private:
     // Reflects the STBIOS.bin lookup path resolved from the configured BIOS
-    // folder (Settings -> Files -> BIOS), same as win32's read-only BIOS row.
+    // folder (Settings -> Files -> BIOS).
     void refreshBiosStatus();
 
     QLineEdit *slot_a_edit_ = nullptr;

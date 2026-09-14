@@ -349,8 +349,7 @@ void AchievementsClient::showNotification(const std::string &message, int durati
     S9xClearInfoImage();
 
     // Temporarily override the core's global message timeout for this one
-    // call, then restore it -- same save/restore idiom already used by
-    // win32/CSaveLoadWithPreviewDlg.cpp for the same field.
+    // call, then restore it.
     uint32_t saved_timeout = Settings.InitialInfoStringTimeout;
     double fps = Memory.ROMFramesPerSecond > 0 ? Memory.ROMFramesPerSecond : 60.0;
     int seconds = duration_seconds > 0 ? duration_seconds : notification_duration_seconds_;

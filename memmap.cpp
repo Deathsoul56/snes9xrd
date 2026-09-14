@@ -38,10 +38,6 @@
 #include "sha256.h"
 #include "snapshot.h"
 
-#ifndef SET_UI_COLOR
-#define SET_UI_COLOR(r, g, b) ;
-#endif
-
 #ifndef max
 #define max(a, b) (((a) > (b)) ? (a) : (b))
 #endif
@@ -792,7 +788,6 @@ static int unzFindExtension (unzFile &, const char *, bool restart = TRUE, bool 
 static void S9xDeinterleaveType1 (int size, uint8 *base)
 {
 	Settings.DisplayColor = BUILD_PIXEL(0, 31, 0);
-	SET_UI_COLOR(0, 255, 0);
 
 	uint8	blocks[256];
 	int		nblocks = size >> 16;
@@ -831,7 +826,6 @@ static void S9xDeinterleaveType2 (int size, uint8 *base)
 {
 	// for odd Super FX images
 	Settings.DisplayColor = BUILD_PIXEL(31, 14, 6);
-	SET_UI_COLOR(255, 119, 25);
 
 	uint8	blocks[256];
 	int		nblocks = size >> 16;
@@ -875,7 +869,6 @@ static void S9xDeinterleaveGD24 (int size, uint8 *base)
 		return;
 
 	Settings.DisplayColor = BUILD_PIXEL(0, 31, 31);
-	SET_UI_COLOR(0, 255, 255);
 
 	uint8	*tmp = (uint8 *) malloc(0x80000);
 	if (tmp)
@@ -1350,7 +1343,6 @@ bool8 CMemory::LoadROM (const char *filename)
 bool8 CMemory::LoadROMInt (int32 ROMfillSize)
 {
 	Settings.DisplayColor = BUILD_PIXEL(31, 31, 31);
-	SET_UI_COLOR(255, 255, 255);
 
 	CalculatedSize = 0;
 	ExtendedFormat = NOPE;
@@ -1606,7 +1598,6 @@ bool8 CMemory::LoadMultiCart (const char *cartA, const char *cartB)
 	memset(&Multi, 0, sizeof(Multi));
 
 	Settings.DisplayColor = BUILD_PIXEL(31, 31, 31);
-	SET_UI_COLOR(255, 255, 255);
 
     if (cartB && cartB[0])
 		Multi.cartSizeB = FileLoader(ROM, cartB, MAX_ROM_SIZE);
@@ -2382,20 +2373,17 @@ void CMemory::InitROM (void)
 	if (!isChecksumOK || ((uint32) CalculatedSize > (uint32) (((1 << (ROMSize - 7)) * 128) * 1024)))
 	{
 		Settings.DisplayColor = BUILD_PIXEL(31, 31, 0);
-		SET_UI_COLOR(255, 255, 0);
 	}
 
 	// Use slight blue tint to indicate ROM was patched.
 	if (Settings.IsPatched)
 	{
 		Settings.DisplayColor = BUILD_PIXEL(26, 26, 31);
-		SET_UI_COLOR(216, 216, 255);
 	}
 
 	if (Multi.cartType == 4)
 	{
 		Settings.DisplayColor = BUILD_PIXEL(0, 16, 31);
-		SET_UI_COLOR(0, 128, 255);
 	}
 
 	//// Initialize emulation

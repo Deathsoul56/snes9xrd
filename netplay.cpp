@@ -23,9 +23,6 @@
 #ifdef __WIN32__
 	#include <winsock.h>
 	#include <process.h>
-	#ifndef SNES9X_QT
-	#include "win32/wsnes9x.h"
-	#endif
 
 	#define ioctl ioctlsocket
 	#define close(h) if(h){closesocket(h);}
@@ -65,12 +62,10 @@ void S9xNPGetFreezeFile (uint32 len);
 unsigned long START = 0;
 
 #if defined(__WIN32__) && defined(SNES9X_QT)
-// Front-ends without a classic win32 message loop (Qt) own this semaphore
-// directly instead of routing through the legacy win32 port's GUI struct.
+// Qt owns this semaphore directly because its client loop runs on a
+// background thread.
 static HANDLE S9xNPClientSemaphore = NULL;
 #define NP_CLIENT_SEMAPHORE S9xNPClientSemaphore
-#elif defined(__WIN32__)
-#define NP_CLIENT_SEMAPHORE GUI.ClientSemaphore
 #endif
 
 bool8 S9xNPConnect ();
@@ -82,7 +77,6 @@ bool8 S9xNPConnect ();
 // NP_CLIENT_SEMAPHORE, never via S9xNPCheckForHeartBeat()/
 // S9xNPWaitForHeartBeatDelay() directly -- those read the socket too, and
 // racing the client thread for the same bytes stalls both sides forever.
-// This mirrors win32/win32.cpp's S9xSyncSpeed() netplay branch exactly.
 bool8 S9xNPClientWaitPendingSync (uint32 time_msec)
 {
     return WaitForSingleObject (NP_CLIENT_SEMAPHORE, time_msec) == WAIT_OBJECT_0;
@@ -645,25 +639,6 @@ bool8 S9xNPLoadROMDialog (const char *rom_name)
 
 #if defined(__WIN32__) && defined(SNES9X_QT)
     NetPlay.Answer = S9xNPConfirmLoadROM (rom_name);
-#elif defined(__WIN32__)
-    ResetEvent (NetPlay.ReplyEvent);
-
-#ifdef NP_DEBUG
-    printf ("CLIENT: Asking GUI thread to open ROM load dialog...\n");
-#endif
-
-    PostMessage (GUI.hWnd, WM_USER + 3, (WPARAM) rom_name, (LPARAM) rom_name);
-
-#ifdef NP_DEBUG
-    printf ("CLIENT: Waiting for reply from GUI thread...\n");
-#endif
-
-    WaitForSingleObject (NetPlay.ReplyEvent, INFINITE);
-
-#ifdef NP_DEBUG
-    printf ("CLIENT: Got reply from GUI thread (%d)\n", NetPlay.Answer);
-#endif
-
 #else
 	NetPlay.Answer = TRUE;
 #endif
@@ -753,10 +728,6 @@ bool8 S9xNPGetROMImage (uint32 len)
     S9xReset ();
     S9xNPResetJoypadReadPos ();
     Settings.StopEmulation = FALSE;
-
-#if defined(__WIN32__) && !defined(SNES9X_QT)
-    PostMessage (GUI.hWnd, WM_NULL, 0, 0);
-#endif
 
     return (TRUE);
 }
@@ -1050,11 +1021,6 @@ bool8 S9xNPGetData (int socket, uint8 *data, int length)
         if (!Settings.NetPlayServer && length > 1024)
         {
             NetPlay.PercentageComplete = (uint8) (((length - len) * 100) / length);
-#if defined(__WIN32__) && !defined(SNES9X_QT)
-            PostMessage (GUI.hWnd, WM_USER, NetPlay.PercentageComplete,
-                         NetPlay.PercentageComplete);
-            Sleep (0);
-#endif
         }
 
     } while (len > 0);
@@ -1117,10 +1083,6 @@ void S9xNPSetAction (const char *action, bool8 force)
     {
         strncpy (NetPlay.ActionMsg, action, NP_MAX_ACTION_LEN - 1);
         NetPlay.ActionMsg [NP_MAX_ACTION_LEN - 1] = 0;
-#if defined(__WIN32__) && !defined(SNES9X_QT)
-        PostMessage (GUI.hWnd, WM_USER, 0, 0);
-        Sleep (0);
-#endif
     }
 }
 
@@ -1132,10 +1094,6 @@ void S9xNPSetError (const char *error)
 #endif
     strncpy (NetPlay.ErrorMsg, error, NP_MAX_ACTION_LEN - 1);
     NetPlay.ErrorMsg [NP_MAX_ACTION_LEN - 1] = 0;
-#if defined(__WIN32__) && !defined(SNES9X_QT)
-    PostMessage (GUI.hWnd, WM_USER + 1, 0, 0);
-    Sleep (0);
-#endif
 }
 
 void S9xNPSetWarning (const char *warning)
@@ -1146,9 +1104,5 @@ void S9xNPSetWarning (const char *warning)
 #endif
     strncpy (NetPlay.WarningMsg, warning, NP_MAX_ACTION_LEN - 1);
     NetPlay.WarningMsg [NP_MAX_ACTION_LEN - 1] = 0;
-#if defined(__WIN32__) && !defined(SNES9X_QT)
-    PostMessage (GUI.hWnd, WM_USER + 2, 0, 0);
-    Sleep (0);
-#endif
 }
 #endif

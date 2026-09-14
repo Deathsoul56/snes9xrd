@@ -65,7 +65,7 @@ Qt:
   mismatched frames from the new ROM.
 - Legacy file menu parity: added a Recent Files submenu, Load MultiCart, and
   per-slot Save/Load Game Position submenus backed by a state preview dialog
-  (thumbnail + slot picker), matching the legacy Win32 UI.
+  (thumbnail + slot picker).
 - Added a Hacks dialog (SuperFX clock speed, overclock, sound interpolation
   filter, allow invalid VRAM access, separate echo buffer, disable sprite
   limit) reachable from the legacy-style menu.

@@ -320,8 +320,8 @@ bool Snes9xController::openFile(const std::string &filename)
     }
 
     // server.cpp's netplay heartbeat pacer refuses to send heartbeats while
-    // this is true (see S9xNPServerLoop); GTK/win32 clear it on successful
-    // ROM load, Qt never did, so hosting could never send a single
+    // this is true (see S9xNPServerLoop); other frontends clear it on
+    // successful ROM load, Qt never did, so hosting could never send a single
     // heartbeat and the client would freeze immediately, forever.
     Settings.StopEmulation = !active;
 
@@ -339,7 +339,7 @@ void Snes9xController::mainLoop()
     // The netplay server/client threads report connects, disconnects and
     // sync warnings by writing NetPlay.WarningMsg (see S9xNPSetWarning in
     // netplay.cpp/server.cpp) -- Qt has no WM_USER-style hook to catch that
-    // like the legacy win32 GUI does, so poll for changes here instead.
+    // so poll for changes here instead.
     // "has paused."/"has resumed." are routine per-frame flow-control
     // chatter from the lockstep pacing (see S9xNPClientSyncSpeed), not
     // connect/disconnect events, and can repeat many times a second -- skip
@@ -535,7 +535,7 @@ void S9xSyncSpeed()
 
     // Settings.SkipFrames doubles as the "Fixed, always skip N frames"
     // option from the display settings (0 = disabled). This is the same
-    // core field unix/win32/macOS use for the equivalent feature; the
+    // core field unix/macOS use for the equivalent feature; the
     // "Automatic" mode lives separately in EmuConfig::speed_sync_method /
     // EmuCanvas's timer-based throttle, which measures real elapsed time
     // instead of counting frames.

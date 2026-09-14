@@ -150,8 +150,7 @@ class AchievementsClient
 
     // Displays an achievement-related message via S9xSetInfoString, honoring
     // notification_duration_seconds_ (temporarily overrides the core's global
-    // Settings.InitialInfoStringTimeout, then restores it -- same save/restore
-    // idiom already used by win32/CSaveLoadWithPreviewDlg.cpp). duration_seconds
+    // Settings.InitialInfoStringTimeout, then restores it). duration_seconds
     // == 0 means "use notification_duration_seconds_".
     void showNotification(const std::string &message, int duration_seconds = 0) const;
 

@@ -60,7 +60,7 @@ MultiCartDialog::MultiCartDialog(EmuConfig *config, QWidget *parent)
     form->addRow(tr("Slot B:"), make_row(tr("Choose Slot B cartridge"), &slot_b_edit_));
     root->addLayout(form);
 
-    // BIOS row: read-only, informational only (matches win32). The path is
+    // BIOS row: read-only and informational only. The path is
     // resolved from Settings -> Files -> BIOS, same lookup the core performs
     // for Sufami Turbo/BS-X (STBIOS.bin), so there is nothing to browse here.
     auto *bios_row = new QHBoxLayout;

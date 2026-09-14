@@ -2,7 +2,7 @@
 
 Snes9x 1.63 — portable Super Nintendo emulator. This is a fork (`Deathsoul56/snes9xrd`, the `rd` is the fork author's suffix; upstream is `snes9xgit/snes9x` 1.63). The fork tracks upstream `master` closely; there is no separate `rd` feature branch and no fork-specific code to learn first.
 
-The repo contains **six independent front-ends** that all link against one shared C++ emulation core at the repository root.
+The repo contains **five independent front-ends** that all link against one shared C++ emulation core at the repository root.
 
 ## Layout
 
@@ -10,7 +10,6 @@ The repo contains **six independent front-ends** that all link against one share
 - `unix/`: X11 port, autotools (`configure.ac`, `Makefile.in`, committed `configure` script). Entry: `unix.cpp` (`main`).
 - `gtk/`: GTK3/gtkmm port, CMake (`gtk/CMakeLists.txt`). UI in `gtk/src/`; needs `gtk-po/` translations + `snes9x.ui`.
 - `qt/`: Qt6 port, CMake (`qt/CMakeLists.txt`). UI in `qt/src/`; needs prebuilt Qt6 (`qt/scripts/cmake-qt-*.sh` builds Qt6 from source when needed).
-- `win32/`: Win32 (Win32 API) port, Visual Studio (`win32/snes9xw.sln` + `win32/snes9xw.vcxproj`, configurations `Debug|Release Unicode` × `Win32|x64`).
 - `macosx/`: macOS Cocoa port, Xcode (`macosx/snes9x.xcodeproj`).
 - `libretro/`: libretro core (`libretro/libretro.cpp` defines `retro_*` callbacks; `libretro/Makefile` builds for many platforms; `libretro/libretro-win32.vcxproj` for Windows DLL).
 - `apu/bapu/`: APU DSP/SMP cores (used by every front-end).
@@ -29,7 +28,6 @@ The repo contains **six independent front-ends** that all link against one share
 - `external/glslang` — used by GTK/Qt for Vulkan pipeline compile
 - `external/vulkan-headers` — Vulkan API headers
 - `external/cubeb` — used by Qt for audio (`qt/CMakeLists.txt` adds it)
-- `win32/libpng/src`, `win32/zlib/src` — Win32 dependency libs
 
 `external/fmt`, `external/glad`, `external/imgui`, `external/stb`, `external/VulkanMemoryAllocator-Hpp` are **vendored copies**, not submodules.
 
@@ -67,10 +65,6 @@ ninja -j$(nproc) -C build
 - Pulls in cubeb, glslang, SPIRV-Cross, vulkan-headers, stb, imgui.
 - Always sets `SDL_MAIN_HANDLED`.
 
-### Windows (Win32)
-Open `win32/snes9xw.sln` in Visual Studio 2022. Configurations: `Debug|Release Unicode` × `Win32|x64`. Output: `win32/snes9x.exe` and `win32/snes9x-x64.exe`. Build deps (libpng, zlib, glslang, SPIRV, HLSL, OSDependent) are sub-projects in the same solution — they must build first; just `Build Solution` from IDE.
-Libretro DLL on Windows: `libretro/libretro-win32.vcxproj`, configurations `libretro Debug|Release` × `Win32|x64`, outputs `libretro/{Win32,x64}/libretro Release/snes9x_libretro.dll`.
-
 ### macOS
 ```
 xcodebuild -project macosx/snes9x.xcodeproj -target Snes9x -configuration Release build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
@@ -83,6 +77,7 @@ make -j$(nproc) -C libretro platform=unix-armv7-neon-hardfloat
 make -j$(nproc) -C libretro platform=wii
 make -j$(nproc) -C libretro platform=libnx
 ```
+On Windows, `libretro/libretro-win32.vcxproj` builds `libretro Debug|Release` for `Win32|x64`, producing `libretro/{Win32,x64}/libretro Release/snes9x_libretro.dll`.
 Known platforms in `libretro/Makefile`: `unix`, `win`, `osx`, `libnx`, `classic_armv7_a7`, `classic_armv8_a35`, ios variants, tvos-arm64, qnx, vita, ps3/sncps3/psl1ght, xenon (Xbox 360), ngc/wii/wiiu, emscripten, xbox1_msvc2003, xbox360_msvc2010, `windows_msvc2010_x64`, `windows_msvc2010_x86`, `windows_msvc2003_x86`, `windows_msvc2005_x86`. Endianness on big-endian targets is set with `-DBLARGG_BIG_ENDIAN=1`.
 
 ## Tests, lint, format
@@ -135,11 +130,11 @@ The goal is to actually understand the code, not just to close out the request. 
 - `port.h` defines a custom type system (`int8/16/32/64`, `uint8/16/32/64`, `bool8`) and the byte-order/endianness (`LSB_FIRST` vs `MSB_FIRST`) and `READ_WORD`/`WRITE_DWORD` macros. The unix `configure` actively probes `RIGHTSHIFT_*_IS_SAR` and adds defines — do not hard-code them.
 - **`UNZIP_SUPPORT` requires the `unzip/` include path in `qt/CMakeLists.txt`.** `stream.h:54` does `#include "unzip.h"` (the local minizip copy, not the system one). When you turn `UNZIP_SUPPORT` on in the Qt build, you must also `target_include_directories(snes9x-core PRIVATE ../ ../unzip)` or every translation unit that pulls `snes9x.h` will fail with `fatal error: 'unzip.h' file not found`. The GTK frontend already has this in its CMakeLists; the Qt frontend does not. Same trap for `JMA_SUPPORT` if a future change pulls `jma.h` into `snes9x.h`. Lesson: **adding a `#ifdef`-gated `#include` family means auditing the CMake include paths too, not just the compile defines.**
 - The core is written as "C++ as a better C": most `cpp` files do not use classes, exceptions, or RTTI. The unix Makefile adds `-fno-exceptions -fno-rtti` when the compiler accepts them (`unix/configure.ac:88-89`).
-- `Snes9x-1.63` is wired up by every front-end as a translation unit; any new core `.cpp` must be added to **all** of: `gtk/CMakeLists.txt` (lines 243-352), `qt/CMakeLists.txt` (`SNES9X_CORE_SOURCES`, lines 17-76), `unix/Makefile.in` (`OBJECTS`), `libretro/Makefile.common` (`SOURCES_C`/`SOURCES_CXX`), `win32/snes9xw.vcxproj.filters`, and `macosx/snes9x.xcodeproj/project.pbxproj`. Forgetting one means it silently doesn't build there.
+- `Snes9x-1.63` is wired up by every front-end as a translation unit; any new core `.cpp` must be added to **all** of: `gtk/CMakeLists.txt` (lines 243-352), `qt/CMakeLists.txt` (`SNES9X_CORE_SOURCES`, lines 17-76), `unix/Makefile.in` (`OBJECTS`), `libretro/Makefile.common` (`SOURCES_C`/`SOURCES_CXX`), and `macosx/snes9x.xcodeproj/project.pbxproj`. Forgetting one means it silently doesn't build there.
 - `apu/` and `jma/` are linked separately from the rest of the core in GTK (`jma` is an `add_library` in `gtk/CMakeLists.txt:367`); Qt builds the core into a static `snes9x-core` lib (`qt/CMakeLists.txt:77`); libretro and the unix port just compile the sources directly.
 - Vulkan paths assume Vulkan headers from `external/vulkan-headers`; **do not** rely on system Vulkan headers — define `VK_USE_PLATFORM_XLIB_KHR` / `VK_USE_PLATFORM_WAYLAND_KHR` / `VK_USE_PLATFORM_WIN32_KHR` per platform.
-- The `win32/ddraw/ddraw_{x86,x64}.lib` stubs and `macosx/libz_u.a`, `macosx/libHIDUtilities_u.a` are prebuilt and intentionally checked in — `.gitignore` whitelists them.
-- ROMs (`*.smc`, `*.sfc`), SRAM (`*.srm`), freeze slots (`*.00[0-9]`), patches (`*.ips/ups/bps/fig`), movies (`*.smv`), screenshots, cheats, BIOS, and `win32/snes9x.conf` are user data — `.gitignore` excludes them.
+- The `macosx/libz_u.a` and `macosx/libHIDUtilities_u.a` files are prebuilt and intentionally checked in — `.gitignore` whitelists them.
+- ROMs (`*.smc`, `*.sfc`), SRAM (`*.srm`), freeze slots (`*.00[0-9]`), patches (`*.ips/ups/bps/fig`), movies (`*.smv`), screenshots, cheats, and BIOS are user data — `.gitignore` excludes them.
 - Front-end specific defines (set by each build system, NOT in the source): `SNES9X_GTK`, `SNES9X_QT`, `__LIBRETRO__`, `__WIN32__`, `__MACOSX__`. `port.h` and `memmap.cpp` use these for conditional code.
 - Compiled-in defaults are baked into each front-end; see `unix/unix.cpp:1629-1648` for the canonical `Settings` defaults (sound rate, frame timings, etc.).
 
@@ -148,7 +143,7 @@ The goal is to actually understand the code, not just to close out the request. 
 - File headers: most files start with the Snes9x license comment block. Do not strip it when editing.
 - `do not add comments unless asked` applies; existing in-tree code comments are part of the codebase — leave them.
 - Project version is `1.63`, set in `snes9x.h` (`VERSION`), `unix/configure.ac`, `gtk/CMakeLists.txt`, `qt/CMakeLists.txt`, and `appveyor.yml`. Bump them together if you bump it.
-- C++ standard: GTK and Qt require C++20 (`set(CMAKE_CXX_STANDARD 20)`). libretro and the unix port stay on older standards (`-std=c++14` is set in libretro's `osx` block). Win32 uses MSVC's `stdcpp17` (see `libretro-win32.vcxproj`).
+- C++ standard: GTK and Qt require C++20 (`set(CMAKE_CXX_STANDARD 20)`). libretro and the unix port stay on older standards (`-std=c++14` is set in libretro's `osx` block). The libretro Visual Studio project uses MSVC's `stdcpp17`.
 
 ## CI
 
