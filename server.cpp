@@ -40,6 +40,7 @@
 	#include <sys/socket.h>
 	#include <sys/param.h>
 	#include <netinet/in.h>
+	#include <netinet/tcp.h>
 	#include <arpa/inet.h>
 	#include <signal.h>
 
@@ -520,6 +521,7 @@ void S9xNPAcceptClient (int Listen, bool8 block)
     S9xNPSetAction ("Setting socket options...", TRUE);
     val2.l_onoff = 1;
     val2.l_linger = 0;
+    S9xNPSetLowLatency (new_fd);
     if (setsockopt (new_fd, SOL_SOCKET, SO_LINGER,
 		    (char *) &val2, sizeof (val2)) < 0)
     {
@@ -691,10 +693,13 @@ void S9xNPSendJoypadSwap()
 void S9xNPServerLoop (void *)
 {
     bool8 success = FALSE;
-    static struct timeval next1 = {0, 0};
-    struct timeval now;
+    uint64 next_frame_us = 0;
 
 	int pausedState = -1, newPausedState = -1;
+
+#ifdef __WIN32__
+    timeBeginPeriod (1);
+#endif
 
     while (server_continue)
     {
@@ -726,8 +731,19 @@ void S9xNPServerLoop (void *)
 //			S9xNPSendServerPause(pausedState); // XXX: doesn't seem to work yet...
 		}
 
+        if (!next_frame_us)
+            next_frame_us = S9xNPGetMicroTime ();
+
+        uint64 now_us;
+
+        // Wait for the next frame deadline while serving client sockets as
+        // soon as they have data, so every joypad that arrives before the
+        // deadline is already stored when the heartbeat goes out.
         do
         {
+            now_us = S9xNPGetMicroTime ();
+            uint64 wait_us = next_frame_us > now_us ? next_frame_us - now_us : 0;
+
             FD_ZERO (&read_fds);
             FD_SET (NPServer.Socket, &read_fds);
             for (i = 0; i < NP_MAX_CLIENTS; i++)
@@ -740,8 +756,10 @@ void S9xNPServerLoop (void *)
                 }
             }
 
+            // select() overshoots short timeouts, so wake ~1ms early and
+            // poll for the remainder.
             timeout.tv_sec = 0;
-            timeout.tv_usec = 1000;
+            timeout.tv_usec = wait_us > 2000 ? (wait_us < 200000 ? wait_us : 200000) - 1000 : 0;
             res = select (max_fd + 1, &read_fds, NULL, NULL, &timeout);
 
             if (res > 0)
@@ -758,61 +776,17 @@ void S9xNPServerLoop (void *)
                     }
                 }
             }
-        } while (res > 0);
 
-#if defined(__WIN32__)
-        // No classic win32 message loop to drive a timer semaphore here --
-        // pace heartbeats off S9xGetMilliTime() directly instead.
-        static uint32 next_frame_time = 0;
-        uint32 now_ms = S9xGetMilliTime ();
+            now_us = S9xNPGetMicroTime ();
+        } while (now_us < next_frame_us);
 
-        if (next_frame_time == 0)
-            next_frame_time = now_ms;
+        success = TRUE;
 
-        success = FALSE;
-
-        if (next_frame_time > now_ms)
-        {
-            uint32 wait_ms = next_frame_time - now_ms;
-            Sleep (wait_ms < 200 ? wait_ms : 200);
-            now_ms = S9xGetMilliTime ();
-        }
-
-        if (next_frame_time <= now_ms)
-        {
-            next_frame_time += Settings.FrameTime / 1000;
-            success = TRUE;
-        }
-#else
-        while (gettimeofday (&now, NULL) < 0) ;
-
-        /* If there is no known "next" frame, initialize it now */
-        if (next1.tv_sec == 0) { next1 = now; ++next1.tv_usec; }
-
-	success=FALSE;
-
-	if (timercmp(&next1, &now, >))
-        {
-            /* If we're ahead of time, sleep a while */
-            unsigned timeleft =
-                (next1.tv_sec - now.tv_sec) * 1000000
-                + next1.tv_usec - now.tv_usec;
-	    usleep(timeleft<(200*1000)?timeleft:(200*1000));
-        }
-
-        if (!timercmp(&next1, &now, >))
-        {
-
-            /* Calculate the timestamp of the next frame. */
-            next1.tv_usec += Settings.FrameTime;
-            if (next1.tv_usec >= 1000000)
-            {
-                next1.tv_sec += next1.tv_usec / 1000000;
-                next1.tv_usec %= 1000000;
-            }
-            success=TRUE;
-         }
-#endif
+        // Settings.FrameTime is in microseconds; dividing it down to whole
+        // milliseconds here used to run the server clock at 62.5Hz.
+        next_frame_us += Settings.FrameTime;
+        if (now_us > next_frame_us + 4 * (uint64) Settings.FrameTime)
+            next_frame_us = now_us;
 
         while (NPServer.TaskHead != NPServer.TaskTail)
         {
@@ -883,6 +857,9 @@ void S9xNPServerLoop (void *)
             NPServer.TaskHead = (NPServer.TaskHead + 1) % NP_MAX_TASKS;
         }
     }
+#ifdef __WIN32__
+    timeEndPeriod (1);
+#endif
 #ifdef NP_DEBUG
     printf ("SERVER: Server thread exiting @%ld\n", S9xGetMilliTime () - START);
 #endif

@@ -987,6 +987,26 @@ void Snes9xController::reportBinding(EmuBinding b, bool active)
     S9xReportButton(b.hash(), active);
 }
 
+void Snes9xController::queueBinding(EmuBinding b, bool active)
+{
+    std::lock_guard<std::mutex> lock(input_queue_mutex);
+    input_queue.emplace_back(b, active);
+    input_queue_pending = true;
+}
+
+void Snes9xController::drainBindings()
+{
+    std::vector<std::pair<EmuBinding, bool>> events;
+    {
+        std::lock_guard<std::mutex> lock(input_queue_mutex);
+        events.swap(input_queue);
+        input_queue_pending = false;
+    }
+
+    for (auto &event : events)
+        reportBinding(event.first, event.second);
+}
+
 void Snes9xController::reportMouseButton(int button, bool pressed)
 {
     S9xReportButton(EmuBinding::MOUSE_POINTER + button, pressed);
@@ -1848,4 +1868,38 @@ void Snes9xController::netplayPop()
 
     for (int i = 0; i < 8; i++)
         MovieSetJoypad(i, netplay_local_joypads[i]);
+}
+
+void Snes9xController::netplayPumpInput()
+{
+    if (!input_queue_pending || !Settings.NetPlay)
+        return;
+
+    // Inside the frame the joypad slots hold the netplay values, so swap the
+    // local state back in for the duration of the queued button events and
+    // restore the netplay values afterwards.
+    uint16 netplay_state[8];
+    for (int i = 0; i < 8; i++)
+    {
+        netplay_state[i] = MovieGetJoypad(i);
+        MovieSetJoypad(i, netplay_local_joypads[i]);
+    }
+
+    uint32_t previous = netplay_local_joypads[0];
+
+    drainBindings();
+
+    for (int i = 0; i < 8; i++)
+    {
+        netplay_local_joypads[i] = MovieGetJoypad(i);
+        MovieSetJoypad(i, netplay_state[i]);
+    }
+
+    if (netplay_local_joypads[0] != previous)
+        S9xNPSendJoypadUpdate(netplay_local_joypads[0]);
+}
+
+void S9xNPPumpInput()
+{
+    Snes9xController::get()->netplayPumpInput();
 }

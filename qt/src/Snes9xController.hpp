@@ -1,6 +1,7 @@
 #ifndef __SNES9X_CONTROLLER_HPP
 #define __SNES9X_CONTROLLER_HPP
 #include <functional>
+#include <atomic>
 #include <vector>
 #include <cstdint>
 #include <memory>
@@ -72,6 +73,13 @@ class Snes9xController
     void updateSettings(const EmuConfig * const config);
     void updateBindings(const EmuConfig * const config);
     void reportBinding(EmuBinding b, bool active);
+    // Thread-safe: the producer side of the input path. The emu thread
+    // applies the queued events with drainBindings() -- normally right
+    // before the next frame, and during a netplay heartbeat wait via
+    // netplayPumpInput().
+    void queueBinding(EmuBinding b, bool active);
+    void drainBindings();
+    void netplayPumpInput();
     void reportMouseButton(int button, bool pressed);
     void reportPointer(int x, int y);
     void reportAbsolutePointer(int x, int y);
@@ -178,6 +186,9 @@ class Snes9xController
 
     uint32_t netplay_local_joypads[8] = {};
     uint32_t netplay_joypads[8] = {};
+    std::mutex input_queue_mutex;
+    std::vector<std::pair<EmuBinding, bool>> input_queue;
+    std::atomic<bool> input_queue_pending{false};
     std::string netplay_last_warning;
     // Tracks per-slot Connected state (size matches NP_MAX_CLIENTS in
     // netplay.h) so the host can announce new players without relying on

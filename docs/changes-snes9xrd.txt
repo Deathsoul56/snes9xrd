@@ -3,6 +3,27 @@ snes9xrd changelog
 This file tracks changes specific to the snes9xrd fork, on top of upstream
 Snes9x (see changes.txt for the upstream changelog).
 
+snes9xrd (unreleased)
+Netplay:
+- Enabled TCP_NODELAY on the client and server sockets. Joypad/heartbeat
+  packets are 7-27 bytes and were being held back by Nagle's algorithm.
+- Fixed the server heartbeat clock: it divided Settings.FrameTime (microseconds)
+  down to whole milliseconds, so the default 16667us became 16ms (62.5Hz).
+  It now paces in microseconds (QueryPerformanceCounter / CLOCK_MONOTONIC).
+- The server now waits on its client sockets until the next frame deadline
+  instead of sleeping, so joypads that arrive mid-frame are no longer delayed
+  by an extra frame. Also resyncs the clock instead of bursting heartbeats
+  after a long stall.
+- Windows: request 1ms timer resolution while a netplay server/client runs.
+- Qt: button presses are now sent to the netplay server as soon as they
+  happen. Before, the emulation thread only noticed them after the heartbeat
+  wait ended and sent them at the next frame boundary, adding roughly half a
+  frame plus one frame of emulation time to every local input.
+- "Show ping" now shows real netplay diagnostics:
+  "<input echo ms> hb<heartbeat interval ms> j<jitter ms> q<backlog>/<max>".
+  The echo time is how long a changed local input takes to come back in a
+  server heartbeat; q is the number of received heartbeats not yet consumed.
+
 snes9xrd v0.5
 Qt:
 - Fixed a persistent black-rectangle rendering bug in the Settings dialog

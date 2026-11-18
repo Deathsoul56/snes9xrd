@@ -1976,8 +1976,9 @@ static void DisplayFrameRate (void)
 
 	if (Settings.DisplayPing && Settings.NetPlay)
 	{
-		sprintf(string, "%u ms", (unsigned int) NetPlay.PingMS);
-		S9xDisplayString(string, 3, IPPU.RenderedScreenWidth - (font_width - 1) * strlen(string) - 1, false);
+		char	stats[40];
+		S9xNPFormatStats(stats, sizeof(stats));
+		S9xDisplayString(stats, 3, IPPU.RenderedScreenWidth - (font_width - 1) * strlen(stats) - 1, false);
 	}
 }
 

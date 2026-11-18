@@ -556,6 +556,15 @@ void EmuApplication::reportBinding(EmuBinding b, bool active)
         return;
     }
 
+    if (it->second.first == "Snes9x")
+    {
+        // Pad/mouse buttons are queued so the emu thread can also pick them up
+        // while it is blocked waiting on a netplay heartbeat.
+        core->queueBinding(b, active);
+        emu_thread->runOnThread([&] { core->drainBindings(); });
+        return;
+    }
+
     emu_thread->runOnThread([&, b, active] { core->reportBinding(b, active); });
 }
 

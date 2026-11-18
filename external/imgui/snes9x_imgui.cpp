@@ -324,7 +324,7 @@ bool S9xImGuiDraw(int width, int height)
     if (Settings.DisplayPing && Settings.NetPlay)
     {
         char string[256];
-        sprintf(string, "%u ms", (unsigned int)NetPlay.PingMS);
+        S9xNPFormatStats(string, sizeof(string));
 
         ImGui_DrawTextOverlay(string,
                               width - settings.spacing,

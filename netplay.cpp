@@ -39,6 +39,7 @@
 	#include <sys/socket.h>
 	#include <sys/param.h>
 	#include <netinet/in.h>
+	#include <netinet/tcp.h>
 	#include <arpa/inet.h>
 
 	#ifdef __SVR4
@@ -82,12 +83,26 @@ bool8 S9xNPClientWaitPendingSync (uint32 time_msec)
     return WaitForSingleObject (NP_CLIENT_SEMAPHORE, time_msec) == WAIT_OBJECT_0;
 }
 
+static bool8 S9xNPWaitHeartbeatPumpingInput (uint32 time_msec)
+{
+    uint32 start = S9xGetMilliTime ();
+
+    do
+    {
+        if (WaitForSingleObject (NP_CLIENT_SEMAPHORE, 1) == WAIT_OBJECT_0)
+            return TRUE;
+
+        S9xNPPumpInput ();
+    } while (S9xGetMilliTime () - start < time_msec);
+
+    return FALSE;
+}
+
 bool8 S9xNPClientSyncSpeed (uint32 my_joypad, uint32 client_joypads [NP_MAX_CLIENTS])
 {
     if (!NetPlay.Connected)
         return FALSE;
 
-    NetPlay.LastSendTime = S9xGetMilliTime ();
     S9xNPSendJoypadUpdate (my_joypad);
 
     for (int i = 0; i < NP_MAX_CLIENTS; i++)
@@ -99,7 +114,7 @@ bool8 S9xNPClientSyncSpeed (uint32 my_joypad, uint32 client_joypads [NP_MAX_CLIE
     if ((success = ReleaseSemaphore (NP_CLIENT_SEMAPHORE, 1, &prev)) && prev == 0)
     {
         WaitForSingleObject (NP_CLIENT_SEMAPHORE, 0);
-        NetPlay.PendingWait4Sync = WaitForSingleObject (NP_CLIENT_SEMAPHORE, 100) != WAIT_OBJECT_0;
+        NetPlay.PendingWait4Sync = !S9xNPWaitHeartbeatPumpingInput (100);
         IPPU.RenderThisFrame = TRUE;
         IPPU.SkippedFrames = 0;
     }
@@ -122,7 +137,7 @@ bool8 S9xNPClientSyncSpeed (uint32 my_joypad, uint32 client_joypads [NP_MAX_CLIE
             }
         }
 
-        NetPlay.PendingWait4Sync = WaitForSingleObject (NP_CLIENT_SEMAPHORE, 200) != WAIT_OBJECT_0;
+        NetPlay.PendingWait4Sync = !S9xNPWaitHeartbeatPumpingInput (200);
 
         if (IPPU.SkippedFrames < NetPlay.MaxFrameSkip)
         {
@@ -170,8 +185,13 @@ bool8 S9xNPConnectToServer (const char *hostname, int port,
     NetPlay.ROMName = strdup (rom_name);
     NetPlay.Port = port;
     NetPlay.PendingWait4Sync = FALSE;
-    NetPlay.LastSendTime = 0;
     NetPlay.PingMS = 0;
+    NetPlay.HeartbeatIntervalUS = 0;
+    NetPlay.HeartbeatJitterUS = 0;
+    NetPlay.BacklogMax = 0;
+    NetPlay.LastHeartbeatUS = 0;
+    NetPlay.LastSentJoypad = 0;
+    NetPlay.EchoPending = FALSE;
 
 #ifdef __WIN32__
     if (NP_CLIENT_SEMAPHORE == NULL)
@@ -265,6 +285,7 @@ on the remote machine on this port?");
 	return (FALSE);
     }
     NetPlay.Connected = TRUE;
+    S9xNPSetLowLatency (NetPlay.Socket);
 
 #ifdef NP_DEBUG
     printf ("CLIENT: Sending 'HELLO' message @%ld...\n", S9xGetMilliTime () - START);
@@ -421,6 +442,8 @@ void S9xNPClientLoop (void *)
 {
     NetPlay.Waiting4EmulationThread = FALSE;
 
+    timeBeginPeriod (1);
+
     if (S9xNPConnect ())
     {
         S9xClearPause (PAUSE_NETPLAY_CONNECT);
@@ -428,9 +451,6 @@ void S9xNPClientLoop (void *)
         {
             if (S9xNPWaitForHeartBeat ())
             {
-                if (NetPlay.LastSendTime)
-                    NetPlay.PingMS = S9xGetMilliTime () - NetPlay.LastSendTime;
-
                 LONG prev;
                 if (!ReleaseSemaphore (NP_CLIENT_SEMAPHORE, 1, &prev))
                 {
@@ -457,6 +477,8 @@ void S9xNPClientLoop (void *)
     {
         S9xClearPause (PAUSE_NETPLAY_CONNECT);
     }
+
+    timeEndPeriod (1);
 #ifdef NP_DEBUG
     printf ("CLIENT: Client thread exiting @%ld\n", S9xGetMilliTime () - START);
 #endif
@@ -500,6 +522,52 @@ bool8 S9xNPWaitForHeartBeatDelay (uint32 time_msec)
     }
 
     return TRUE;
+}
+
+static void S9xNPRecordHeartbeat (int num)
+{
+    uint32 now = (uint32) S9xNPGetMicroTime ();
+    uint32 last = NetPlay.LastHeartbeatUS;
+
+    NetPlay.LastHeartbeatUS = now;
+
+    // Gaps this long are a server pause, not network jitter.
+    if (last && now - last < 250000)
+    {
+        int32 interval = (int32) (now - last);
+        int32 avg = (int32) NetPlay.HeartbeatIntervalUS;
+
+        if (!avg)
+            avg = interval;
+        else
+            avg += (interval - avg) / 16;
+
+        int32 deviation = interval > avg ? interval - avg : avg - interval;
+        int32 jitter = (int32) NetPlay.HeartbeatJitterUS;
+        jitter += (deviation - jitter) / 16;
+
+        NetPlay.HeartbeatIntervalUS = (uint32) avg;
+        NetPlay.HeartbeatJitterUS = (uint32) jitter;
+    }
+
+    uint32 backlog = S9xNPGetBacklog ();
+    if (backlog > NetPlay.BacklogMax)
+        NetPlay.BacklogMax = backlog;
+
+    if (NetPlay.EchoPending)
+    {
+        uint32 idx = (NetPlay.JoypadWriteInd + NP_JOYPAD_HIST_SIZE - 1) % NP_JOYPAD_HIST_SIZE;
+        uint32 elapsed = now - NetPlay.EchoTimeUS;
+
+        if (NetPlay.Player < num && NetPlay.Joypads [idx][NetPlay.Player] == NetPlay.EchoJoypad)
+        {
+            uint32 ms = (elapsed + 500) / 1000;
+            NetPlay.PingMS = NetPlay.PingMS ? (NetPlay.PingMS * 7 + ms + 4) / 8 : ms;
+            NetPlay.EchoPending = FALSE;
+        }
+        else if (elapsed > 500000)
+            NetPlay.EchoPending = FALSE;
+    }
 }
 
 bool8 S9xNPWaitForHeartBeat ()
@@ -551,6 +619,8 @@ bool8 S9xNPWaitForHeartBeat ()
 			NetPlay.Paused = (header [2] & 0x20) != 0;
 
             NetPlay.JoypadWriteInd = (NetPlay.JoypadWriteInd + 1) % NP_JOYPAD_HIST_SIZE;
+
+            S9xNPRecordHeartbeat (num);
 
             if (NetPlay.JoypadWriteInd != (NetPlay.JoypadReadInd + 1) % NP_JOYPAD_HIST_SIZE)
             {
@@ -887,6 +957,17 @@ bool8 S9xNPSendJoypadUpdate (uint32 joypad)
 
     joypad |= 0x80000000;
 
+    if (joypad != NetPlay.LastSentJoypad)
+    {
+        NetPlay.LastSentJoypad = joypad;
+        if (!NetPlay.EchoPending)
+        {
+            NetPlay.EchoJoypad = joypad;
+            NetPlay.EchoTimeUS = (uint32) S9xNPGetMicroTime ();
+            NetPlay.EchoPending = TRUE;
+        }
+    }
+
     WRITE_LONG (ptr, joypad);
     if (!S9xNPSendData (NetPlay.Socket, data, 7))
     {
@@ -895,6 +976,32 @@ bool8 S9xNPSendJoypadUpdate (uint32 joypad)
 	return (FALSE);
     }
     return (TRUE);
+}
+
+void S9xNPSetLowLatency (int fd)
+{
+    int on = 1;
+    setsockopt (fd, IPPROTO_TCP, TCP_NODELAY, (char *) &on, sizeof (on));
+}
+
+uint64 S9xNPGetMicroTime ()
+{
+#ifdef __WIN32__
+    static const uint64 frequency = []
+    {
+        LARGE_INTEGER f;
+        QueryPerformanceFrequency (&f);
+        return (uint64) f.QuadPart;
+    } ();
+
+    LARGE_INTEGER t;
+    QueryPerformanceCounter (&t);
+    return (uint64) t.QuadPart / frequency * 1000000 + (uint64) t.QuadPart % frequency * 1000000 / frequency;
+#else
+    struct timespec ts;
+    clock_gettime (CLOCK_MONOTONIC, &ts);
+    return (uint64) ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
+#endif
 }
 
 void S9xNPDisconnect ()

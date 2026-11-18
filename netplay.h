@@ -145,11 +145,38 @@ struct SNetPlay
     char   ActionMsg [NP_MAX_ACTION_LEN];
     char   ErrorMsg [NP_MAX_ACTION_LEN];
     char   WarningMsg [NP_MAX_ACTION_LEN];
-    volatile uint32 LastSendTime;
     volatile uint32 PingMS;
+    volatile uint32 HeartbeatIntervalUS;
+    volatile uint32 HeartbeatJitterUS;
+    volatile uint32 BacklogMax;
+    uint32 LastHeartbeatUS;
+    uint32 LastSentJoypad;
+    volatile uint32 EchoJoypad;
+    volatile uint32 EchoTimeUS;
+    volatile bool8  EchoPending;
 };
 
 extern "C" struct SNetPlay NetPlay;
+
+// Heartbeats received from the server that the emulation thread has not
+// consumed yet; every one of them is a frame of extra input latency.
+inline uint32 S9xNPGetBacklog ()
+{
+    return (NetPlay.JoypadWriteInd + NP_JOYPAD_HIST_SIZE - NetPlay.JoypadReadInd - 1) % NP_JOYPAD_HIST_SIZE;
+}
+
+// "<input echo ms> hb<heartbeat interval ms> j<jitter ms> q<backlog>/<max>"
+inline void S9xNPFormatStats (char *buf, size_t size)
+{
+    uint32 hb = NetPlay.HeartbeatIntervalUS;
+    uint32 jitter = NetPlay.HeartbeatJitterUS;
+
+    snprintf (buf, size, "%ums hb%u.%u j%u.%u q%u/%u",
+              (unsigned int) NetPlay.PingMS,
+              (unsigned int) (hb / 1000), (unsigned int) (hb % 1000 / 100),
+              (unsigned int) (jitter / 1000), (unsigned int) (jitter % 1000 / 100),
+              (unsigned int) S9xNPGetBacklog (), (unsigned int) NetPlay.BacklogMax);
+}
 
 //
 // NETPLAY_CLIENT_HELLO message format:
@@ -179,6 +206,8 @@ uint32 S9xNPGetJoypad (int which1);
 bool8 S9xNPSendJoypadUpdate (uint32 joypad);
 void S9xNPDisconnect ();
 bool8 S9xNPInitialise ();
+void S9xNPSetLowLatency (int fd);
+uint64 S9xNPGetMicroTime ();
 bool8 S9xNPSendData (int fd, const uint8 *data, int len);
 bool8 S9xNPGetData (int fd, uint8 *data, int len);
 
@@ -216,6 +245,12 @@ bool8 S9xNPConfirmLoadROM (const char *rom_name);
 // against the background client thread spawned by S9xNPConnectToServer().
 bool8 S9xNPClientWaitPendingSync (uint32 time_msec);
 bool8 S9xNPClientSyncSpeed (uint32 my_joypad, uint32 client_joypads [NP_MAX_CLIENTS]);
+
+// Called by the heartbeat wait roughly every millisecond so the frontend can
+// apply button events that arrived meanwhile and send them to the server
+// right away instead of at the next frame boundary. Runs on the emulation
+// thread.
+void S9xNPPumpInput ();
 #endif
 #ifdef __WIN32__
 #define S9xGetMilliTime timeGetTime
