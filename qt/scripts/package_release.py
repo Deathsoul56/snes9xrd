@@ -5,15 +5,13 @@ Usage (from repo root, after building with CMake+Ninja into ./build):
     python qt/scripts/package_release.py
     python qt/scripts/package_release.py --version 0.1 --build-dir build
 
-The resulting archive contains everything needed to run the emulator on a
-clean machine, since the Qt build used by this fork is fully static
-(no Qt6*.dll / libstdc++ / libwinpthread dependencies to deploy).
+The resulting archive contains the emulator, required runtime DLLs, license,
+cheat database, and combined fork/upstream changelog.
 """
 
 import argparse
 import re
 import shutil
-import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -40,6 +38,25 @@ def find_exe(build_dir: Path) -> Path:
     )
 
 
+def find_runtime_dll(name: str, build_dir: Path) -> Path:
+    cache = build_dir / "CMakeCache.txt"
+    if cache.is_file():
+        for line in cache.read_text(encoding="utf-8", errors="replace").splitlines():
+            if line.startswith("CMAKE_CXX_COMPILER:FILEPATH="):
+                compiler = Path(line.partition("=")[2])
+                candidate = compiler.parent / name
+                if candidate.is_file():
+                    return candidate
+
+    candidate = shutil.which(name)
+    if not candidate:
+        raise SystemExit(
+            f"Could not find required {name} on PATH. Run the packager from "
+            "the MSYS2 CLANG64 environment used to build the executable."
+        )
+    return Path(candidate)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", default=None, help="Release version (default: read from EmuMainWindow.cpp)")
@@ -50,21 +67,20 @@ def main() -> None:
     version = args.version or detect_version()
     build_dir = (REPO_ROOT / args.build_dir).resolve()
     exe_path = find_exe(build_dir)
+    runtime_dll = find_runtime_dll("libwinpthread-1.dll", build_dir)
 
     staging_name = f"snes9xrd-v{version}-{args.arch}"
     staging_dir = REPO_ROOT / staging_name
-    if staging_dir.exists():
-        try:
-            shutil.rmtree(staging_dir)
-        except PermissionError as exc:
-            raise SystemExit(
-                f"Could not remove {staging_dir} ({exc}).\n"
-                "Close snes9xrd-qt.exe and any Explorer/zip window with that "
-                "folder open, then try again."
-            ) from exc
+    archive_path = REPO_ROOT / f"{staging_name}.zip"
+    if staging_dir.exists() or archive_path.exists():
+        raise SystemExit(
+            f"Release output already exists: {staging_dir} or {archive_path}. "
+            "Move it aside before packaging to avoid overwriting it."
+        )
     staging_dir.mkdir(parents=True)
 
     shutil.copy2(exe_path, staging_dir / exe_path.name)
+    shutil.copy2(runtime_dll, staging_dir / runtime_dll.name)
     shutil.copy2(REPO_ROOT / "data" / "cheats.bml", staging_dir / "cheats.bml")
     shutil.copy2(REPO_ROOT / "LICENSE", staging_dir / "LICENSE")
 
