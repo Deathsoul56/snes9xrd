@@ -1,4 +1,4 @@
-# snes9xrd
+# snes9xrd v0.7
 *Snes9x 1.63 — Portable Super Nintendo Entertainment System (TM) emulator, "sex edition" fork*
 
 This is `snes9xrd`, a personal fork of [Snes9x](https://github.com/snes9xgit/snes9x) 1.63 maintained by DeAtSoUl56. It tracks upstream `master` closely — there's no separate branch for that — but rebuilds the Qt front-end and fixes bugs found along the way. Everything else (the emulation core, and the GTK/macOS/libretro front-ends) is stock Snes9x.
@@ -31,6 +31,9 @@ For the full breakdown of the fork's layout, build systems, and conventions, see
 
 ## Features
 
+- **Game library**: scan ROM folders, search and sort the collection, and track each game's play time and last-played date.
+- **RetroAchievements**: sign in with a saved account, track achievements and leaderboards, and configure unlock notifications, Spectator Mode, Encore Mode, and Hardcore Mode. This fork is not an officially recognized RetroAchievements client, so Hardcore unlocks may not be accepted by the service.
+- **Netplay**: host or join a session, synchronize clients, and inspect input echo time, heartbeat interval, jitter, and queued-frame backlog. Qt processes local input during heartbeat waits to reduce controller latency.
 - **Save states**: 10 quick-save slots plus a separate "current slot" counter (Increase/Decrease Slot) that can go all the way to 999, and an **Undo State** shortcut that reverts the last Load State/Quick Load if it turns out to be a mistake.
 - **Rewind**: hold the Rewind shortcut to play backwards through a rolling buffer, independent of save states.
 - **Multiple input bindings**: every shortcut, controller button, and mouse/Super Scope action can have up to **4 simultaneous bindings** (Settings → Shortcuts/Controllers, the "Binding #1"–"Binding #4" columns), freely mixing keyboard keys, gamepad buttons/axes/hats, and mouse buttons.
